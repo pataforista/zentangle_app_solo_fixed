@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zentangle Creator</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Colors */
+      --bg-body: #f5f7fa;
+      --bg-card: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --border-light: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (min-width: 900px) {
+      .app-container {
+        flex-direction: row;
+        overflow: hidden; /* For scrollable sidebars */
+      }
+    }
+
+    /* Sidebar controls */
+    .controls-panel {
+      width: 100%;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    @media (min-width: 900px) {
+      .controls-panel {
+        width: 380px;
+        flex-shrink: 0;
+      }
+    }
+
+    .panel-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .panel-header h1 {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+
+    .panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    /* Form Elements */
+    .control-group {
+      margin-bottom: 24px;
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+    }
+
+    .control-group-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: var(--border-light);
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    /* Actions */
+    .actions-bar {
+      padding: 20px 24px;
+      border-top: 1px solid var(--border-light);
+      background: var(--bg-card);
+      display: grid;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      border: 1px solid var(--border-light);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    /* Preview Area */
+    .preview-panel {
+      flex: 1;
+      background: #eef2f6; /* slightly darker than body */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Fancy subtle grid pattern for preview background */
+    .preview-panel::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: 
+        linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+    }
+
+    #preview {
+      background: white;
+      box-shadow: var(--shadow-md), 0 20px 25px -5px rgb(0 0 0 / 0.1);
+      border-radius: 2px; /* Paper like */
+      transition: transform 0.3s ease;
+      max-width: 100%;
+      max-height: 100%;
+    }
+    
+    #previewInner {
+      display: block; line-height: 0;
+    }
+    #previewInner svg {
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 90vh;
+      display: block;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.9);
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border: 1px solid var(--border-light);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Details styling */
+    details {
+      margin-top: 20px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    details summary {
+      padding: 12px 16px;
+      background: #f1f5f9;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+    details[open] {
+      background: #fff;
+    }
+    details .grid-inner {
+      padding: 16px;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    
+    <!-- Left Sidebar -->
+    <aside class="controls-panel">
+      <div class="panel-header">
+        <h1>Zentangle Creator</h1>
+      </div>
+
+      <div class="panel-scroll">
+        
+        <!-- Main Settings -->
+        <span class="control-group-title">Configuración Base</span>
+        <div class="control-group">
+          <div class="form-row">
+            <div>
+              <label for="paper">Papel</label>
+              <select id="paper">
+                <option value="A4">A4</option>
+                <option value="LETTER">Letter</option>
+              </select>
+            </div>
+            <div>
+              <label for="marginMm">Margen (mm)</label>
+              <input id="marginMm" type="number" min="0" max="25" step="0.5" value="8" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label for="seed">Seed (Semilla)</label>
+              <input id="seed" type="number" min="0" step="1" value="1" />
+            </div>
+            <div>
+              <label for="zPreset">Estilo</label>
+              <select id="zPreset">
+                <option value="editorial">Editorial</option>
+                <option value="dense">Denso</option>
+                <option value="airy">Aireado</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid & Layout -->
+        <span class="control-group-title">Estructura & Celdas</span>
+        <div class="control-group">
+          <div class="form-row">
+            <div style="grid-column: span 2">
+              <label for="cellCount">Cantidad de Celdas</label>
+              <input id="cellCount" type="range" min="8" max="55" step="1" value="30" />
+            </div>
+          </div>
+          <div class="form-row">
+             <div>
+              <label for="minCellSizeMm">Tamaño min (mm)</label>
+              <input id="minCellSizeMm" type="range" min="8" max="26" step="1" value="14" />
+             </div>
+             <div>
+              <label for="minGapMm">Espaciado int.</label>
+              <input id="minGapMm" type="range" min="0.6" max="2.6" step="0.1" value="1.4" />
+             </div>
+          </div>
+        </div>
+
+        <!-- Typography / Line Weight -->
+        <span class="control-group-title">Trazos</span>
+        <div class="control-group">
+          <div class="form-row">
+             <div>
+               <label for="cellBorderWidthMm">Borde Celda</label>
+               <input id="cellBorderWidthMm" type="range" min="0.25" max="1.2" step="0.05" value="0.70" />
+             </div>
+             <div>
+               <label for="patternStrokeMm">Trazo Patrón</label>
+               <input id="patternStrokeMm" type="range" min="0.20" max="0.80" step="0.02" value="0.35" />
+             </div>
+          </div>
+        </div> 
+
+        <!-- Advanced Details -->
+        <details>
+          <summary>Opciones Avanzadas</summary>
+          <div class="grid-inner">
+            <div class="form-row">
+              <div>
+                <label for="maxPatternPassesPerCell">Max Capas</label>
+                <input id="maxPatternPassesPerCell" type="range" min="1" max="3" step="1" value="2" />
+              </div>
+              <div>
+                <label for="patternSkipProb">Prob. Saltar</label>
+                <input id="patternSkipProb" type="range" min="0" max="0.55" step="0.01" value="0.18" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div>
+                <label for="rotatePatterns">Rotar Patrones</label>
+                <select id="rotatePatterns">
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+              <div>
+                <label for="rotationSet">Modo Rotación</label>
+                <select id="rotationSet">
+                  <option value="ergonomic">Ergonómico</option>
+                  <option value="classic">Clásico</option>
+                  <option value="free15">Libre 15°</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="grid-column: span 2">
+                <label for="whiteSpaceMm">Aire Extra (mm)</label>
+                <input id="whiteSpaceMm" type="range" min="0" max="2.5" step="0.1" value="1.0" />
+              </div>
+            </div>
+            
+            <span class="control-group-title" style="margin-top:10px">Look Orgánico</span>
+            <div class="form-row">
+              <div>
+                <label for="innerOrganicBorderEnabled">Borde Interno</label>
+                <select id="innerOrganicBorderEnabled">
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+              <div>
+                <label for="innerOrganicBorderInsetMm">Inset (mm)</label>
+                <input id="innerOrganicBorderInsetMm" type="range" min="0.2" max="1.4" step="0.05" value="0.9" />
+              </div>
+            </div>
+             <div class="form-row">
+                <div>
+                  <label for="innerOrganicJitterMm">Temblor (Jitter)</label>
+                  <input id="innerOrganicJitterMm" type="range" min="0" max="1.2" step="0.05" value="0.55" />
+                </div>
+                <div>
+                  <label for="innerOrganicRoundMm">Redondeo</label>
+                  <input id="innerOrganicRoundMm" type="range" min="0" max="2.0" step="0.1" value="1.0" />
+                </div>
+             </div>
+
+          </div>
+        </details>
+
+      </div>
+
+      <div class="actions-bar">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+           <button id="btnRandomSeed" class="btn btn-secondary">🎲 Random Seed</button>
+           <button id="btnRender" class="btn btn-primary">⚡ Renderizar</button>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <button id="btnDownloadSVG" class="btn btn-secondary">Descargar SVG</button>
+          <button id="btnDownloadJSON" class="btn btn-secondary">Descargar JSON</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Preview -->
+    <main class="preview-panel">
+      <div id="preview">
+        <div id="previewInner"></div>
+      </div>
+      <div id="status" class="status-bar">Listo</div>
+    </main>
+
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

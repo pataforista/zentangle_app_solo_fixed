@@ -1,0 +1,54 @@
+// js/core/export.js
+export function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Flatten SVG: convierte <use> en copias reales del contenido referenciado,
+// removiendo IDs duplicados para mantener SVG válido.
+export function flattenSvgElement(svgEl) {
+  if (!svgEl) return null;
+
+  const svg = svgEl.cloneNode(true);
+
+  const idMap = new Map();
+  svg.querySelectorAll("[id]").forEach((el) => idMap.set(el.getAttribute("id"), el));
+
+  const uses = Array.from(svg.querySelectorAll("use"));
+  for (const use of uses) {
+    const href = use.getAttribute("href") || use.getAttribute("xlink:href");
+    if (!href || !href.startsWith("#")) continue;
+
+    const ref = idMap.get(href.slice(1));
+    if (!ref) continue;
+
+    const clone = ref.cloneNode(true);
+
+    // Evita IDs duplicados (MUY importante para impresión/conversión)
+    stripIdsDeep(clone);
+
+    // Aplica transform del <use>
+    const tUse = use.getAttribute("transform");
+    const tClone = clone.getAttribute("transform");
+    if (tUse && tClone) clone.setAttribute("transform", `${tUse} ${tClone}`);
+    else if (tUse) clone.setAttribute("transform", tUse);
+
+    use.replaceWith(clone);
+  }
+
+  return svg;
+}
+
+function stripIdsDeep(node) {
+  if (node.nodeType !== 1) return;
+  if (node.hasAttribute("id")) node.removeAttribute("id");
+  const all = node.querySelectorAll?.("[id]");
+  if (all && all.length) all.forEach(el => el.removeAttribute("id"));
+}
