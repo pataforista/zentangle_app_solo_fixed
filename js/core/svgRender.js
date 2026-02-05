@@ -1,18 +1,19 @@
-export function renderDocToSvgString(doc){
-  const { wMm, hMm } = doc.page;
+export function renderSvgToString(doc) {
+  const { wMm, hMm } = doc;
 
-  const defsStr = doc.defs.length
-    ? `<defs>\n${doc.defs.join("\n")}\n</defs>\n`
-    : "";
+  const chunks = [];
+  chunks.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${wMm}mm" height="${hMm}mm" viewBox="0 0 ${wMm} ${hMm}">`);
+  chunks.push(`  <metadata>generator=${doc.meta.generator}; version=${doc.meta.version || '1.0'}; seed=${doc.meta.seed}</metadata>`);
 
-  // Nota: vector para impresión: sin estilos CSS complejos
-  // Preservamos mm directos y viewBox en mm.
-  return `
-<svg xmlns="http://www.w3.org/2000/svg"
-     width="${wMm}mm" height="${hMm}mm"
-     viewBox="0 0 ${wMm} ${hMm}">
-  <metadata>generator=${doc.meta.generator}; version=${doc.meta.version}; seed=${doc.seed}</metadata>
-  ${defsStr}
-  ${doc.body.join("\n")}
-</svg>`.trim();
+  const defs = doc.defs || [];
+  if (defs.length) {
+    chunks.push('  <defs>');
+    chunks.push(defs.join('\n'));
+    chunks.push('  </defs>');
+  }
+
+  chunks.push(doc.body.join('\n'));
+  chunks.push('</svg>');
+
+  return chunks.join('\n');
 }

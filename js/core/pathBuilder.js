@@ -1,27 +1,27 @@
-// Batching: construye un único d=... grande (muy eficiente).
+// Batching: construye un único d=... grande usando Array.join (más rápido en bucles masivos).
 export class PathBuilder {
   constructor() {
-    this._d = "";
+    this._chunks = [];
   }
 
-  moveTo(x, y) { this._d += `M ${fmt(x)} ${fmt(y)} `; return this; }
-  lineTo(x, y) { this._d += `L ${fmt(x)} ${fmt(y)} `; return this; }
-  quadTo(cx, cy, x, y) { this._d += `Q ${fmt(cx)} ${fmt(cy)} ${fmt(x)} ${fmt(y)} `; return this; }
+  moveTo(x, y) { this._chunks.push(`M ${fmt(x)} ${fmt(y)}`); return this; }
+  lineTo(x, y) { this._chunks.push(`L ${fmt(x)} ${fmt(y)}`); return this; }
+  quadTo(cx, cy, x, y) { this._chunks.push(`Q ${fmt(cx)} ${fmt(cy)} ${fmt(x)} ${fmt(y)}`); return this; }
   cubicTo(cx1, cy1, cx2, cy2, x, y) {
-    this._d += `C ${fmt(cx1)} ${fmt(cy1)} ${fmt(cx2)} ${fmt(cy2)} ${fmt(x)} ${fmt(y)} `;
+    this._chunks.push(`C ${fmt(cx1)} ${fmt(cy1)} ${fmt(cx2)} ${fmt(cy2)} ${fmt(x)} ${fmt(y)}`);
     return this;
   }
-  close() { this._d += "Z "; return this; }
+  close() { this._chunks.push("Z"); return this; }
 
-  get d() { return this._d.trim(); }
+  get d() { return this._chunks.join(" ").trim(); }
 
   circle(cx, cy, r) {
     if (r <= 0) return this;
     // 2 arcs
     this.moveTo(cx - r, cy);
     // A rx ry x-axis-rotation large-arc-flag sweep-flag x y
-    this._d += `A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx + r)} ${fmt(cy)} `;
-    this._d += `A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx - r)} ${fmt(cy)} `;
+    this._chunks.push(`A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx + r)} ${fmt(cy)}`);
+    this._chunks.push(`A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx - r)} ${fmt(cy)}`);
     return this;
   }
 

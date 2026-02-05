@@ -124,4 +124,32 @@ export const ZENTANGLE_PRESETS = {
 
     organicBorder: false,
   },
+
+  voronoi_organic: {
+    cellLayout: "voronoi",
+    cellCount: 22, // cantidad de puntos para voronoi
+
+    cellBorderWidthMm: 0.75,
+    patternStrokeMm: 0.35,
+    minStrokeMm: 0.28,
+    minGapMm: 1.5,
+
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.18,
+    whiteSpaceMm: 1.0,
+
+    rotatePatterns: true,
+    rotationSet: "free15",
+
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.8,
+    innerOrganicJitterMm: 0.6,
+    innerOrganicRoundMm: 1.2,
+
+    enableDrawBehind: true,
+    drawBehindProbability: 0.45,
+    allowDrawBehindOnLayer2: false,
+
+    organicBorder: false,
+  },
 };

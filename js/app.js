@@ -1,10 +1,10 @@
-import { createSvgDoc, PAPER_SIZES_MM } from "./svgDoc.js";
-import { renderSvgToString } from "./svgRender.js";
-import { downloadText } from "./export.js";
-import { getStateFromURL, setStateToURL, randomSeed32 } from "./urlState.js";
+import { createSvgDoc, PAPER_SIZES_MM } from "./core/svgDoc.js";
+import { renderSvgToString } from "./core/svgRender.js";
+import { downloadTextFile } from "./core/export.js";
+import { getStateFromURL, setStateToURL, randomSeed32 } from "./core/urlState.js";
 
-import { PRESETS, Z_PRESETS } from "./zentangle.presets.js";
-import { generateZentangle } from "./zentangle.generator.js";
+import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
+import { generateZentangle } from "./generators/zentangle.generator.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -14,7 +14,7 @@ const DEFAULT_STATE = {
   petals: 12,
   complexity: 110,
   seed: 1,
-  zPreset: "editorial",
+  zPreset: "editorial_airy",
 };
 
 const ui = {
@@ -64,42 +64,31 @@ function bool01(v) {
   return String(v) === "1";
 }
 
-/**
- * Motor: UI -> opts (con presets) -> generator -> SVG string
- * Mantener esto simple evita “se rompió al separar archivos”.
- */
-function buildOptsFromUI() {
-  const zPresetKey = String(ui.zPreset.value || "editorial");
-  const zPreset = Z_PRESETS[zPresetKey] ?? Z_PRESETS.editorial;
+const debounce = (fn, ms = 100) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), ms);
+  };
+};
 
-  // Preset base “editorial/dense/airy” + overrides explícitos de UI
+function buildOptsFromUI() {
+  const zPresetKey = String(ui.zPreset.value || "editorial_airy");
+  const zPreset = ZENTANGLE_PRESETS[zPresetKey] ?? ZENTANGLE_PRESETS.editorial_airy;
+
   const opts = {
     ...zPreset,
-
-    // reproducibilidad
     seed: (int(ui.seed.value, 1) >>> 0),
-
-    // layout base (lo importante para no saturar)
     cellCount: int(ui.cellCount.value, 30),
     minCellSizeMm: int(ui.minCellSizeMm.value, 14),
-
-    // jerarquía visual (tu comentario de “líneas gruesas” vive aquí)
     cellBorderWidthMm: num(ui.cellBorderWidthMm.value, 0.70),
     patternStrokeMm: num(ui.patternStrokeMm.value, 0.35),
-
-    // coloreabilidad
     minGapMm: num(ui.minGapMm.value, 1.4),
     whiteSpaceMm: num(ui.whiteSpaceMm.value, 1.0),
-
-    // anti-saturación
     maxPatternPassesPerCell: int(ui.maxPatternPassesPerCell.value, 2),
     patternSkipProb: num(ui.patternSkipProb.value, 0.18),
-
-    // rotación
     rotatePatterns: bool01(ui.rotatePatterns.value),
     rotationSet: String(ui.rotationSet.value || "ergonomic"),
-
-    // borde orgánico interno (truco visual para “menos frío”)
     innerOrganicBorderEnabled: bool01(ui.innerOrganicBorderEnabled.value),
     innerOrganicBorderInsetMm: num(ui.innerOrganicBorderInsetMm.value, 0.9),
     innerOrganicJitterMm: num(ui.innerOrganicJitterMm.value, 0.55),
@@ -142,18 +131,13 @@ function render() {
     petals: 12,
     complexity: 110,
     zPreset: zPresetKey,
-
-    // esta es la parte clave
     z: opts,
-
-    // área de dibujo
     areaMm: inner,
   });
 
   const svg = renderSvgToString(doc);
   ui.previewInner.innerHTML = svg;
 
-  // reflejar a URL para compartir/reproducir
   setStateToURL({
     preset: paperKey,
     mode: "zentangle",
@@ -167,15 +151,15 @@ function render() {
   return { svg, opts, paperKey, zPresetKey };
 }
 
+const debouncedRender = debounce(render, 100);
+
 function bind() {
-  // init state from URL
   const st = getStateFromURL(DEFAULT_STATE);
 
   ui.paper.value = st.preset;
   ui.seed.value = String(st.seed >>> 0);
   ui.zPreset.value = st.zPreset;
 
-  // render triggers
   ui.btnRandomSeed.addEventListener("click", () => {
     ui.seed.value = String(randomSeed32());
     render();
@@ -183,7 +167,6 @@ function bind() {
 
   ui.btnRender.addEventListener("click", () => render());
 
-  // live re-render (simple, sin debounce por ahora)
   [
     ui.paper, ui.marginMm, ui.seed, ui.zPreset,
     ui.cellCount, ui.minCellSizeMm,
@@ -191,23 +174,23 @@ function bind() {
     ui.maxPatternPassesPerCell, ui.patternSkipProb,
     ui.rotatePatterns, ui.rotationSet,
     ui.innerOrganicBorderEnabled, ui.innerOrganicBorderInsetMm, ui.innerOrganicJitterMm, ui.innerOrganicRoundMm
-  ].forEach((el) => el.addEventListener("input", () => render()));
+  ].forEach((el) => {
+    if (el) el.addEventListener("input", debouncedRender);
+  });
 
   ui.btnDownloadSVG.addEventListener("click", () => {
     const { svg, paperKey, zPresetKey } = render();
-    downloadText(`zentangle_${paperKey}_${zPresetKey}.svg`, svg, "image/svg+xml");
+    downloadTextFile(`zentangle_${paperKey}_${zPresetKey}.svg`, svg);
   });
 
   ui.btnDownloadJSON.addEventListener("click", () => {
     const { opts, paperKey, zPresetKey } = render();
-    downloadText(
+    downloadTextFile(
       `zentangle_${paperKey}_${zPresetKey}_opts.json`,
-      JSON.stringify(opts, null, 2),
-      "application/json"
+      JSON.stringify(opts, null, 2)
     );
   });
 
-  // first paint
   render();
 }
 

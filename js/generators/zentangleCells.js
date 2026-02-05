@@ -1,6 +1,6 @@
 // zentangleCells.js
-import { mulberry32, rFloat, rInt, pick } from "./prng.js";
-import { PathBuilder } from "./pathBuilder.js";
+import { createRNG, rFloat, rInt, pick } from "../core/prng.js";
+import { PathBuilder } from "../core/pathBuilder.js";
 
 /**
  * Zentangle Cells — v5 (integrated)
@@ -61,7 +61,8 @@ export function generateZentangleCells(doc, opts) {
     organicBorder = false,
   } = opts;
 
-  const rng = mulberry32(seed >>> 0);
+  const rng = createRNG(seed >>> 0);
+  const renderPrefix = `z_${Math.floor(Math.random() * 1000000).toString(16)}_`;
 
   // Pisos técnicos
   const cellStroke = Math.max(minStrokeMm, cellBorderWidthMm);
@@ -131,9 +132,18 @@ export function generateZentangleCells(doc, opts) {
     const h = box.y1 - box.y0;
     const minDim = Math.min(w, h);
 
-    // --- Clip geometry ---
-    const clipId = `zt_clip_${seed >>> 0}_${i}`;
-    let clipD = null;
+    // --- Grafitado (Graphite Shading) ---
+    const shadowId = `${renderPrefix}shadow_${i}`;
+    pushDef(`
+      <filter id="${shadowId}" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="blur" />
+        <feOffset in="blur" dx="0.4" dy="0.4" result="offsetBlur" />
+        <feComponentTransfer in="offsetBlur" result="opacity">
+          <feFuncA type="linear" slope="0.45" />
+        </feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="opacity" operator="over" />
+      </filter>
+    `);
 
     if (cell.kind === "rect") {
       if (organicBorder) {
@@ -146,33 +156,31 @@ export function generateZentangleCells(doc, opts) {
         clipD = _rectPathD(box);
       }
 
-      // Borde visible: si clip orgánico está apagado, dibuja rect; si está encendido, dibuja orgánico
+      // Borde visible + Sombra
       const borderD = clipD;
-      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round"/>`);
+      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
     } else {
-      // Polígono: clipear el polígono base al rectángulo exterior (para que no se salga de la página)
+      // Polígono
       const poly = _clipPolyToRect(cell.poly, box);
       if (!poly || poly.length < 3) continue;
 
-      // Clip geométrico perfecto
       clipD = _polyPathD(poly, true);
 
-      // Borde visible: orgánico interno (recomendado)
+      // Borde visible: orgánico interno + Sombra
       if (innerOrganicBorderEnabled) {
         const dynInset = Math.max(0.3, Math.min(innerOrganicBorderInsetMm, minDim * 0.06));
         const innerPoly = _polyInsetToCentroid(poly, dynInset);
         if (innerPoly && innerPoly.length >= 3) {
           const innerD = _organicPolyStrokeD(rng, innerPoly, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
-          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round"/>`);
+          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
         }
       } else {
-        // Si quieres borde geométrico:
-        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round"/>`);
+        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
       }
     }
 
     // Clip defs
-    pushDef(`<clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><path d="${clipD}"/></clipPath>`);
+    pushDef(`<clipPath id="${clipId}"><path d="${clipD}"/></clipPath>`);
 
     // --- Capas / densidad ---
     let layers;
@@ -193,22 +201,23 @@ export function generateZentangleCells(doc, opts) {
       if (rng() < Math.max(0, patternSkipProb) && minDim < 35) continue;
 
       // Smart Selection Strategy
-      let available = patterns; // default all
+      let available = patterns;
 
-      // Filter by size constraints to avoid muddy details
       if (minDim < 12) {
-        // Very small: only simple textures
         available = [_fillStripesSmooth, _fillCrosses, _fillConcentricSquares];
       } else if (minDim < 20) {
-        // Medium: avoid complex spirals or dense circles
         available = patterns.filter(p => p !== _fillSpiralBands && p !== _fillCircles && p !== _fillFlow);
       }
 
-      // If specific "families" enabled, filter further (existing logic usage)
-      // Note: we just pick from 'available' now.
-
       const fn = pick(rng, available.length > 0 ? available : patterns);
-      const d = fn(rng, box, cfg);
+      let d = fn(rng, box, cfg);
+
+      // Meta-Patterns: Círculos invocan stippling en los huecos
+      if (fn === _fillCircles && rng() < 0.7 && minDim > 20) {
+        const stipD = _fillStippling(rng, box, cfg, true); // true = mode meta
+        if (stipD) d += " " + stipD;
+      }
+
       if (!d) continue;
 
       const canCover = enableDrawBehind && (L > 0) && (allowDrawBehindOnLayer2 || L === 1);
@@ -244,9 +253,79 @@ function _makeCells(rng, baseRect, cfg) {
 
   if (cellLayout === "hex") return _makeHexCells(baseRect, Math.max(6, hexRadiusMm));
   if (cellLayout === "tri") return _makeTriCells(baseRect, Math.max(10, triSideMm));
+  if (cellLayout === "voronoi") return _makeVoronoiCells(rng, baseRect, Math.max(10, cellCount));
+
   // default
   const rects = _splitRectangles(rng, baseRect, Math.max(1, cellCount), Math.max(6, minCellSizeMm));
   return rects.map((r) => ({ kind: "rect", bbox: r, poly: null }));
+}
+
+function _makeVoronoiCells(rng, rect, count) {
+  // 1) Poisson Disc Sampling (simplificado para Zentangle)
+  const points = _poissonDiscSampling(rng, rect, Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count));
+
+  // 2) Voronoi básico (proyectado a polígonos)
+  // Como no queremos dependencias externas pesadas, usaremos una aproximación de Lloyd o Delaunay si fuera necesario,
+  // pero para Zentangle, un Voronoi basado en "regiones de influencia" con clipping contra el borde es suficiente.
+  // Nota: Implementar un Voronoi real desde cero es complejo. Usaremos un generador de "fragmentos" orgánicos.
+  const cells = points.map(p => {
+    // Generar un polígono aleatorio alrededor del punto (simulando Voronoi)
+    const sides = 6;
+    const poly = [];
+    const avgR = Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count) * 0.8;
+    for (let i = 0; i < sides; i++) {
+      const a = (i / sides) * Math.PI * 2 + (rng() * 0.4);
+      const r = avgR * (0.8 + rng() * 0.4);
+      poly.push({ x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r });
+    }
+    const bbox = _bboxOfPoly(poly);
+    return { kind: "poly", bbox, poly };
+  });
+
+  return cells;
+}
+
+function _poissonDiscSampling(rng, rect, radius) {
+  const points = [];
+  const active = [];
+  const k = 30; // intentos
+  const w = rect.x1 - rect.x0;
+  const h = rect.y1 - rect.y0;
+
+  // Primer punto
+  const p0 = { x: rect.x0 + rng() * w, y: rect.y0 + rng() * h };
+  points.push(p0);
+  active.push(p0);
+
+  while (active.length > 0) {
+    const idx = Math.floor(rng() * active.length);
+    const p = active[idx];
+    let found = false;
+
+    for (let i = 0; i < k; i++) {
+      const a = rng() * Math.PI * 2;
+      const r = radius * (1 + rng());
+      const next = { x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r };
+
+      if (next.x >= rect.x0 && next.x <= rect.x1 && next.y >= rect.y0 && next.y <= rect.y1) {
+        let tooClose = false;
+        for (const op of points) {
+          if (Math.hypot(next.x - op.x, next.y - op.y) < radius) {
+            tooClose = true;
+            break;
+          }
+        }
+        if (!tooClose) {
+          points.push(next);
+          active.push(next);
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) active.splice(idx, 1);
+  }
+  return points;
 }
 
 function _makeHexCells(baseRect, R) {
@@ -465,8 +544,6 @@ function _fillScallops(rng, r, cfg) {
   return b.d;
 }
 
-return b.d;
-}
 
 function _fillSpiralBands(rng, r, cfg) {
   const b = new PathBuilder();
@@ -574,24 +651,23 @@ function _fillTriangles(rng, r, cfg) {
   return b.d;
 }
 
-function _fillStippling(rng, r, cfg) {
+function _fillStippling(rng, r, cfg, isMeta = false) {
   const b = new PathBuilder();
   const w = r.x1 - r.x0, h = r.y1 - r.y0;
   const area = w * h;
-  const density = 0.4; // dots per mm2 approx? 
+  const density = isMeta ? 0.15 : 0.4;
   const count = Math.floor(area * density);
 
-  // Gradient stippling? High density near bottom
   for (let i = 0; i < count; i++) {
     let x = rFloat(rng, r.x0, r.x1);
     let y = rFloat(rng, r.y0, r.y1);
 
-    // REJECT based on y (more dots at bottom)
-    const prob = (y - r.y0) / h;
-    if (rng() > prob) continue;
+    if (!isMeta) {
+      const prob = (y - r.y0) / h;
+      if (rng() > prob) continue;
+    }
 
     const rad = rFloat(rng, 0.1, 0.25);
-    // Draw little circle
     b.circle(x, y, rad);
   }
   return b.d;
