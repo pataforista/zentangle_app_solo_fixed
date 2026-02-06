@@ -125,13 +125,9 @@ function render() {
   });
 
   generateZentangle(doc, {
-    preset: paperKey,
-    mode: "zentangle",
     seed: opts.seed,
-    petals: 12,
-    complexity: 110,
-    zPreset: zPresetKey,
-    z: opts,
+    presetName: zPresetKey,
+    overrides: opts,
     areaMm: inner,
   });
 

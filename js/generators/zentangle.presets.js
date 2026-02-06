@@ -36,6 +36,38 @@ export const ZENTANGLE_PRESETS = {
     organicBorder: false,
   },
 
+  commercial_print: {
+    // Alto contraste para impresión/comercialización (líneas limpias y áreas coloreables).
+    cellLayout: "rect_bsp",
+    cellCount: 24,
+    minCellSizeMm: 17,
+
+    cellBorderWidthMm: 0.82,
+    patternStrokeMm: 0.34,
+    minStrokeMm: 0.3,
+
+    minGapMm: 1.7,
+
+    layersPerCell: "auto",
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.26,
+    whiteSpaceMm: 1.25,
+
+    rotatePatterns: true,
+    rotationSet: "classic",
+
+    enableDrawBehind: true,
+    drawBehindProbability: 0.38,
+    allowDrawBehindOnLayer2: false,
+
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.85,
+    innerOrganicJitterMm: 0.45,
+    innerOrganicRoundMm: 0.95,
+
+    organicBorder: false,
+  },
+
   dense_classic: {
     cellLayout: "rect_bsp",
     cellCount: 34,

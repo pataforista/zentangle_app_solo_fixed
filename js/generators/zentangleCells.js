@@ -134,6 +134,8 @@ export function generateZentangleCells(doc, opts) {
 
     // --- Grafitado (Graphite Shading) ---
     const shadowId = `${renderPrefix}shadow_${i}`;
+    const clipId = `${renderPrefix}clip_${i}`;
+    let clipD = "";
     pushDef(`
       <filter id="${shadowId}" x="-20%" y="-20%" width="140%" height="140%">
         <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="blur" />
