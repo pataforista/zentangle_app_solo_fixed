@@ -101,18 +101,25 @@ export function generateZentangleCells(doc, opts) {
     }));
   }
 
-  // 3) Patrones disponibles
-  const patterns = [
-    _fillConcentricSquares,
-    _fillStripesSmooth,
-    _fillCircles,
-    _fillCrosses,
-    _fillCurvesSmooth,
-  ];
-  // extras
-  patterns.push(_fillScallops, _fillSpiralBands, _fillAuraSquares, _fillFlow, _fillTriangles, _fillStippling);
+  // 3) Fondo con textura de papel (para look premium)
+  doc.body.push(`<rect x="${baseRect.x0}" y="${baseRect.y0}" width="${areaMm.w}" height="${areaMm.h}" 
+    fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
 
-  // 4) Defs bucket (seguro)
+  // 4) Patrones disponibles por "Familias" para reducir caos
+  const families = {
+    geometric: [_fillConcentricSquares, _fillAuraSquares, _fillCrosses, _fillTriangles, _fillAura],
+    organic: [_fillStripesSmooth, _fillCircles, _fillCurvesSmooth, _fillScallops, _fillSpiralBands, _fillFlow, _fillAura],
+    dense: [_fillStippling, _fillAuraSquares, _fillFlow]
+  };
+
+  const familyKey = opts.patternFamily || (rng() < 0.5 ? "geometric" : "organic");
+  const patterns = families[familyKey] || [...families.geometric, ...families.organic];
+
+  // Jerarquía de línea: Bordes/Strings claramente más gruesos
+  const borderMultiplier = opts.borderStrokeMultiplier || 1.45;
+  const borderStroke = cellStroke * borderMultiplier;
+
+  // 5) Defs bucket (seguro)
   const useDocDefs = Array.isArray(doc.defs);
   const localDefs = [];
   const pushDef = (s) => { if (useDocDefs) doc.defs.push(s); else localDefs.push(s); };
@@ -147,6 +154,17 @@ export function generateZentangleCells(doc, opts) {
       </filter>
     `);
 
+    // --- Textura de Papel (Premium) ---
+    pushDef(`
+      <filter id="${renderPrefix}paperTexture" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise" />
+        <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="1.2" result="light">
+          <feDistantLight azimuth="45" elevation="60" />
+        </feDiffuseLighting>
+        <feComposite in="SourceGraphic" in2="light" operator="arithmetic" k1="0" k2="1" k3="0.2" k4="0" />
+      </filter>
+    `);
+
     if (cell.kind === "rect") {
       if (organicBorder) {
         // Clip orgánico real (rect): opcional
@@ -160,7 +178,7 @@ export function generateZentangleCells(doc, opts) {
 
       // Borde visible + Sombra
       const borderD = clipD;
-      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
     } else {
       // Polígono
       const poly = _clipPolyToRect(cell.poly, box);
@@ -174,49 +192,72 @@ export function generateZentangleCells(doc, opts) {
         const innerPoly = _polyInsetToCentroid(poly, dynInset);
         if (innerPoly && innerPoly.length >= 3) {
           const innerD = _organicPolyStrokeD(rng, innerPoly, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
-          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
         }
       } else {
-        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(cellStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
       }
     }
 
     // Clip defs
     pushDef(`<clipPath id="${clipId}"><path d="${clipD}"/></clipPath>`);
 
+    const cx = (box.x0 + box.x1) / 2;
+    const cy = (box.y0 + box.y1) / 2;
+
     // --- Capas / densidad ---
+    const distToCenter = Math.sqrt(Math.pow(cx - (baseRect.x0 + baseRect.x1) / 2, 2) + Math.pow(cy - (baseRect.y0 + baseRect.y1) / 2, 2));
+    const maxDist = Math.sqrt(Math.pow(baseRect.x1 - baseRect.x0, 2) + Math.pow(baseRect.y1 - baseRect.y0, 2)) / 2;
+    const centerFactor = 1 - Math.min(1, distToCenter / maxDist); // 1 en el centro, 0 lejos
+
+    const simpleCellProb = (opts.focusMode ? 0.3 + centerFactor * 0.5 : 0.2);
+    const isSimpleCell = rng() < simpleCellProb;
+
     let layers;
-    if (layersPerCell === "auto") {
+    if (isSimpleCell) {
+      layers = (rng() < 0.3 ? 1 : 0); // 30% chance of 1 layer, 70% empty
+    } else if (layersPerCell === "auto") {
       if (minDim < 16) layers = 1;
       else if (minDim < 28) layers = (rng() < 0.22 ? 2 : 1);
       else layers = (rng() < 0.18 ? 3 : 2);
     } else {
       layers = Math.max(1, Math.min(3, Number(layersPerCell)));
     }
-    layers = Math.min(layers, Math.max(1, Number(maxPatternPassesPerCell)));
+    layers = Math.min(layers, Math.max(0, Number(maxPatternPassesPerCell)));
 
-    const cx = (box.x0 + box.x1) / 2;
-    const cy = (box.y0 + box.y1) / 2;
+    let lastFn = null;
 
     for (let L = 0; L < layers; L++) {
-      // Skip probabilístico para dar "aire"
+      // Skip probabilístico
       if (rng() < Math.max(0, patternSkipProb) && minDim < 35) continue;
 
-      // Smart Selection Strategy
-      let available = patterns;
+      // Smart Selection Strategy + Anti-Repetition
+      let available = patterns.filter(p => p !== lastFn);
+      if (available.length === 0) available = patterns;
 
-      if (minDim < 12) {
-        available = [_fillStripesSmooth, _fillCrosses, _fillConcentricSquares];
-      } else if (minDim < 20) {
-        available = patterns.filter(p => p !== _fillSpiralBands && p !== _fillCircles && p !== _fillFlow);
+      if (minDim < 13) {
+        available = [_fillStripesSmooth, _fillCrosses, _fillConcentricSquares].filter(p => p !== lastFn);
+      } else if (minDim < 22) {
+        available = available.filter(p => p !== _fillSpiralBands && p !== _fillCircles && p !== _fillFlow);
       }
+      if (available.length === 0) available = patterns;
 
-      const fn = pick(rng, available.length > 0 ? available : patterns);
-      let d = fn(rng, box, cfg);
+      const fn = pick(rng, available);
+      lastFn = fn;
+
+      // Escalado Dinámico: Ajustar parámetros según el tamaño de la celda
+      const stepScale = Math.max(0.7, Math.min(1.3, minDim / 25));
+      const cellCfg = {
+        ...cfg,
+        minGapMm: cfg.minGapMm * stepScale,
+        patternStrokeMm: cfg.patternStrokeMm * (stepScale * 0.5 + 0.5)
+      };
+
+      let d = fn(rng, box, cellCfg);
 
       // Meta-Patterns: Círculos invocan stippling en los huecos
       if (fn === _fillCircles && rng() < 0.7 && minDim > 20) {
-        const stipD = _fillStippling(rng, box, cfg, true); // true = mode meta
+        const stipD = _fillStippling(rng, box, cellCfg, true);
         if (stipD) d += " " + stipD;
       }
 
@@ -228,15 +269,39 @@ export function generateZentangleCells(doc, opts) {
       const doCover = canCover && (rng() < (L === 1 ? coverP1 : coverP2));
       const fill = doCover ? "#fff" : "none";
 
+      // Micro-Fluctuaciones: Sutil temblor en las líneas internas
+      const jitter = (rng() - 0.5) * 0.15;
+
       doc.body.push(
         `<path d="${d}"
           clip-path="url(#${clipId})"
           fill="${fill}"
-          stroke="#000" stroke-width="${_fmt(patStroke)}mm"
+          stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}mm"
           stroke-linecap="round" stroke-linejoin="round"
-          transform="rotate(${_fmt(rot)} ${_fmt(cx)} ${_fmt(cy)})"
+          transform="rotate(${_fmt(rot + jitter)} ${_fmt(cx)} ${_fmt(cy)})"
         />`
       );
+    }
+  }
+
+  // 6) Flow Lines (Global Continuity)
+  if (opts.flowLinesEnabled !== false) {
+    const flowCount = rInt(rng, 1, 3);
+    for (let i = 0; i < flowCount; i++) {
+      const b = new PathBuilder();
+      const xStart = baseRect.x0 + rng() * (baseRect.x1 - baseRect.x0);
+      const yStart = baseRect.y0 + rng() * (baseRect.y1 - baseRect.y0);
+      b.moveTo(xStart, yStart);
+
+      const cp1x = baseRect.x0 + rng() * (baseRect.x1 - baseRect.x0);
+      const cp1y = baseRect.y0 + rng() * (baseRect.y1 - baseRect.y0);
+      const cp2x = baseRect.x0 + rng() * (baseRect.x1 - baseRect.x0);
+      const cp2y = baseRect.y0 + rng() * (baseRect.y1 - baseRect.y0);
+      const xEnd = baseRect.x0 + rng() * (baseRect.x1 - baseRect.x0);
+      const yEnd = baseRect.y0 + rng() * (baseRect.y1 - baseRect.y0);
+
+      b.cubicTo(cp1x, cp1y, cp2x, cp2y, xEnd, yEnd);
+      doc.body.push(`<path d="${b.d}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke * 0.45)}mm" stroke-opacity="0.30" stroke-dasharray="3,3" pointer-events="none" />`);
     }
   }
 
@@ -256,6 +321,7 @@ function _makeCells(rng, baseRect, cfg) {
   if (cellLayout === "hex") return _makeHexCells(baseRect, Math.max(6, hexRadiusMm));
   if (cellLayout === "tri") return _makeTriCells(baseRect, Math.max(10, triSideMm));
   if (cellLayout === "voronoi") return _makeVoronoiCells(rng, baseRect, Math.max(10, cellCount));
+  if (cellLayout === "strings") return _makeStringCells(rng, baseRect, Math.max(2, Math.floor(cellCount / 8)));
 
   // default
   const rects = _splitRectangles(rng, baseRect, Math.max(1, cellCount), Math.max(6, minCellSizeMm));
@@ -267,17 +333,13 @@ function _makeVoronoiCells(rng, rect, count) {
   const points = _poissonDiscSampling(rng, rect, Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count));
 
   // 2) Voronoi básico (proyectado a polígonos)
-  // Como no queremos dependencias externas pesadas, usaremos una aproximación de Lloyd o Delaunay si fuera necesario,
-  // pero para Zentangle, un Voronoi basado en "regiones de influencia" con clipping contra el borde es suficiente.
-  // Nota: Implementar un Voronoi real desde cero es complejo. Usaremos un generador de "fragmentos" orgánicos.
   const cells = points.map(p => {
-    // Generar un polígono aleatorio alrededor del punto (simulando Voronoi)
-    const sides = 6;
+    const sides = rInt(rng, 5, 8);
     const poly = [];
-    const avgR = Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count) * 0.8;
+    const avgR = Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count) * 0.9;
     for (let i = 0; i < sides; i++) {
-      const a = (i / sides) * Math.PI * 2 + (rng() * 0.4);
-      const r = avgR * (0.8 + rng() * 0.4);
+      const a = (i / sides) * Math.PI * 2 + (rng() * (Math.PI * 2 / sides) * 0.5);
+      const r = avgR * (0.7 + rng() * 0.5);
       poly.push({ x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r });
     }
     const bbox = _bboxOfPoly(poly);
@@ -285,6 +347,118 @@ function _makeVoronoiCells(rng, rect, count) {
   });
 
   return cells;
+}
+
+function _makeStringCells(rng, rect, count) {
+  // Mezclamos lógica recursiva con radial para evitar bandas horizontales
+  const useRadial = rng() < 0.45;
+  let polygons;
+
+  if (useRadial) {
+    polygons = _radialSplit(rng, rect, Math.max(3, Math.floor(count / 4)));
+  } else {
+    const depth = count > 14 ? 3 : 2;
+    polygons = _recursiveBezierSplit(rng, rect, depth);
+  }
+
+  return polygons.map(poly => {
+    // Warp más agresivo si la celda es grande para romper la linealidad
+    const w = _bboxOfPoly(poly);
+    const minDim = Math.min(w.x1 - w.x0, w.y1 - w.y0);
+    const warpAmt = minDim * 0.12;
+    const warped = _warpPolyOrganic(rng, poly, warpAmt);
+    return { kind: "poly", bbox: _bboxOfPoly(warped), poly: warped };
+  });
+}
+
+function _radialSplit(rng, rect, rays) {
+  const cx = (rect.x0 + rect.x1) / 2 + (rng() - 0.5) * (rect.x1 - rect.x0) * 0.2;
+  const cy = (rect.y0 + rect.y1) / 2 + (rng() - 0.5) * (rect.y1 - rect.y0) * 0.2;
+  const res = [];
+  const angles = [];
+  for (let i = 0; i < rays; i++) {
+    angles.push((i / rays) * Math.PI * 2 + (rng() - 0.5) * 0.4);
+  }
+  angles.sort((a, b) => a - b);
+
+  const rMax = Math.max(rect.x1 - rect.x0, rect.y1 - rect.y0) * 1.5;
+
+  for (let i = 0; i < rays; i++) {
+    const a1 = angles[i];
+    const a2 = angles[(i + 1) % rays];
+
+    const p1 = { x: cx + Math.cos(a1) * rMax, y: cy + Math.sin(a1) * rMax };
+    const p2 = { x: cx + Math.cos(a2) * rMax, y: cy + Math.sin(a2) * rMax };
+
+    const triangle = [{ x: cx, y: cy }, p1, p2];
+    // Clip el triángulo gigante al rect de la página
+    const clipped = _clipPolyToRect(triangle, rect);
+    if (clipped && clipped.length >= 3) {
+      res.push(_subdividePoly(clipped));
+    }
+  }
+  return res;
+}
+
+function _warpPolyOrganic(rng, poly, amount) {
+  // Perturba los puntos del polígono para dar look de "curva"
+  const res = [];
+  const seed = rng() * 100;
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i];
+    // Usamos senos/cosenos para una deformación continua (tipo ruido simple)
+    const offX = Math.sin(p.y * 0.2 + seed) * amount;
+    const offY = Math.cos(p.x * 0.2 + seed) * amount;
+    res.push({ x: p.x + offX, y: p.y + offY });
+  }
+  return res;
+}
+
+function _recursiveBezierSplit(rng, rect, depth) {
+  const w = rect.x1 - rect.x0;
+  const h = rect.y1 - rect.y0;
+  const minSplitSize = 10.0;
+
+  if (depth <= 0 || (w < minSplitSize * 2.2 && h < minSplitSize * 2.2)) {
+    const p = [
+      { x: rect.x0, y: rect.y0 },
+      { x: rect.x1, y: rect.y0 },
+      { x: rect.x1, y: rect.y1 },
+      { x: rect.x0, y: rect.y1 }
+    ];
+    return [_subdividePoly(p)];
+  }
+
+  // Composición Dinámica: Romper las bandas puramente horizontales
+  const aspect = w / h;
+  let splitHoriz;
+  if (aspect > 2.0) splitHoriz = false; // Forzar vertical si es muy ancho
+  else if (aspect < 0.5) splitHoriz = true; // Forzar horizontal si es muy alto
+  else splitHoriz = rng() < 0.45; // Ligero sesgo hacia vertical para romper la inercia
+
+  // El punto de corte 't' ahora es más variable
+  const t = rFloat(rng, 0.35, 0.65);
+
+  if (splitHoriz) {
+    const y = rect.y0 + h * t;
+    return [..._recursiveBezierSplit(rng, { ...rect, y1: y }, depth - 1),
+    ..._recursiveBezierSplit(rng, { ...rect, y0: y }, depth - 1)];
+  } else {
+    const x = rect.x0 + w * t;
+    return [..._recursiveBezierSplit(rng, { ...rect, x1: x }, depth - 1),
+    ..._recursiveBezierSplit(rng, { ...rect, x0: x }, depth - 1)];
+  }
+}
+
+function _subdividePoly(poly) {
+  const res = [];
+  for (let i = 0; i < poly.length; i++) {
+    const p1 = poly[i];
+    const p2 = poly[(i + 1) % poly.length];
+    res.push(p1);
+    res.push({ x: (p1.x + p2.x) * 0.5, y: (p1.y + p2.y) * 0.5 });
+  }
+  return res;
 }
 
 function _poissonDiscSampling(rng, rect, radius) {
@@ -501,10 +675,13 @@ function _fillCrosses(rng, r, cfg) {
   const b = new PathBuilder();
   const step = rFloat(rng, Math.max(cfg.minGapMm * 2.4, 3), Math.max(cfg.minGapMm * 3, 5));
   const s = step * 0.25;
+  const sw = cfg.patternStrokeMm;
+
   for (let x = r.x0 + step / 2; x < r.x1; x += step) {
     for (let y = r.y0 + step / 2; y < r.y1; y += step) {
-      b.moveTo(x - s, y - s).lineTo(x + s, y + s);
-      b.moveTo(x + s, y - s).lineTo(x - s, y + s);
+      // Usamos taperedLine para un look más "de autor"
+      b.taperedLine(x - s, y - s, x + s, y + s, sw);
+      b.taperedLine(x + s, y - s, x - s, y + s, sw);
     }
   }
   return b.d;
@@ -642,13 +819,16 @@ function _fillTriangles(rng, r, cfg) {
   // Random subdivision triangles
   const b = new PathBuilder();
   const count = rInt(rng, 5, 12);
+  const sw = cfg.patternStrokeMm;
   for (let i = 0; i < count; i++) {
     const p1 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
     const p2 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
     const p3 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
 
-    // Just strokes
-    b.moveTo(p1.x, p1.y).lineTo(p2.x, p2.y).lineTo(p3.x, p3.y).lineTo(p1.x, p1.y);
+    // Just strokes with tapering
+    b.taperedLine(p1.x, p1.y, p2.x, p2.y, sw);
+    b.taperedLine(p2.x, p2.y, p3.x, p3.y, sw);
+    b.taperedLine(p3.x, p3.y, p1.x, p1.y, sw);
   }
   return b.d;
 }
@@ -671,6 +851,41 @@ function _fillStippling(rng, r, cfg, isMeta = false) {
 
     const rad = rFloat(rng, 0.1, 0.25);
     b.circle(x, y, rad);
+  }
+  return b.d;
+}
+
+/**
+ * Patrón Aura: Contornos repetitivos hacia adentro
+ */
+function _fillAura(rng, r, cfg) {
+  const b = new PathBuilder();
+  const w = r.x1 - r.x0, h = r.y1 - r.y0;
+  const minDim = Math.min(w, h);
+  const steps = rInt(rng, 3, 6);
+  const stepSize = (minDim * 0.45) / steps;
+
+  for (let i = 0; i < steps; i++) {
+    const inset = i * stepSize;
+    const box = {
+      x0: r.x0 + inset,
+      y0: r.y0 + inset,
+      x1: r.x1 - inset,
+      y1: r.y1 - inset
+    };
+    if (!_isValidRect(box)) break;
+
+    const cornerR = Math.max(0.5, stepSize * 0.5);
+    b.moveTo(box.x0 + cornerR, box.y0)
+      .lineTo(box.x1 - cornerR, box.y0)
+      .arcTo(cornerR, cornerR, 0, 0, 1, box.x1, box.y0 + cornerR)
+      .lineTo(box.x1, box.y1 - cornerR)
+      .arcTo(cornerR, cornerR, 0, 0, 1, box.x1 - cornerR, box.y1)
+      .lineTo(box.x0 + cornerR, box.y1)
+      .arcTo(cornerR, cornerR, 0, 0, 1, box.x0, box.y1 - cornerR)
+      .lineTo(box.x0, box.y0 + cornerR)
+      .arcTo(cornerR, cornerR, 0, 0, 1, box.x0 + cornerR, box.y0)
+      .close();
   }
   return b.d;
 }

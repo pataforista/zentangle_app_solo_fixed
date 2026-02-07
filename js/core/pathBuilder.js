@@ -25,6 +25,35 @@ export class PathBuilder {
     return this;
   }
 
+  arcTo(rx, ry, xRot, largeArc, sweep, x, y) {
+    this._chunks.push(`A ${fmt(rx)} ${fmt(ry)} ${fmt(xRot)} ${largeArc} ${sweep} ${fmt(x)} ${fmt(y)}`);
+    return this;
+  }
+
+  taperedLine(x1, y1, x2, y2, w) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.2) return this.lineTo(x2, y2);
+
+    const nx = -dy / len;
+    const ny = dx / len;
+
+    const wMid = w * 0.5;
+
+    // Añadimos puntos intermedios con fluctuaciones aleatorias sutiles
+    const midX = x1 + dx * 0.5;
+    const midY = y1 + dy * 0.5;
+    const jitter = (Math.random() - 0.5) * w * 0.15;
+
+    this.moveTo(x1, y1);
+    this.lineTo(midX + nx * wMid + jitter, midY + ny * wMid + jitter);
+    this.lineTo(x2, y2);
+    this.lineTo(midX - nx * wMid + jitter, midY - ny * wMid + jitter);
+    this.close();
+    return this;
+  }
+
   toPath({ stroke = "#000", strokeWidthMm = 0.6, fill = "none", linecap = "round", linejoin = "round" } = {}) {
     const d = this.d;
     return `<path d="${esc(d)}" fill="${fill}" stroke="${stroke}" stroke-width="${fmt(strokeWidthMm)}" stroke-linecap="${linecap}" stroke-linejoin="${linejoin}" />`;

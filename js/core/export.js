@@ -52,3 +52,46 @@ function stripIdsDeep(node) {
   const all = node.querySelectorAll?.("[id]");
   if (all && all.length) all.forEach(el => el.removeAttribute("id"));
 }
+
+/**
+ * Descarga el contenido SVG como PNG de alta resolución (300 DPI aprox).
+ */
+export async function downloadPng(filename, svgString, widthMm, heightMm) {
+  const pixelRatio = 300 / 25.4; // 300 DPI = ~11.8 pixels per mm
+  const width = widthMm * pixelRatio;
+  const height = heightMm * pixelRatio;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+
+  // Crear Blob a partir de SVG
+  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+
+  return new Promise((resolve, reject) => {
+    img.onload = () => {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob((blob) => {
+        const pngUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = pngUrl;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(pngUrl);
+        resolve();
+      }, "image/png");
+    };
+    img.onerror = (err) => {
+      URL.revokeObjectURL(url);
+      reject(err);
+    };
+    img.src = url;
+  });
+}

@@ -34,6 +34,9 @@ export const ZENTANGLE_PRESETS = {
 
     // Rect orgánico opcional (si quieres que el clip también sea orgánico)
     organicBorder: false,
+    patternFamily: "geometric",
+    focusMode: true,
+    borderStrokeMultiplier: 1.4,
   },
 
   commercial_print: {
@@ -66,6 +69,9 @@ export const ZENTANGLE_PRESETS = {
     innerOrganicRoundMm: 0.95,
 
     organicBorder: false,
+    patternFamily: "geometric",
+    focusMode: true,
+    borderStrokeMultiplier: 1.5,
   },
 
   dense_classic: {
@@ -97,6 +103,9 @@ export const ZENTANGLE_PRESETS = {
     innerOrganicRoundMm: 0.9,
 
     organicBorder: false,
+    patternFamily: "dense",
+    focusMode: false,
+    borderStrokeMultiplier: 1.35,
   },
 
   hex_editorial: {
@@ -128,6 +137,9 @@ export const ZENTANGLE_PRESETS = {
     allowDrawBehindOnLayer2: false,
 
     organicBorder: false,
+    patternFamily: "geometric",
+    focusMode: true,
+    borderStrokeMultiplier: 1.4,
   },
 
   tri_editorial: {
@@ -155,6 +167,9 @@ export const ZENTANGLE_PRESETS = {
     allowDrawBehindOnLayer2: false,
 
     organicBorder: false,
+    patternFamily: "geometric",
+    focusMode: true,
+    borderStrokeMultiplier: 1.4,
   },
 
   voronoi_organic: {
@@ -183,5 +198,161 @@ export const ZENTANGLE_PRESETS = {
     allowDrawBehindOnLayer2: false,
 
     organicBorder: false,
+    patternFamily: "organic",
+    focusMode: true,
+    borderStrokeMultiplier: 1.4,
+  },
+
+  strings_organic: {
+    cellLayout: "strings",
+    cellCount: 18,
+
+    cellBorderWidthMm: 0.70,
+    patternStrokeMm: 0.32,
+    minStrokeMm: 0.28,
+    minGapMm: 1.4,
+
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.25,
+    whiteSpaceMm: 1.0,
+
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.7,
+    innerOrganicJitterMm: 0.45,
+    innerOrganicRoundMm: 0.9,
+
+    enableDrawBehind: true,
+    drawBehindProbability: 0.45,
+    allowDrawBehindOnLayer2: false,
+
+    organicBorder: false,
+    patternFamily: "organic",
+    focusMode: true,
+    borderStrokeMultiplier: 1.5,
+  },
+
+  botanical_zen: {
+    cellLayout: "voronoi",
+    cellCount: 20,
+
+    cellBorderWidthMm: 0.65,
+    patternStrokeMm: 0.30,
+    minStrokeMm: 0.25,
+    minGapMm: 1.8,
+
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.30,
+    whiteSpaceMm: 1.4,
+
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 1.0,
+    innerOrganicJitterMm: 0.7,
+    innerOrganicRoundMm: 1.5,
+
+    enableDrawBehind: true,
+    drawBehindProbability: 0.50,
+    allowDrawBehindOnLayer2: true,
+
+    organicBorder: false,
+    patternFamily: "organic",
+    focusMode: false,
+    borderStrokeMultiplier: 1.3,
+  },
+
+  bold_easy: {
+    cellLayout: "rect_bsp",
+    cellCount: 16,
+    minCellSizeMm: 22,
+
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.60,
+    minStrokeMm: 0.45,
+    minGapMm: 2.2,
+
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.30,
+    whiteSpaceMm: 1.5,
+
+    rotatePatterns: false,
+    rotationSet: "classic",
+
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 1.2,
+    innerOrganicJitterMm: 0.3,
+    innerOrganicRoundMm: 0.8,
+
+    enableDrawBehind: false,
+    drawBehindProbability: 0,
+    allowDrawBehindOnLayer2: false,
+
+    organicBorder: false,
+    patternFamily: "geometric",
+    focusMode: true,
+    borderStrokeMultiplier: 1.6,
+  },
+
+  tile_90mm: {
+    cellLayout: "strings",
+    cellCount: 12,
+
+    cellBorderWidthMm: 0.85,
+    patternStrokeMm: 0.38,
+    minStrokeMm: 0.30,
+    minGapMm: 1.8,
+
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.10,
+    whiteSpaceMm: 1.0,
+
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.8,
+    innerOrganicJitterMm: 0.6,
+    innerOrganicRoundMm: 1.2,
+
+    enableDrawBehind: true,
+    drawBehindProbability: 0.55,
+    allowDrawBehindOnLayer2: true,
+
+    organicBorder: false,
+    patternFamily: "organic",
+    focusMode: true,
+    borderStrokeMultiplier: 1.55,
+  },
+
+  intricate_dark: {
+    cellLayout: "voronoi",
+    cellCount: 30,
+
+    cellBorderWidthMm: 0.75,
+    patternStrokeMm: 0.35,
+    minStrokeMm: 0.28,
+    minGapMm: 1.2,
+
+    maxPatternPassesPerCell: 3,
+    patternSkipProb: 0.05,
+    whiteSpaceMm: 0.5,
+
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+
+    innerOrganicBorderEnabled: false,
+
+    enableDrawBehind: true,
+    drawBehindProbability: 0.65,
+    allowDrawBehindOnLayer2: true,
+
+    organicBorder: false,
+    patternFamily: "dense",
+    focusMode: false,
+    borderStrokeMultiplier: 1.4,
   },
 };

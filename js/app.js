@@ -1,6 +1,6 @@
 import { createSvgDoc, PAPER_SIZES_MM } from "./core/svgDoc.js";
 import { renderSvgToString } from "./core/svgRender.js";
-import { downloadTextFile } from "./core/export.js";
+import { downloadTextFile, downloadPng } from "./core/export.js";
 import { getStateFromURL, setStateToURL, randomSeed32 } from "./core/urlState.js";
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
@@ -9,12 +9,10 @@ import { generateZentangle } from "./generators/zentangle.generator.js";
 const $ = (id) => document.getElementById(id);
 
 const DEFAULT_STATE = {
-  preset: "A4",
+  paper: "A4",
   mode: "zentangle",
-  petals: 12,
-  complexity: 110,
   seed: 1,
-  zPreset: "editorial_airy",
+  zPreset: "tile_90mm",
 };
 
 const ui = {
@@ -44,6 +42,7 @@ const ui = {
   btnRandomSeed: $("btnRandomSeed"),
   btnRender: $("btnRender"),
   btnDownloadSVG: $("btnDownloadSVG"),
+  btnDownloadPNG: $("btnDownloadPNG"),
   btnDownloadJSON: $("btnDownloadJSON"),
 
   previewInner: $("previewInner"),
@@ -102,15 +101,21 @@ function render() {
   const paperKey = String(ui.paper.value || "A4");
   const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
 
-  const marginMm = Math.max(0, num(ui.marginMm.value, 8));
+  let marginMm = Math.max(0, num(ui.marginMm.value, 8));
+
+  const { opts, zPresetKey } = buildOptsFromUI();
+
+  // KDP Bleed Safety: Amazon KDP requiere ~12.5mm si hay sangrado
+  if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") {
+    marginMm = Math.max(marginMm, 12.5);
+  }
+
   const inner = {
     x: marginMm,
     y: marginMm,
     w: presetPaper.w - marginMm * 2,
     h: presetPaper.h - marginMm * 2,
   };
-
-  const { opts, zPresetKey } = buildOptsFromUI();
 
   const doc = createSvgDoc({
     wMm: presetPaper.w,
@@ -177,6 +182,12 @@ function bind() {
   ui.btnDownloadSVG.addEventListener("click", () => {
     const { svg, paperKey, zPresetKey } = render();
     downloadTextFile(`zentangle_${paperKey}_${zPresetKey}.svg`, svg);
+  });
+
+  ui.btnDownloadPNG.addEventListener("click", async () => {
+    const { svg, opts, zPresetKey, paperKey } = render();
+    const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
+    await downloadPng(`zentangle_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
   });
 
   ui.btnDownloadJSON.addEventListener("click", () => {
