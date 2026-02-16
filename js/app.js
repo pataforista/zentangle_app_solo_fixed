@@ -28,6 +28,7 @@ const ui = {
   patternStrokeMm: $("patternStrokeMm"),
   minGapMm: $("minGapMm"),
   whiteSpaceMm: $("whiteSpaceMm"),
+  sketchy: $("sketchy"),
 
   maxPatternPassesPerCell: $("maxPatternPassesPerCell"),
   patternSkipProb: $("patternSkipProb"),
@@ -84,6 +85,7 @@ function buildOptsFromUI() {
     patternStrokeMm: num(ui.patternStrokeMm.value, 0.35),
     minGapMm: num(ui.minGapMm.value, 1.4),
     whiteSpaceMm: num(ui.whiteSpaceMm.value, 1.0),
+    sketchy: num(ui.sketchy.value, 0),
     maxPatternPassesPerCell: int(ui.maxPatternPassesPerCell.value, 2),
     patternSkipProb: num(ui.patternSkipProb.value, 0.18),
     rotatePatterns: bool01(ui.rotatePatterns.value),
@@ -171,7 +173,7 @@ function bind() {
   [
     ui.paper, ui.marginMm, ui.seed, ui.zPreset,
     ui.cellCount, ui.minCellSizeMm,
-    ui.cellBorderWidthMm, ui.patternStrokeMm, ui.minGapMm, ui.whiteSpaceMm,
+    ui.cellBorderWidthMm, ui.patternStrokeMm, ui.minGapMm, ui.whiteSpaceMm, ui.sketchy,
     ui.maxPatternPassesPerCell, ui.patternSkipProb,
     ui.rotatePatterns, ui.rotationSet,
     ui.innerOrganicBorderEnabled, ui.innerOrganicBorderInsetMm, ui.innerOrganicJitterMm, ui.innerOrganicRoundMm

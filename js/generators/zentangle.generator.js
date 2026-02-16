@@ -109,6 +109,9 @@ export function buildZentangleOpts({
   // Clip orgánico real (más riesgoso: puede generar micro-espacios; por defecto apagado)
   const organicBorder = (overrides.organicBorder != null) ? !!overrides.organicBorder : !!(preset.organicBorder);
 
+  // New: Sketchy lines
+  const sketchy = Number(overrides.sketchy ?? preset.sketchy ?? 0);
+
   // Output
   return {
     seed,
@@ -156,6 +159,9 @@ export function buildZentangleOpts({
 
     // Clip orgánico real
     organicBorder,
+
+    // Style
+    sketchy,
   };
 }
 

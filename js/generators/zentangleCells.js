@@ -2,6 +2,16 @@
 import { createRNG, rFloat, rInt, pick } from "../core/prng.js";
 import { PathBuilder } from "../core/pathBuilder.js";
 
+import {
+  fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit
+} from "./patterns/geometric.js";
+import {
+  fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillWaves
+} from "./patterns/organic.js";
+import {
+  fillStippling, fillPokerChips
+} from "./patterns/dense.js";
+
 /**
  * Zentangle Cells — v5 (integrated)
  * - Soporta: rect_bsp (antes), hex, tri
@@ -59,6 +69,9 @@ export function generateZentangleCells(doc, opts) {
 
     // Clip orgánico real (solo rect): más riesgo de micro-espacios; por defecto false
     organicBorder = false,
+
+    // New: Styles
+    sketchy = 0,
   } = opts;
 
   const rng = createRNG(seed >>> 0);
@@ -72,6 +85,7 @@ export function generateZentangleCells(doc, opts) {
     minStrokeMm,
     minGapMm: Math.max(0.9, minGapMm),
     patternStrokeMm: patStroke,
+    sketchy
   };
 
   const baseRect = {
@@ -90,7 +104,7 @@ export function generateZentangleCells(doc, opts) {
 
   // 2) Outer border
   if (drawOuterBorder) {
-    const outer = new PathBuilder();
+    const outer = new PathBuilder({ sketchy, rng });
     _addRectToBuilder(outer, baseRect);
     doc.body.push(outer.toPath({
       stroke: "#000",
@@ -107,9 +121,9 @@ export function generateZentangleCells(doc, opts) {
 
   // 4) Patrones disponibles por "Familias" para reducir caos
   const families = {
-    geometric: [_fillConcentricSquares, _fillAuraSquares, _fillCrosses, _fillTriangles, _fillAura],
-    organic: [_fillStripesSmooth, _fillCircles, _fillCurvesSmooth, _fillScallops, _fillSpiralBands, _fillFlow, _fillAura],
-    dense: [_fillStippling, _fillAuraSquares, _fillFlow]
+    geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit],
+    organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves],
+    dense: [fillStippling, fillAuraSquares, fillFlow, fillPokerChips]
   };
 
   const familyKey = opts.patternFamily || (rng() < 0.5 ? "geometric" : "organic");
@@ -236,9 +250,9 @@ export function generateZentangleCells(doc, opts) {
       if (available.length === 0) available = patterns;
 
       if (minDim < 13) {
-        available = [_fillStripesSmooth, _fillCrosses, _fillConcentricSquares].filter(p => p !== lastFn);
+        available = [fillStripesSmooth, fillCrosses, fillConcentricSquares].filter(p => p !== lastFn);
       } else if (minDim < 22) {
-        available = available.filter(p => p !== _fillSpiralBands && p !== _fillCircles && p !== _fillFlow);
+        available = available.filter(p => p !== fillSpiralBands && p !== fillCircles && p !== fillFlow);
       }
       if (available.length === 0) available = patterns;
 
@@ -256,8 +270,8 @@ export function generateZentangleCells(doc, opts) {
       let d = fn(rng, box, cellCfg);
 
       // Meta-Patterns: Círculos invocan stippling en los huecos
-      if (fn === _fillCircles && rng() < 0.7 && minDim > 20) {
-        const stipD = _fillStippling(rng, box, cellCfg, true);
+      if (fn === fillCircles && rng() < 0.7 && minDim > 20) {
+        const stipD = fillStippling(rng, box, cellCfg, true);
         if (stipD) d += " " + stipD;
       }
 
@@ -270,6 +284,8 @@ export function generateZentangleCells(doc, opts) {
       const fill = doCover ? "#fff" : "none";
 
       // Micro-Fluctuaciones: Sutil temblor en las líneas internas
+      // Si ya usamos sketchy en pathBuilder, esto añade EXTRA jitter en la rotación.
+      // Lo mantenemos para variedad.
       const jitter = (rng() - 0.5) * 0.15;
 
       doc.body.push(
@@ -288,7 +304,9 @@ export function generateZentangleCells(doc, opts) {
   if (opts.flowLinesEnabled !== false) {
     const flowCount = rInt(rng, 1, 3);
     for (let i = 0; i < flowCount; i++) {
-      const b = new PathBuilder();
+      // Uses sketchy too? maybe not for flow lines, or yes?
+      // Let's use clean for flow lines grid.
+      const b = new PathBuilder({ sketchy: 0, rng });
       const xStart = baseRect.x0 + rng() * (baseRect.x1 - baseRect.x0);
       const yStart = baseRect.y0 + rng() * (baseRect.y1 - baseRect.y0);
       b.moveTo(xStart, yStart);
@@ -583,356 +601,6 @@ function _makeTriCells(baseRect, side) {
 }
 
 /* =========================
-   Patterns
-   ========================= */
-
-function _fillConcentricSquares(rng, r, cfg) {
-  const b = new PathBuilder();
-  const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-  const step = rFloat(rng, Math.max(cfg.minGapMm * 1.25, minDim * 0.06), Math.max(cfg.minGapMm * 1.45, minDim * 0.10));
-  let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
-  while (x1 - x0 > step * 1.15 && y1 - y0 > step * 1.15) {
-    b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
-    x0 += step; y0 += step; x1 -= step; y1 -= step;
-  }
-  return b.d;
-}
-
-function _fillAuraSquares(rng, r, cfg) {
-  const b = new PathBuilder();
-  const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-  const step = rFloat(rng, Math.max(cfg.minGapMm * 1.35, minDim * 0.07), Math.max(cfg.minGapMm * 1.55, minDim * 0.12));
-  const aura = rFloat(rng, Math.max(0.45, cfg.minGapMm * 0.35), Math.min(step * 0.45, 1.1));
-  let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
-  while (x1 - x0 > step * 1.25 && y1 - y0 > step * 1.25) {
-    b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
-    b.moveTo(x0 + aura, y0 + aura).lineTo(x1 - aura, y0 + aura).lineTo(x1 - aura, y1 - aura).lineTo(x0 + aura, y1 - aura).close();
-    x0 += step; y0 += step; x1 -= step; y1 -= step;
-  }
-  return b.d;
-}
-
-function _fillStripesSmooth(rng, r, cfg) {
-  const b = new PathBuilder();
-  const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-  const isVertical = rng() > 0.5;
-  const step = rFloat(rng, Math.max(cfg.minGapMm * 1.55, minDim * 0.08), Math.max(cfg.minGapMm * 1.75, minDim * 0.13));
-  const amp = rFloat(rng, 0.6, Math.max(1.4, Math.min(minDim * 0.08, cfg.minGapMm * 1.4)));
-
-  if (isVertical) {
-    for (let x = r.x0 + step; x < r.x1; x += step) {
-      const midY = (r.y0 + r.y1) / 2;
-      b.moveTo(x, r.y0).quadTo(x + amp, (r.y0 + midY) / 2, x, midY).quadTo(x - amp, (midY + r.y1) / 2, x, r.y1);
-      if (rng() < 0.45) {
-        const dx = rFloat(rng, -0.5, 0.5);
-        b.moveTo(x + dx, r.y0).quadTo(x + dx + amp, (r.y0 + midY) / 2, x + dx, midY).quadTo(x + dx - amp, (midY + r.y1) / 2, x + dx, r.y1);
-      }
-    }
-  } else {
-    for (let y = r.y0 + step; y < r.y1; y += step) {
-      const midX = (r.x0 + r.x1) / 2;
-      b.moveTo(r.x0, y).quadTo((r.x0 + midX) / 2, y + amp, midX, y).quadTo((midX + r.x1) / 2, y - amp, r.x1, y);
-      if (rng() < 0.45) {
-        const dy = rFloat(rng, -0.5, 0.5);
-        b.moveTo(r.x0, y + dy).quadTo((r.x0 + midX) / 2, y + dy + amp, midX, y + dy).quadTo((midX + r.x1) / 2, y + dy - amp, r.x1, y + dy);
-      }
-    }
-  }
-  return b.d;
-}
-
-function _fillCircles(rng, r, cfg) {
-  const b = new PathBuilder();
-  const w = r.x1 - r.x0, h = r.y1 - r.y0;
-  const minDim = Math.min(w, h);
-  let radius = rFloat(rng, Math.max(1.2, cfg.minGapMm * 0.55), Math.max(1.4, minDim * 0.12));
-  const pitch = radius * 2 + cfg.minGapMm;
-  const cols = Math.max(1, Math.floor(w / pitch));
-  const rows = Math.max(1, Math.floor(h / pitch));
-
-  if (cols > 1) radius = Math.min(radius, (w - (cols + 1) * cfg.minGapMm) / (cols * 2));
-  if (rows > 1) radius = Math.min(radius, (h - (rows + 1) * cfg.minGapMm) / (rows * 2));
-
-  const gapX = (w - cols * radius * 2) / (cols + 1);
-  const gapY = (h - rows * radius * 2) / (rows + 1);
-  if (gapX < cfg.minGapMm * 0.55 || gapY < cfg.minGapMm * 0.55) return null;
-
-  for (let i = 0; i < cols; i++) {
-    for (let j = 0; j < rows; j++) {
-      const cx = r.x0 + gapX + radius + i * (radius * 2 + gapX);
-      const cy = r.y0 + gapY + radius + j * (radius * 2 + gapY);
-      b.moveTo(cx + radius, cy);
-      b.quadTo(cx + radius, cy + radius, cx, cy + radius);
-      b.quadTo(cx - radius, cy + radius, cx - radius, cy);
-      b.quadTo(cx - radius, cy - radius, cx, cy - radius);
-      b.quadTo(cx + radius, cy - radius, cx + radius, cy);
-    }
-  }
-  return b.d;
-}
-
-function _fillCrosses(rng, r, cfg) {
-  const b = new PathBuilder();
-  const step = rFloat(rng, Math.max(cfg.minGapMm * 2.4, 3), Math.max(cfg.minGapMm * 3, 5));
-  const s = step * 0.25;
-  const sw = cfg.patternStrokeMm;
-
-  for (let x = r.x0 + step / 2; x < r.x1; x += step) {
-    for (let y = r.y0 + step / 2; y < r.y1; y += step) {
-      // Usamos taperedLine para un look más "de autor"
-      b.taperedLine(x - s, y - s, x + s, y + s, sw);
-      b.taperedLine(x + s, y - s, x - s, y + s, sw);
-    }
-  }
-  return b.d;
-}
-
-function _fillCurvesSmooth(rng, r, cfg) {
-  const b = new PathBuilder();
-  const stepY = rFloat(rng, cfg.minGapMm * 1.5, cfg.minGapMm * 2.5);
-  const segX = rFloat(rng, stepY * 2, stepY * 4);
-  const amp = rFloat(rng, 0.8, 1.5);
-  let y = r.y0 + stepY;
-  while (y < r.y1) {
-    b.moveTo(r.x0, y);
-    let x = r.x0;
-    let flip = rng() < 0.5 ? -1 : 1;
-    while (x < r.x1) {
-      const nextX = Math.min(r.x1, x + segX);
-      const mx = (x + nextX) / 2;
-      b.quadTo(mx, y + flip * amp, nextX, y);
-      flip *= -1;
-      x = nextX;
-    }
-    y += stepY;
-  }
-  return b.d;
-}
-
-function _fillScallops(rng, r, cfg) {
-  const b = new PathBuilder();
-  const step = rFloat(rng, cfg.minGapMm * 2.8, cfg.minGapMm * 4);
-  const rad = step * 0.6;
-  for (let y = r.y0 + rad; y < r.y1 + rad; y += rad) {
-    const row = Math.floor((y - r.y0) / rad);
-    const offset = row % 2 ? rad : 0;
-    for (let x = r.x0 + offset; x < r.x1 + rad; x += rad * 2) {
-      b.moveTo(x - rad, y).quadTo(x, y - rad, x + rad, y);
-    }
-  }
-  return b.d;
-}
-
-
-function _fillSpiralBands(rng, r, cfg) {
-  const b = new PathBuilder();
-  const cx = (r.x0 + r.x1) / 2;
-  const cy = (r.y0 + r.y1) / 2;
-  const maxR = Math.min(r.x1 - r.x0, r.y1 - r.y0) * 0.45;
-  if (maxR < cfg.minGapMm * 2.2) return null;
-
-  const bands = rInt(rng, 2, 4);
-  const maxSegLenMm = 1.2;
-
-  for (let k = 0; k < bands; k++) {
-    let a = rFloat(rng, 0, Math.PI * 2);
-    let rad = maxR * (0.98 - k * 0.18);
-    const totalAngle = rFloat(rng, 2.3, 3.4) * Math.PI * 2;
-    const approxLen = Math.max(1, (rad * 0.55) * totalAngle);
-    const steps = Math.max(24, Math.min(100, Math.round(approxLen / maxSegLenMm)));
-    const stepAngle = totalAngle / steps;
-    const decay = Math.pow(0.20, 1 / steps);
-
-    b.moveTo(cx + rad * Math.cos(a), cy + rad * Math.sin(a));
-    for (let i = 0; i < steps; i++) {
-      a += stepAngle;
-      rad *= (0.985 + rFloat(rng, -0.003, 0.002));
-      rad *= decay;
-      if (rad < maxR * 0.10) break;
-      b.lineTo(cx + rad * Math.cos(a), cy + rad * Math.sin(a));
-    }
-  }
-  return b.d;
-}
-
-function _fillFlow(rng, r, cfg) {
-  // "Hollibaugh" style flow lines
-  const b = new PathBuilder();
-  const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-  // Vertical-ish flowing lines
-  const cols = Math.max(3, Math.floor((r.x1 - r.x0) / (cfg.minGapMm * 2.5)));
-  const stepX = (r.x1 - r.x0) / cols;
-
-  for (let i = 0; i <= cols; i++) {
-    const xBase = r.x0 + i * stepX;
-    if (i === 0 || i === cols) {
-      // edges just straight? no, let's skip edges they are clipped anyway
-      continue;
-    }
-
-    // Draw a flowing line from top to bottom
-    b.moveTo(xBase, r.y0);
-
-    let y = r.y0;
-    let x = xBase;
-    const steps = 6;
-    const dy = (r.y1 - r.y0) / steps;
-
-    for (let k = 0; k < steps; k++) {
-      const nextY = y + dy;
-      const drift = rFloat(rng, -stepX * 0.6, stepX * 0.6);
-      const cp1x = x + rFloat(rng, -2, 2);
-      const cp1y = y + dy * 0.33;
-      const cp2x = xBase + drift + rFloat(rng, -2, 2); // tend back to base?
-      const cp2y = y + dy * 0.66;
-      const nextX = xBase + drift;
-
-      b.quadTo(cp1x, cp1y, (x + nextX) / 2, (y + nextY) / 2); // smooth approx
-
-      x = nextX;
-      y = nextY; // abstract logic
-    }
-    // Simple spline through random points is better:
-    // Let's redo: just Top to Bottom bezier
-    const c1x = xBase + rFloat(rng, -minDim * 0.3, minDim * 0.3);
-    const c1y = r.y0 + (r.y1 - r.y0) * 0.33;
-    const c2x = xBase + rFloat(rng, -minDim * 0.3, minDim * 0.3);
-    const c2y = r.y0 + (r.y1 - r.y0) * 0.66;
-    const destX = xBase + rFloat(rng, -stepX, stepX);
-
-    // Reset and do single cubic
-    b.moveTo(xBase, r.y0); // actually we can't reset 'b' mid-stream easily in this builder? 
-    // wait, moveTo starts new subpath.
-    b.cubicTo(c1x, c1y, c2x, c2y, destX, r.y1);
-
-    // Double line for "ribbon" effect?
-    if (rng() < 0.5) {
-      const gap = cfg.minGapMm * 0.6;
-      b.moveTo(xBase + gap, r.y0);
-      b.cubicTo(c1x + gap, c1y, c2x + gap, c2y, destX + gap, r.y1);
-    }
-  }
-  return b.d;
-}
-
-function _fillTriangles(rng, r, cfg) {
-  // Random subdivision triangles
-  const b = new PathBuilder();
-  const count = rInt(rng, 5, 12);
-  const sw = cfg.patternStrokeMm;
-  for (let i = 0; i < count; i++) {
-    const p1 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
-    const p2 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
-    const p3 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
-
-    // Just strokes with tapering
-    b.taperedLine(p1.x, p1.y, p2.x, p2.y, sw);
-    b.taperedLine(p2.x, p2.y, p3.x, p3.y, sw);
-    b.taperedLine(p3.x, p3.y, p1.x, p1.y, sw);
-  }
-  return b.d;
-}
-
-function _fillStippling(rng, r, cfg, isMeta = false) {
-  const b = new PathBuilder();
-  const w = r.x1 - r.x0, h = r.y1 - r.y0;
-  const area = w * h;
-  const density = isMeta ? 0.15 : 0.4;
-  const count = Math.floor(area * density);
-
-  for (let i = 0; i < count; i++) {
-    let x = rFloat(rng, r.x0, r.x1);
-    let y = rFloat(rng, r.y0, r.y1);
-
-    if (!isMeta) {
-      const prob = (y - r.y0) / h;
-      if (rng() > prob) continue;
-    }
-
-    const rad = rFloat(rng, 0.1, 0.25);
-    b.circle(x, y, rad);
-  }
-  return b.d;
-}
-
-/**
- * Patrón Aura: Contornos repetitivos hacia adentro
- */
-function _fillAura(rng, r, cfg) {
-  const b = new PathBuilder();
-  const w = r.x1 - r.x0, h = r.y1 - r.y0;
-  const minDim = Math.min(w, h);
-  const steps = rInt(rng, 3, 6);
-  const stepSize = (minDim * 0.45) / steps;
-
-  for (let i = 0; i < steps; i++) {
-    const inset = i * stepSize;
-    const box = {
-      x0: r.x0 + inset,
-      y0: r.y0 + inset,
-      x1: r.x1 - inset,
-      y1: r.y1 - inset
-    };
-    if (!_isValidRect(box)) break;
-
-    const cornerR = Math.max(0.5, stepSize * 0.5);
-    b.moveTo(box.x0 + cornerR, box.y0)
-      .lineTo(box.x1 - cornerR, box.y0)
-      .arcTo(cornerR, cornerR, 0, 0, 1, box.x1, box.y0 + cornerR)
-      .lineTo(box.x1, box.y1 - cornerR)
-      .arcTo(cornerR, cornerR, 0, 0, 1, box.x1 - cornerR, box.y1)
-      .lineTo(box.x0 + cornerR, box.y1)
-      .arcTo(cornerR, cornerR, 0, 0, 1, box.x0, box.y1 - cornerR)
-      .lineTo(box.x0, box.y0 + cornerR)
-      .arcTo(cornerR, cornerR, 0, 0, 1, box.x0 + cornerR, box.y0)
-      .close();
-  }
-  return b.d;
-}
-
-/* =========================
-   Helpers: rect split
-   ========================= */
-
-function _splitRectangles(rng, base, targetCount, minSizeMm) {
-  let rects = [base];
-  const area = (r) => Math.max(0, (r.x1 - r.x0) * (r.y1 - r.y0));
-
-  for (let i = 0; i < targetCount * 2.5 && rects.length < targetCount; i++) {
-    const total = rects.reduce((s, r) => s + area(r), 0);
-    if (total <= 0.001) break;
-
-    let val = rng() * total;
-    let idx = 0;
-    for (; idx < rects.length; idx++) {
-      const a = area(rects[idx]);
-      if (val <= a) break;
-      val -= a;
-    }
-    idx = Math.min(idx, rects.length - 1);
-
-    const r = rects[idx];
-    const w = r.x1 - r.x0;
-    const h = r.y1 - r.y0;
-
-    if (w < minSizeMm * 2.1 && h < minSizeMm * 2.1) continue;
-
-    const cutVert = (w >= h) ? (rng() < 0.60) : (rng() < 0.40);
-
-    if (cutVert && w >= minSizeMm * 2.1) {
-      const cutPos = 0.5 + rFloat(rng, -0.15, 0.15);
-      const x = r.x0 + w * cutPos;
-      rects.splice(idx, 1, { ...r, x1: x }, { ...r, x0: x });
-    } else if (!cutVert && h >= minSizeMm * 2.1) {
-      const cutPos = 0.5 + rFloat(rng, -0.15, 0.15);
-      const y = r.y0 + h * cutPos;
-      rects.splice(idx, 1, { ...r, y1: y }, { ...r, y0: y });
-    }
-  }
-  return rects;
-}
-
-/* =========================
    Helpers: geometry & organic
    ========================= */
 
@@ -1069,7 +737,8 @@ function _organicPolyStrokeD(rng, poly, jitterMm, cornerR) {
   }
 
   // Rounded corners via quadTo around each vertex
-  const b = new PathBuilder();
+  const b = new PathBuilder({ sketchy: 0, rng }); // No sketchy for border usually, or maybe yes?
+  // Let's passed 0 for border strictness
   const rr = Math.max(0, cornerR);
 
   for (let i = 0; i < pts.length; i++) {
@@ -1113,7 +782,7 @@ function _organicRectD(rng, r, params) {
   const botPts = _bulgeEdge(rng, { x0: r.x0 + cornerR, x1: r.x1 - cornerR, y: r.y1 }, "x", bulge, lumps, +1);
   const leftPts = _bulgeEdge(rng, { y0: r.y0 + cornerR, y1: r.y1 - cornerR, x: r.x0 }, "y", bulge, lumps, -1);
 
-  const b = new PathBuilder();
+  const b = new PathBuilder({ sketchy: 0, rng });
   b.moveTo(r.x0 + cornerR, r.y0);
 
   _curveThroughPoints(b, topPts);
@@ -1178,4 +847,42 @@ function _curveThroughPoints(b, pts) {
   // final straight segment avoids end-loop/kink
   const pLast = pts[pts.length - 1];
   b.lineTo(pLast.x, pLast.y);
+}
+
+function _splitRectangles(rng, base, targetCount, minSizeMm) {
+  let rects = [base];
+  const area = (r) => Math.max(0, (r.x1 - r.x0) * (r.y1 - r.y0));
+
+  for (let i = 0; i < targetCount * 2.5 && rects.length < targetCount; i++) {
+    const total = rects.reduce((s, r) => s + area(r), 0);
+    if (total <= 0.001) break;
+
+    let val = rng() * total;
+    let idx = 0;
+    for (; idx < rects.length; idx++) {
+      const a = area(rects[idx]);
+      if (val <= a) break;
+      val -= a;
+    }
+    idx = Math.min(idx, rects.length - 1);
+
+    const r = rects[idx];
+    const w = r.x1 - r.x0;
+    const h = r.y1 - r.y0;
+
+    if (w < minSizeMm * 2.1 && h < minSizeMm * 2.1) continue;
+
+    const cutVert = (w >= h) ? (rng() < 0.60) : (rng() < 0.40);
+
+    if (cutVert && w >= minSizeMm * 2.1) {
+      const cutPos = 0.5 + rFloat(rng, -0.15, 0.15);
+      const x = r.x0 + w * cutPos;
+      rects.splice(idx, 1, { ...r, x1: x }, { ...r, x0: x });
+    } else if (!cutVert && h >= minSizeMm * 2.1) {
+      const cutPos = 0.5 + rFloat(rng, -0.15, 0.15);
+      const y = r.y0 + h * cutPos;
+      rects.splice(idx, 1, { ...r, y1: y }, { ...r, y0: y });
+    }
+  }
+  return rects;
 }
