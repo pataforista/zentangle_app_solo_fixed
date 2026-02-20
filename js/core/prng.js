@@ -35,3 +35,15 @@ export function rInt(rng, min, max) {
 export function pick(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
 }
+
+/**
+ * Deterministic hash for combining global seed with cell ID.
+ * Returns a 32-bit unsigned integer.
+ */
+export function hash(seed, id) {
+  let h = (seed ^ (id * 0xdeadbeef)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x21f0aaad);
+  h = Math.imul(h ^ (h >>> 15), 0x735a2d97);
+  h = ((h ^ (h >>> 15)) >>> 0);
+  return h;
+}

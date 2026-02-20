@@ -99,7 +99,8 @@ function buildOptsFromUI() {
   return { opts, zPresetKey };
 }
 
-function render() {
+async function render() {
+  ui.status.textContent = "Renderizando...";
   const paperKey = String(ui.paper.value || "A4");
   const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
 
@@ -131,7 +132,7 @@ function render() {
     },
   });
 
-  generateZentangle(doc, {
+  await generateZentangle(doc, {
     seed: opts.seed,
     presetName: zPresetKey,
     overrides: opts,
@@ -181,19 +182,19 @@ function bind() {
     if (el) el.addEventListener("input", debouncedRender);
   });
 
-  ui.btnDownloadSVG.addEventListener("click", () => {
-    const { svg, paperKey, zPresetKey } = render();
+  ui.btnDownloadSVG.addEventListener("click", async () => {
+    const { svg, paperKey, zPresetKey } = await render();
     downloadTextFile(`zentangle_${paperKey}_${zPresetKey}.svg`, svg);
   });
 
   ui.btnDownloadPNG.addEventListener("click", async () => {
-    const { svg, opts, zPresetKey, paperKey } = render();
+    const { svg, opts, zPresetKey, paperKey } = await render();
     const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
     await downloadPng(`zentangle_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
   });
 
-  ui.btnDownloadJSON.addEventListener("click", () => {
-    const { opts, paperKey, zPresetKey } = render();
+  ui.btnDownloadJSON.addEventListener("click", async () => {
+    const { opts, paperKey, zPresetKey } = await render();
     downloadTextFile(
       `zentangle_${paperKey}_${zPresetKey}_opts.json`,
       JSON.stringify(opts, null, 2)
