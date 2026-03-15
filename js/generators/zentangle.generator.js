@@ -33,5 +33,5 @@ export async function generateZentangle(doc, {
     areaMm: area,
   };
 
-  generateZentangleCells(doc, finalOpts);
+  await generateZentangleCells(doc, finalOpts);
 }

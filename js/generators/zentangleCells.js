@@ -1,16 +1,14 @@
 // zentangleCells.js
 import { createRNG, rFloat, rInt, pick } from "../core/prng.js";
 import { PathBuilder } from "../core/pathBuilder.js";
+import { LAYOUT_TEMPLATES, getTemplateCells } from "./layoutTemplates.js";
 
 import {
   fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit
 } from "./patterns/geometric.js";
-import {
-  fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillWaves
-} from "./patterns/organic.js";
-import {
-  fillStippling, fillPokerChips
-} from "./patterns/dense.js";
+import { fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillWaves } from "./patterns/organic.js";
+import { fillParadox, fillHollibaugh, fillFlux } from "./patterns/complex.js";
+import { fillStippling, fillPokerChips } from "./patterns/dense.js";
 
 /**
  * Zentangle Cells — v5 (integrated)
@@ -21,7 +19,7 @@ import {
  *
  * Requisito: doc = { body: [], defs?: [] }
  */
-export function generateZentangleCells(doc, opts) {
+export async function generateZentangleCells(doc, opts) {
   const {
     seed,
     areaMm,
@@ -123,7 +121,7 @@ export function generateZentangleCells(doc, opts) {
   const families = {
     geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit],
     organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves],
-    dense: [fillStippling, fillAuraSquares, fillFlow, fillPokerChips]
+    dense: [fillStippling, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles]
   };
 
   const familyKey = opts.patternFamily || (rng() < 0.5 ? "geometric" : "organic");
@@ -138,8 +136,12 @@ export function generateZentangleCells(doc, opts) {
   const localDefs = [];
   const pushDef = (s) => { if (useDocDefs) doc.defs.push(s); else localDefs.push(s); };
 
-  // 5) Render por celda
+  // 2) Dibujar cada celda
   for (let i = 0; i < cells.length; i++) {
+    // Yield every 3 cells to keep UI responsive
+    if (i > 0 && i % 3 === 0) {
+      await new Promise(r => setTimeout(r, 0));
+    }
     const cell = cells[i];
 
     const rot = _pickRotation(rng, rotatePatterns, rotationSet);
@@ -158,24 +160,38 @@ export function generateZentangleCells(doc, opts) {
     const clipId = `${renderPrefix}clip_${i}`;
     let clipD = "";
     pushDef(`
-      <filter id="${shadowId}" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="blur" />
-        <feOffset in="blur" dx="0.4" dy="0.4" result="offsetBlur" />
-        <feComponentTransfer in="offsetBlur" result="opacity">
-          <feFuncA type="linear" slope="0.45" />
+      <filter id="${shadowId}" x="-30%" y="-30%" width="160%" height="160%">
+        <!-- Base Shadow -->
+        <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur" />
+        <feOffset in="blur" dx="0.6" dy="0.6" result="offsetBlur" />
+        
+        <!-- Grain / Graphite Texture -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" result="grain" />
+        <feComposite in="offsetBlur" in2="grain" operator="arithmetic" k1="0.4" k2="0.6" k3="0" k4="0" result="texturedShadow" />
+
+        <feComponentTransfer in="texturedShadow" result="finalShadow">
+          <feFuncA type="linear" slope="0.35" />
         </feComponentTransfer>
-        <feComposite in="SourceGraphic" in2="opacity" operator="over" />
+        <feComposite in="SourceGraphic" in2="finalShadow" operator="over" />
       </filter>
     `);
 
     // --- Textura de Papel (Premium) ---
     pushDef(`
       <filter id="${renderPrefix}paperTexture" x="0" y="0" width="100%" height="100%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise" />
-        <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="1.2" result="light">
-          <feDistantLight azimuth="45" elevation="60" />
+        <feTurbulence type="fractalNoise" baseFrequency="0.03 0.04" numOctaves="5" result="noise" />
+        <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="1.5" result="light">
+          <feDistantLight azimuth="45" elevation="65" />
         </feDiffuseLighting>
-        <feComposite in="SourceGraphic" in2="light" operator="arithmetic" k1="0" k2="1" k3="0.2" k4="0" />
+        
+        <!-- Subtle tooth for the paper -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="1" result="tooth" />
+        <feComponentTransfer in="tooth" result="toothAlpha">
+          <feFuncA type="linear" slope="0.1" />
+        </feComponentTransfer>
+        <feComposite in="light" in2="toothAlpha" operator="arithmetic" k1="0" k2="1" k3="0.1" k4="0" result="finalPaper" />
+
+        <feComposite in="SourceGraphic" in2="finalPaper" operator="arithmetic" k1="0" k2="1" k3="0.15" k4="0" />
       </filter>
     `);
 
@@ -224,47 +240,58 @@ export function generateZentangleCells(doc, opts) {
     const maxDist = Math.sqrt(Math.pow(baseRect.x1 - baseRect.x0, 2) + Math.pow(baseRect.y1 - baseRect.y0, 2)) / 2;
     const centerFactor = 1 - Math.min(1, distToCenter / maxDist); // 1 en el centro, 0 lejos
 
-    const simpleCellProb = (opts.focusMode ? 0.3 + centerFactor * 0.5 : 0.2);
+    const simpleCellProb = (opts.focusMode ? 0.15 : 0.05); // Much lower prob of being 'simple'
     const isSimpleCell = rng() < simpleCellProb;
 
     let layers;
     if (isSimpleCell) {
-      layers = (rng() < 0.3 ? 1 : 0); // 30% chance of 1 layer, 70% empty
+      // Even simple cells get at least one layer to avoid blanks
+      layers = 1; 
     } else if (layersPerCell === "auto") {
-      if (minDim < 16) layers = 1;
-      else if (minDim < 28) layers = (rng() < 0.22 ? 2 : 1);
-      else layers = (rng() < 0.18 ? 3 : 2);
+      // Capping layers to 2 mostly. Too many layers creates a scribble effect.
+      if (minDim < 15) layers = 1;
+      else if (minDim < 35) layers = (rng() < 0.7 ? 1 : 2); 
+      else layers = (rng() < 0.6 ? 2 : 3); // Max 3 for very large cells
     } else {
       layers = Math.max(1, Math.min(3, Number(layersPerCell)));
     }
-    layers = Math.min(layers, Math.max(0, Number(maxPatternPassesPerCell)));
+    layers = Math.min(layers, Math.max(1, Number(maxPatternPassesPerCell)));
 
     let lastFn = null;
 
+    const patternsGroup = [];
     for (let L = 0; L < layers; L++) {
       // Skip probabilístico
       if (rng() < Math.max(0, patternSkipProb) && minDim < 35) continue;
 
       // Smart Selection Strategy + Anti-Repetition
-      let available = patterns.filter(p => p !== lastFn);
-      if (available.length === 0) available = patterns;
+      const allPatterns = [...patterns];
+      
+      let available = allPatterns.filter(p => p !== lastFn);
+      if (available.length === 0) available = allPatterns;
 
       if (minDim < 13) {
-        available = [fillStripesSmooth, fillCrosses, fillConcentricSquares].filter(p => p !== lastFn);
-      } else if (minDim < 22) {
-        available = available.filter(p => p !== fillSpiralBands && p !== fillCircles && p !== fillFlow);
-      }
-      if (available.length === 0) available = patterns;
+        available = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox].filter(p => p !== lastFn);
+      } 
+      
+      if (available.length === 0) available = allPatterns;
 
       const fn = pick(rng, available);
       lastFn = fn;
 
-      // Escalado Dinámico: Ajustar parámetros según el tamaño de la celda
-      const stepScale = Math.max(0.7, Math.min(1.3, minDim / 25));
+      // Escalado Dinámico: Ajustar parámetros para llenar más espacio densamente
+      // Máximo aire (v3.6): Nunca bajamos del 90% del gap original en presets normales
+      const stepScale = Math.max(0.9, Math.min(1.0, minDim / 60)); 
+      
+      let strokeScale = 1.0;
+      if (opts.focusMode || familyKey === "dense") {
+        strokeScale = 0.7; // Solo adelgazamos si se busca densidad extrema
+      }
+
       const cellCfg = {
         ...cfg,
-        minGapMm: cfg.minGapMm * stepScale,
-        patternStrokeMm: cfg.patternStrokeMm * (stepScale * 0.5 + 0.5)
+        minGapMm: Math.max(1.1, cfg.minGapMm * stepScale), 
+        patternStrokeMm: Math.max(0.25, cfg.patternStrokeMm * stepScale * strokeScale)
       };
 
       let d = fn(rng, box, cellCfg);
@@ -283,20 +310,20 @@ export function generateZentangleCells(doc, opts) {
       const doCover = canCover && (rng() < (L === 1 ? coverP1 : coverP2));
       const fill = doCover ? "#fff" : "none";
 
-      // Micro-Fluctuaciones: Sutil temblor en las líneas internas
-      // Si ya usamos sketchy en pathBuilder, esto añade EXTRA jitter en la rotación.
-      // Lo mantenemos para variedad.
       const jitter = (rng() - 0.5) * 0.15;
 
-      doc.body.push(
+      patternsGroup.push(
         `<path d="${d}"
-          clip-path="url(#${clipId})"
           fill="${fill}"
           stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}mm"
           stroke-linecap="round" stroke-linejoin="round"
           transform="rotate(${_fmt(rot + jitter)} ${_fmt(cx)} ${_fmt(cy)})"
         />`
       );
+    }
+    
+    if (patternsGroup.length) {
+      doc.body.push(`<g clip-path="url(#${clipId})">${patternsGroup.join("")}</g>`);
     }
   }
 
@@ -341,30 +368,43 @@ function _makeCells(rng, baseRect, cfg) {
   if (cellLayout === "voronoi") return _makeVoronoiCells(rng, baseRect, Math.max(10, cellCount));
   if (cellLayout === "strings") return _makeStringCells(rng, baseRect, Math.max(2, Math.floor(cellCount / 8)));
 
+  if (cellLayout === "template") {
+    const names = Object.keys(LAYOUT_TEMPLATES);
+    const tName = cfg.templateName || names[rInt(rng, 0, names.length - 1)];
+    return getTemplateCells(tName, baseRect);
+  }
+
   // default
   const rects = _splitRectangles(rng, baseRect, Math.max(1, cellCount), Math.max(6, minCellSizeMm));
   return rects.map((r) => ({ kind: "rect", bbox: r, poly: null }));
 }
 
 function _makeVoronoiCells(rng, rect, count) {
-  // 1) Poisson Disc Sampling (simplificado para Zentangle)
-  const points = _poissonDiscSampling(rng, rect, Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count));
+  // Use a slightly tight radius for better distribution
+  const radius = Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count) * 0.95;
+  const points = _poissonDiscSampling(rng, rect, radius);
 
-  // 2) Voronoi básico (proyectado a polígonos)
-  const cells = points.map(p => {
-    const sides = rInt(rng, 5, 8);
-    const poly = [];
-    const avgR = Math.sqrt(((rect.x1 - rect.x0) * (rect.y1 - rect.y0)) / count) * 0.9;
-    for (let i = 0; i < sides; i++) {
-      const a = (i / sides) * Math.PI * 2 + (rng() * (Math.PI * 2 / sides) * 0.5);
-      const r = avgR * (0.7 + rng() * 0.5);
-      poly.push({ x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r });
+  // Check if d3.Delaunay is available (usually globally in index.html)
+  if (typeof d3 !== "undefined" && d3.Delaunay) {
+    try {
+      const delaunay = d3.Delaunay.from(points.map(p => [p.x, p.y]));
+      const voronoi = delaunay.voronoi([rect.x0, rect.y0, rect.x1, rect.y1]);
+      const cells = [];
+      for (let i = 0; i < points.length; i++) {
+        const polyCoords = voronoi.cellPolygon(i);
+        if (polyCoords) {
+          const poly = polyCoords.map(p => ({ x: p[0], y: p[1] }));
+          cells.push({ kind: "poly", bbox: _bboxOfPoly(poly), poly });
+        }
+      }
+      return cells;
+    } catch (e) {
+      console.warn("Voronoi error, falling back to simple scatter:", e);
     }
-    const bbox = _bboxOfPoly(poly);
-    return { kind: "poly", bbox, poly };
-  });
+  }
 
-  return cells;
+  // Fallback: Partition-based scatter (simpler but stable)
+  return _makeStringCells(rng, rect, count);
 }
 
 function _makeStringCells(rng, rect, count) {
@@ -375,15 +415,16 @@ function _makeStringCells(rng, rect, count) {
   if (useRadial) {
     polygons = _radialSplit(rng, rect, Math.max(3, Math.floor(count / 4)));
   } else {
-    const depth = count > 14 ? 3 : 2;
+    // Increased depth for more cells if count is high
+    const depth = count > 30 ? 4 : (count > 12 ? 3 : 2);
     polygons = _recursiveBezierSplit(rng, rect, depth);
   }
 
   return polygons.map(poly => {
-    // Warp más agresivo si la celda es grande para romper la linealidad
     const w = _bboxOfPoly(poly);
     const minDim = Math.min(w.x1 - w.x0, w.y1 - w.y0);
-    const warpAmt = minDim * 0.12;
+    // Reduced warp to prevent boundary escape
+    const warpAmt = minDim * 0.065; 
     const warped = _warpPolyOrganic(rng, poly, warpAmt);
     return { kind: "poly", bbox: _bboxOfPoly(warped), poly: warped };
   });

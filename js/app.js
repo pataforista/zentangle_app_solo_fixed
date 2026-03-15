@@ -1,6 +1,6 @@
 import { createSvgDoc, PAPER_SIZES_MM } from "./core/svgDoc.js";
 import { renderSvgToString } from "./core/svgRender.js";
-import { downloadTextFile, downloadPng } from "./core/export.js";
+import { downloadTextFile, downloadPng, downloadPdf } from "./core/export.js";
 import { getStateFromURL, setStateToURL, randomSeed32 } from "./core/urlState.js";
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
@@ -44,6 +44,7 @@ const ui = {
   btnRender: $("btnRender"),
   btnDownloadSVG: $("btnDownloadSVG"),
   btnDownloadPNG: $("btnDownloadPNG"),
+  btnDownloadPDF: $("btnDownloadPDF"),
   btnDownloadJSON: $("btnDownloadJSON"),
 
   previewInner: $("previewInner"),
@@ -188,9 +189,19 @@ function bind() {
   });
 
   ui.btnDownloadPNG.addEventListener("click", async () => {
-    const { svg, opts, zPresetKey, paperKey } = await render();
+    const { svg, paperKey, zPresetKey } = await render();
     const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
+    ui.status.innerText = "Preparando PNG...";
     await downloadPng(`zentangle_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
+    ui.status.innerText = "Descargado PNG";
+  });
+
+  ui.btnDownloadPDF.addEventListener("click", async () => {
+    const { svg, paperKey, zPresetKey } = await render();
+    const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
+    ui.status.innerText = "Generando PDF (KDP)...";
+    await downloadPdf(`zentangle_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);
+    ui.status.innerText = "Descargado PDF";
   });
 
   ui.btnDownloadJSON.addEventListener("click", async () => {

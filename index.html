@@ -352,6 +352,11 @@
                 <option value="bold_easy">Bold & Easy</option>
                 <option value="tile_90mm">Tile (90mm)</option>
                 <option value="intricate_dark">Intrincado Oscuro</option>
+                <option value="classic_z_string">Cuerda en Z (Template)</option>
+                <option value="eye_focus">Ojo Central (Template)</option>
+                <option value="classic_grid">Cuadrícula (Template)</option>
+                <option value="spiral_modern">Espiral (Template)</option>
+                <option value="kdp_masterpiece" selected>KDP Masterpiece (Alta Densidad)</option>
               </select>
             </div>
           </div>
@@ -469,17 +474,26 @@
 
       </div>
 
-      <div class="actions-bar">
+          <div class="actions-bar">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           <button id="btnRandomSeed" class="btn btn-secondary">🎲 Random Seed</button>
           <button id="btnRender" class="btn btn-primary">⚡ Renderizar</button>
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-          <button id="btnDownloadSVG" class="btn btn-secondary">Descargar SVG</button>
-          <button id="btnDownloadPNG" class="btn btn-secondary">Descargar PNG (300DPI)</button>
+          <button id="btnDownloadSVG" class="btn btn-secondary">
+            <i class="fas fa-file-code"></i> Descargar SVG
+          </button>
+          <button id="btnDownloadPDF" class="btn btn-accent">
+            <i class="fas fa-file-pdf"></i> Descargar PDF (KDP)
+          </button>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
-          <button id="btnDownloadJSON" class="btn btn-secondary">Descargar JSON Opciones</button>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <button id="btnDownloadPNG" class="btn btn-secondary">
+            <i class="fas fa-file-image"></i> Descargar PNG
+          </button>
+          <button id="btnDownloadJSON" class="btn btn-secondary">
+            <i class="fas fa-file-json"></i> Descargar JSON
+          </button>
         </div>
       </div>
     </aside>
@@ -496,6 +510,7 @@
 
   <script src="https://unpkg.com/roughjs@latest/bundled/rough.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script type="module" src="./js/app.js"></script>
 </body>
 

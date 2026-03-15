@@ -54,10 +54,10 @@ function stripIdsDeep(node) {
 }
 
 /**
- * Descarga el contenido SVG como PNG de alta resolución (300 DPI aprox).
+ * Genera un DataURL de un PNG a partir de un SVG.
  */
-export async function downloadPng(filename, svgString, widthMm, heightMm) {
-  const pixelRatio = 300 / 25.4; // 300 DPI = ~11.8 pixels per mm
+export async function generatePngDataUrl(svgString, widthMm, heightMm) {
+  const pixelRatio = 300 / 25.4; 
   const width = widthMm * pixelRatio;
   const height = heightMm * pixelRatio;
 
@@ -66,7 +66,6 @@ export async function downloadPng(filename, svgString, widthMm, heightMm) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
 
-  // Crear Blob a partir de SVG
   const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
   const img = new Image();
@@ -77,16 +76,7 @@ export async function downloadPng(filename, svgString, widthMm, heightMm) {
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
       URL.revokeObjectURL(url);
-
-      canvas.toBlob((blob) => {
-        const pngUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = pngUrl;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(pngUrl);
-        resolve();
-      }, "image/png");
+      resolve(canvas.toDataURL("image/png"));
     };
     img.onerror = (err) => {
       URL.revokeObjectURL(url);
@@ -94,4 +84,30 @@ export async function downloadPng(filename, svgString, widthMm, heightMm) {
     };
     img.src = url;
   });
+}
+
+/**
+ * Descarga el contenido SVG como PNG de alta resolución.
+ */
+export async function downloadPng(filename, svgString, widthMm, heightMm) {
+  const dataUrl = await generatePngDataUrl(svgString, widthMm, heightMm);
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  a.click();
+}
+
+/**
+ * Descarga el contenido SVG como PDF de alta resolución (KDP ready).
+ */
+export async function downloadPdf(filename, svgString, widthMm, heightMm) {
+  const { jsPDF } = window.jspdf;
+  const orientation = widthMm > heightMm ? "l" : "p";
+  const doc = new jsPDF(orientation, "mm", [widthMm, heightMm]);
+
+  const dataUrl = await generatePngDataUrl(svgString, widthMm, heightMm);
+  
+  // Añadimos la imagen al PDF ocupando toda la página (con compresión rápida para reducir peso sin perder calidad)
+  doc.addImage(dataUrl, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+  doc.save(filename);
 }

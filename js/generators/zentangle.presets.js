@@ -144,16 +144,14 @@ export const ZENTANGLE_PRESETS = {
 
   tri_editorial: {
     cellLayout: "tri",
-    triSideMm: 22,
-
+    triSideMm: 45, // Triángulos masivos para máximo espacio
     cellBorderWidthMm: 0.75,
     patternStrokeMm: 0.35,
     minStrokeMm: 0.28,
-    minGapMm: 1.5,
-
-    maxPatternPassesPerCell: 2,
-    patternSkipProb: 0.18,
-    whiteSpaceMm: 0.9,
+    minGapMm: 4.5, // Espacio entre líneas extremo
+    maxPatternPassesPerCell: 1, 
+    patternSkipProb: 0.50, // 50% de las celdas vacías para un look minimalista y aireado
+    whiteSpaceMm: 2.5, // Margen interno generoso
 
     rotatePatterns: false,
 
@@ -267,17 +265,16 @@ export const ZENTANGLE_PRESETS = {
 
   bold_easy: {
     cellLayout: "rect_bsp",
-    cellCount: 16,
+    cellCount: 12, // Menos celdas = áreas más grandes para colorear
     minCellSizeMm: 22,
 
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.60,
     minStrokeMm: 0.45,
-    minGapMm: 2.2,
-
+    minGapMm: 4.8, // Espacio extremo para coloreado sin frustración
     maxPatternPassesPerCell: 1,
-    patternSkipProb: 0.30,
-    whiteSpaceMm: 1.5,
+    patternSkipProb: 0.45,
+    whiteSpaceMm: 3.5, // Margen interno masivo
 
     rotatePatterns: false,
     rotationSet: "classic",
@@ -335,11 +332,10 @@ export const ZENTANGLE_PRESETS = {
     cellBorderWidthMm: 0.75,
     patternStrokeMm: 0.35,
     minStrokeMm: 0.28,
-    minGapMm: 1.2,
-
-    maxPatternPassesPerCell: 3,
-    patternSkipProb: 0.05,
-    whiteSpaceMm: 0.5,
+    minGapMm: 2.2, // Equilibrado para detalle fino pero coloreable
+    maxPatternPassesPerCell: 1, // Reducido a 1 capa para claridad
+    patternSkipProb: 0.15,
+    whiteSpaceMm: 1.5,
 
     rotatePatterns: true,
     rotationSet: "ergonomic",
@@ -354,5 +350,105 @@ export const ZENTANGLE_PRESETS = {
     patternFamily: "dense",
     focusMode: false,
     borderStrokeMultiplier: 1.4,
+  },
+
+  classic_z_string: {
+    cellLayout: "template",
+    templateName: "classic_z",
+    cellBorderWidthMm: 0.85,
+    patternStrokeMm: 0.38,
+    minGapMm: 1.8,
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.1,
+    whiteSpaceMm: 1.0,
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.8,
+    innerOrganicJitterMm: 0.45,
+    innerOrganicRoundMm: 1.0,
+    patternFamily: "organic",
+    focusMode: true,
+    borderStrokeMultiplier: 1.5,
+  },
+
+  eye_focus: {
+    cellLayout: "template",
+    templateName: "eye",
+    cellBorderWidthMm: 0.80,
+    patternStrokeMm: 0.35,
+    minGapMm: 1.6,
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.15,
+    whiteSpaceMm: 1.1,
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.7,
+    innerOrganicJitterMm: 0.5,
+    innerOrganicRoundMm: 0.9,
+    patternFamily: "geometric",
+    focusMode: true,
+    borderStrokeMultiplier: 1.4,
+  },
+
+  classic_grid: {
+    cellLayout: "template",
+    templateName: "grid",
+    cellBorderWidthMm: 0.80,
+    patternStrokeMm: 0.35,
+    minGapMm: 1.5,
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.1,
+    whiteSpaceMm: 1.2,
+    rotatePatterns: false,
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.8,
+    innerOrganicJitterMm: 0.4,
+    innerOrganicRoundMm: 0.8,
+    patternFamily: "geometric",
+    focusMode: true,
+    borderStrokeMultiplier: 1.4,
+  },
+
+  spiral_modern: {
+    cellLayout: "template",
+    templateName: "spiral",
+    cellBorderWidthMm: 0.90,
+    patternStrokeMm: 0.40,
+    minGapMm: 1.8,
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.1,
+    whiteSpaceMm: 1.0,
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.9,
+    innerOrganicJitterMm: 0.5,
+    innerOrganicRoundMm: 1.2,
+    patternFamily: "organic",
+    focusMode: true,
+    borderStrokeMultiplier: 1.5,
+  },
+
+  kdp_masterpiece: {
+    cellLayout: "voronoi",
+    cellCount: 45,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.32,
+    minGapMm: 1.3,
+    maxPatternPassesPerCell: 2,
+    patternSkipProb: 0.1,
+    whiteSpaceMm: 0.7,
+    rotatePatterns: true,
+    rotationSet: "free15",
+    innerOrganicBorderEnabled: false,
+    enableDrawBehind: true,
+    drawBehindProbability: 0.65,
+    allowDrawBehindOnLayer2: false,
+    organicBorder: false,
+    patternFamily: "dense",
+    focusMode: true,
+    borderStrokeMultiplier: 1.6,
   },
 };

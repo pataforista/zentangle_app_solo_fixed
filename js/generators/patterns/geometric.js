@@ -8,7 +8,7 @@ function _isValidRect(r) {
 export function fillConcentricSquares(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.25, minDim * 0.06), Math.max(cfg.minGapMm * 1.45, minDim * 0.10));
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 0.8, minDim * 0.04), Math.max(cfg.minGapMm * 1.1, minDim * 0.07));
     let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
     while (x1 - x0 > step * 1.15 && y1 - y0 > step * 1.15) {
         b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
@@ -20,8 +20,8 @@ export function fillConcentricSquares(rng, r, cfg) {
 export function fillAuraSquares(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.35, minDim * 0.07), Math.max(cfg.minGapMm * 1.55, minDim * 0.12));
-    const aura = rFloat(rng, Math.max(0.45, cfg.minGapMm * 0.35), Math.min(step * 0.45, 1.1));
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 0.9, minDim * 0.05), Math.max(cfg.minGapMm * 1.2, minDim * 0.08));
+    const aura = rFloat(rng, Math.max(0.25, cfg.minGapMm * 0.2), Math.min(step * 0.4, 0.8));
     let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
     while (x1 - x0 > step * 1.25 && y1 - y0 > step * 1.25) {
         b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
@@ -33,8 +33,8 @@ export function fillAuraSquares(rng, r, cfg) {
 
 export function fillCrosses(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 2.4, 3), Math.max(cfg.minGapMm * 3, 5));
-    const s = step * 0.25;
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.2, 1.5), Math.max(cfg.minGapMm * 1.8, 2.5));
+    const s = step * 0.35; // slightly larger relative cross
     const sw = cfg.patternStrokeMm;
 
     for (let x = r.x0 + step / 2; x < r.x1; x += step) {
@@ -48,16 +48,27 @@ export function fillCrosses(rng, r, cfg) {
 
 export function fillTriangles(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const count = rInt(rng, 5, 12);
+    const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 2.2, minDim * 0.12), Math.max(cfg.minGapMm * 3.5, minDim * 0.25));
     const sw = cfg.patternStrokeMm;
-    for (let i = 0; i < count; i++) {
-        const p1 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
-        const p2 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
-        const p3 = { x: rFloat(rng, r.x0, r.x1), y: rFloat(rng, r.y0, r.y1) };
-
-        b.taperedLine(p1.x, p1.y, p2.x, p2.y, sw);
-        b.taperedLine(p2.x, p2.y, p3.x, p3.y, sw);
-        b.taperedLine(p3.x, p3.y, p1.x, p1.y, sw);
+    
+    // Draw a structured grid of triangles (diagonal hatch overlay)
+    for (let x = r.x0; x < r.x1; x += step) {
+        b.taperedLine(x, r.y0, r.x0, r.y0 + (x - r.x0), sw); // Left-top to bottom-right
+        b.taperedLine(x, r.y1, r.x1, r.y0 + (r.x1 - x), sw);
+    }
+    for (let y = r.y0; y < r.y1; y += step) {
+        b.taperedLine(r.x0, y, r.x1, y + (r.x1 - r.x0), sw);
+        b.taperedLine(r.x0, y, r.x0 + (r.y1 - y), r.y1, sw);
+    }
+    
+    // Reverse diagonals to form triangles
+    for (let x = r.x0; x < r.x1; x += step) {
+        b.taperedLine(x, r.y0, r.x1, r.y0 + (r.x1 - x), sw);
+        b.taperedLine(x, r.y1, r.x0, r.y1 - (x - r.x0), sw);
+    }
+    for (let y = r.y0; y < r.y1; y += step) {
+        b.taperedLine(r.x1, y, r.x0, y + (r.x1 - r.x0), sw);
     }
     return b.d;
 }
@@ -66,7 +77,7 @@ export function fillAura(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const w = r.x1 - r.x0, h = r.y1 - r.y0;
     const minDim = Math.min(w, h);
-    const steps = rInt(rng, 3, 6);
+    const steps = rInt(rng, 5, 12);
     const stepSize = (minDim * 0.45) / steps;
 
     for (let i = 0; i < steps; i++) {
@@ -97,37 +108,37 @@ export function fillAura(rng, r, cfg) {
 export function fillCircuit(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const w = r.x1 - r.x0, h = r.y1 - r.y0;
-    const nodesCount = rInt(rng, 3, 6);
-    const nodes = [];
-
-    // Create nodes
-    for (let i = 0; i < nodesCount; i++) {
-        const x = rFloat(rng, r.x0 + w * 0.1, r.x1 - w * 0.1);
-        const y = rFloat(rng, r.y0 + h * 0.1, r.y1 - h * 0.1);
-        nodes.push({ x, y });
-        // Node circle
-        b.circle(x, y, rFloat(rng, 0.5, 1.2));
-    }
-
-    // Connect nodes with "PCB traces" (manhattan + 45deg)
-    // For simplicity: simple L-shapes or Z-shapes
-    for (let i = 0; i < nodes.length; i++) {
-        const n1 = nodes[i];
-        const n2 = nodes[(i + 1) % nodes.length];
-
-        // Draw trace
-        b.moveTo(n1.x, n1.y);
-
-        // Simple mid-point turn
-        const midX = (n1.x + n2.x) / 2;
-        if (rng() < 0.5) {
-            b.lineTo(midX, n1.y);
-            b.lineTo(midX, n2.y);
-        } else {
-            b.lineTo(n1.x, (n1.y + n2.y) / 2);
-            b.lineTo(n2.x, (n1.y + n2.y) / 2);
+    const minDim = Math.min(w, h);
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.5, minDim * 0.1), Math.max(cfg.minGapMm * 2.5, minDim * 0.2));
+    const sw = cfg.patternStrokeMm;
+    
+    // Draw an orthogonal circuit board (Manhattan routing)
+    let y = r.y0 + step / 2;
+    while (y < r.y1) {
+        let x = r.x0 + step / 2;
+        b.moveTo(x, y);
+        while (x < r.x1) {
+            const nextX = Math.min(r.x1, x + step * rInt(rng, 1, 4));
+            b.lineTo(nextX, y);
+            
+            if (rng() < 0.3 && nextX < r.x1) {
+                // Draw a node
+                b.circle(nextX, y, rFloat(rng, 0.4, 0.9));
+                // Optional vertical branch
+                if (rng() < 0.5) {
+                    const dirY = rng() < 0.5 ? 1 : -1;
+                    const branchY = y + dirY * step * rInt(rng, 1, 3);
+                    if (branchY > r.y0 && branchY < r.y1) {
+                        b.moveTo(nextX, y);
+                        b.lineTo(nextX, branchY);
+                        b.circle(nextX, branchY, rFloat(rng, 0.3, 0.7));
+                    }
+                }
+                b.moveTo(nextX, y);
+            }
+            x = nextX;
         }
-        b.lineTo(n2.x, n2.y);
+        y += step;
     }
 
     return b.d;

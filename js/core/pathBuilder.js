@@ -16,6 +16,10 @@ export class PathBuilder {
   }
 
   lineTo(x, y) {
+    if (this._chunks.length === 0) {
+      this.moveTo(x, y);
+      return this;
+    }
     if (this.sketchy > 0) {
       this._roughLine(this._currX, this._currY, x, y);
     } else {
@@ -49,6 +53,15 @@ export class PathBuilder {
   }
 
   close() { this._chunks.push("Z"); return this; }
+
+  rect(x, y, w, h) {
+    this.moveTo(x, y);
+    this.lineTo(x + w, y);
+    this.lineTo(x + w, y + h);
+    this.lineTo(x, y + h);
+    this.close();
+    return this;
+  }
 
   get d() { return this._chunks.join(" ").trim(); }
 
@@ -99,13 +112,11 @@ export class PathBuilder {
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.hypot(dx, dy);
-    if (len < 0.2) return this.lineTo(x2, y2);
+    const wMid = w * 0.5;
+    if (len < 0.2) return this.moveTo(x1, y1).lineTo(x2, y2);
 
     const nx = -dy / len;
     const ny = dx / len;
-
-    const wMid = w * 0.5;
-
     // Añadimos puntos intermedios con fluctuaciones aleatorias sutiles
     const midX = x1 + dx * 0.5;
     const midY = y1 + dy * 0.5;
@@ -121,44 +132,57 @@ export class PathBuilder {
   }
 
   _roughLine(x0, y0, x1, y1) {
-    // Simple implementation of "sketchy" line
-    // Draw main line with slight bow + overshoot?
-    // Or just 2 lines near each other?
-
-    // Let's do a single line with slight displacement for now, 
-    // effectively "wobbly".
-
-    // If sketchy is high, maybe 2 passes?
+    // Advanced Sketchy Line v2
+    // Draws multiple passes with subtle offsets and "overshoots"
     const dist = Math.hypot(x1 - x0, y1 - y0);
-    const bow = (this.rng() - 0.5) * this.sketchy * 0.5; // slight curve
-    // Mid point
-    const mx = (x0 + x1) / 2 + (this.rng() - 0.5) * this.sketchy * 0.2;
-    const my = (y0 + y1) / 2 + (this.rng() - 0.5) * this.sketchy * 0.2; // + bow?
+    if (dist < 0.1) return;
 
-    // Simulate quadratic
-    // Q control point...
-    // Let's just do L for now to keep it simple but separate
-    // Actually, let's just do a slightly targeted L
-
-    // Overshoot
-    const over = Math.min(0.5, this.sketchy * 0.2);
     const angle = Math.atan2(y1 - y0, x1 - x0);
-    const ox = Math.cos(angle) * over;
-    const oy = Math.sin(angle) * over;
+    const passes = this.sketchy > 0.6 ? 2 : 1;
+    
+    for (let p = 0; p < passes; p++) {
+      // Jitter start and end slightly for a "loose" feel
+      const js = p * this.sketchy * 0.25;
+      const startX = x0 + (this.rng() - 0.5) * js;
+      const startY = y0 + (this.rng() - 0.5) * js;
+      
+      // Overshoot: common in quick hand-drawn lines
+      const over = (this.rng() * 1.5) * this.sketchy * (p === 0 ? 1 : 0.5);
+      const endX = x1 + Math.cos(angle) * over;
+      const endY = y1 + Math.sin(angle) * over;
 
-    // We are already at x0, y0 (this._currX, this._currY)
-    // We want to go to x1, y1.
+      // Midpoint displacement for "bowing" or "wobble"
+      // Multiple segments for longer lines to avoid perfect straightness
+      const segments = dist > 20 ? 3 : 2;
+      
+      if (p > 0 || this._chunks.length === 0) {
+        this._chunks.push(`M ${fmt(startX)} ${fmt(startY)}`);
+      } else if (p === 0 && (startX !== x0 || startY !== y0)) {
+        this._chunks.push(`M ${fmt(startX)} ${fmt(startY)}`);
+      }
 
-    // Let's push a Q to the slightly offset mid point
-    this._chunks.push(`Q ${fmt(mx)} ${fmt(my)} ${fmt(x1 + ox)} ${fmt(y1 + oy)}`);
+      for (let s = 1; s <= segments; s++) {
+        const t = s / segments;
+        const targetX = startX + (endX - startX) * t;
+        const targetY = startY + (endY - startY) * t;
+        
+        // Jitter intermediate points
+        const jitter = (this.rng() - 0.5) * this.sketchy * 0.4;
+        const midX = targetX + Math.cos(angle + Math.PI/2) * jitter;
+        const midY = targetY + Math.sin(angle + Math.PI/2) * jitter;
 
-    // If very sketchy, maybe draw back?
-    if (this.sketchy > 0.5 && this.rng() < 0.3) {
-      // faint return stroke
-      const rmx = (x0 + x1) / 2 + (this.rng() - 0.5) * this.sketchy * 0.4;
-      const rmy = (y0 + y1) / 2 + (this.rng() - 0.5) * this.sketchy * 0.4;
-      this._chunks.push(`M ${fmt(x1)} ${fmt(y1)} Q ${fmt(rmx)} ${fmt(rmy)} ${fmt(x0)} ${fmt(y0)} M ${fmt(x1)} ${fmt(y1)}`);
+        this._chunks.push(`L ${fmt(midX)} ${fmt(midY)}`);
+      }
+      
+      // Return to original end if doing multi-pass to keep following logic sane
+      if (p < passes - 1) {
+          // move back or just let next pass start with M
+      }
     }
+
+    // Reset current point to original intended destination for following strokes
+    this._currX = x1;
+    this._currY = y1;
   }
 
   toPath({ stroke = "#000", strokeWidthMm = 0.6, fill = "none", linecap = "round", linejoin = "round" } = {}) {

@@ -5,8 +5,8 @@ export function fillStripesSmooth(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
     const isVertical = rng() > 0.5;
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.55, minDim * 0.08), Math.max(cfg.minGapMm * 1.75, minDim * 0.13));
-    const amp = rFloat(rng, 0.6, Math.max(1.4, Math.min(minDim * 0.08, cfg.minGapMm * 1.4)));
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.0, minDim * 0.05), Math.max(cfg.minGapMm * 1.25, minDim * 0.09));
+    const amp = rFloat(rng, 0.4, Math.max(0.9, Math.min(minDim * 0.05, cfg.minGapMm * 0.9)));
 
     if (isVertical) {
         for (let x = r.x0 + step; x < r.x1; x += step) {
@@ -34,8 +34,8 @@ export function fillCircles(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const w = r.x1 - r.x0, h = r.y1 - r.y0;
     const minDim = Math.min(w, h);
-    let radius = rFloat(rng, Math.max(1.2, cfg.minGapMm * 0.55), Math.max(1.4, minDim * 0.12));
-    const pitch = radius * 2 + cfg.minGapMm;
+    let radius = rFloat(rng, Math.max(0.6, cfg.minGapMm * 0.35), Math.max(0.9, minDim * 0.08));
+    const pitch = radius * 2 + cfg.minGapMm * 0.5;
     const cols = Math.max(1, Math.floor(w / pitch));
     const rows = Math.max(1, Math.floor(h / pitch));
 
@@ -58,9 +58,10 @@ export function fillCircles(rng, r, cfg) {
 
 export function fillCurvesSmooth(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const stepY = rFloat(rng, cfg.minGapMm * 1.5, cfg.minGapMm * 2.5);
-    const segX = rFloat(rng, stepY * 2, stepY * 4);
-    const amp = rFloat(rng, 0.8, 1.5);
+    const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
+    const stepY = rFloat(rng, Math.max(0.8, cfg.minGapMm * 0.9), Math.max(1.5, cfg.minGapMm * 1.5));
+    const segX = rFloat(rng, stepY * 1.5, stepY * 3);
+    const amp = rFloat(rng, 0.4, Math.max(0.8, minDim * 0.05));
     let y = r.y0 + stepY;
     while (y < r.y1) {
         b.moveTo(r.x0, y);
@@ -80,7 +81,7 @@ export function fillCurvesSmooth(rng, r, cfg) {
 
 export function fillScallops(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const step = rFloat(rng, cfg.minGapMm * 2.8, cfg.minGapMm * 4);
+    const step = rFloat(rng, cfg.minGapMm * 1.8, cfg.minGapMm * 2.5);
     const rad = step * 0.6;
     for (let y = r.y0 + rad; y < r.y1 + rad; y += rad) {
         const row = Math.floor((y - r.y0) / rad);
@@ -153,11 +154,12 @@ export function fillFlow(rng, r, cfg) {
 
 export function fillWaves(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const stepY = rFloat(rng, cfg.minGapMm * 1.5, cfg.minGapMm * 3.0);
+    const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
+    const stepY = rFloat(rng, Math.max(1.0, cfg.minGapMm * 1.5), Math.max(2.0, cfg.minGapMm * 3.0));
     const freq = rFloat(rng, 0.1, 0.3);
-    const amp = rFloat(rng, 1.0, 2.5);
+    const amp = rFloat(rng, 0.5, Math.max(1.0, minDim * 0.08));
 
-    for (let y = r.y0; y < r.y1; y += stepY) {
+    for (let y = r.y0 + stepY/2; y < r.y1; y += stepY) {
         b.moveTo(r.x0, y);
         const steps = 20;
         const dx = (r.x1 - r.x0) / steps;
