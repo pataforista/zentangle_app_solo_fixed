@@ -11,8 +11,8 @@ const $ = (id) => document.getElementById(id);
 const DEFAULT_STATE = {
   paper: "A4",
   mode: "zentangle",
-  seed: 1,
-  zPreset: "tile_90mm",
+  seed: 42,
+  zPreset: "kdp_balanced",
 };
 
 const ui = {
@@ -152,7 +152,17 @@ async function render() {
     zPreset: zPresetKey,
   });
 
-  ui.status.textContent = `OK — seed=${opts.seed} | ${paperKey} | zPreset=${zPresetKey}`;
+  const presetLabel = {
+    kdp_balanced: "KDP Balanceado",
+    kdp_intricate: "KDP Intrincado",
+    kdp_relaxed: "KDP Relajado",
+    kdp_organic_flow: "KDP Orgánico",
+    kdp_geometric_art: "KDP Geométrico",
+    kdp_dense_meditative: "KDP Meditativo",
+    kdp_masterpiece: "KDP Masterpiece",
+  }[zPresetKey] || zPresetKey;
+
+  ui.status.textContent = `✓ ${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready`;
   return { svg, opts, paperKey, zPresetKey };
 }
 
