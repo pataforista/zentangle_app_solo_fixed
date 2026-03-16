@@ -2,7 +2,7 @@ import { createSvgDoc, PAPER_SIZES_MM } from "./core/svgDoc.js";
 import { renderSvgToString } from "./core/svgRender.js";
 import { downloadTextFile, downloadPng, downloadPdf } from "./core/export.js";
 import { getStateFromURL, setStateToURL, randomSeed32 } from "./core/urlState.js";
-import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry } from "./core/imageProcessor.js";
+import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry, generateDensityMap, getImageStats } from "./core/imageProcessor.js";
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
@@ -71,6 +71,8 @@ const ui = {
 let appState = {
   currentImage: null,
   processedImageCanvas: null,
+  densityMapCanvas: null,
+  imageStats: null,
   isDragging: false,
   dragStartX: 0,
   dragStartY: 0,
@@ -270,8 +272,25 @@ async function processImage(threshold) {
   if (!appState.currentImage) return;
 
   ui.status.textContent = "Procesando imagen...";
-  appState.processedImageCanvas = applySobelEdgeDetection(appState.currentImage, threshold);
-  ui.status.textContent = "Imagen procesada";
+
+  // Get image statistics
+  appState.imageStats = getImageStats(appState.currentImage);
+
+  // Process with edge detection (advanced options)
+  appState.processedImageCanvas = applySobelEdgeDetection(
+    appState.currentImage,
+    threshold,
+    {
+      normalize: true,     // Better edge detection with contrast normalization
+      blurPasses: 2,       // Smooth noise without losing details
+      invertEdges: false   // Keep black edges on white background
+    }
+  );
+
+  // Generate density map for pattern guidance
+  appState.densityMapCanvas = generateDensityMap(appState.currentImage);
+
+  ui.status.textContent = "✓ Imagen procesada";
 }
 
 function bind() {
@@ -288,11 +307,17 @@ function bind() {
 
     try {
       appState.currentImage = await loadImageFromFile(file);
-      ui.imageFileName.textContent = `✓ ${file.name} (${appState.currentImage.width}x${appState.currentImage.height}px)`;
-      ui.useImageMode.checked = true;
 
+      // Process and show stats
       const threshold = parseInt(ui.imageThreshold.value, 10);
       await processImage(threshold);
+
+      // Display image info
+      const stats = appState.imageStats;
+      const sizeInfo = `${stats.width}×${stats.height}px (${stats.contrast})`;
+      ui.imageFileName.textContent = `✓ ${file.name} · ${sizeInfo}`;
+
+      ui.useImageMode.checked = true;
       render();
     } catch (err) {
       ui.imageFileName.textContent = `✗ Error: ${err.message}`;
