@@ -2,7 +2,7 @@ import { createSvgDoc, PAPER_SIZES_MM } from "./core/svgDoc.js";
 import { renderSvgToString } from "./core/svgRender.js";
 import { downloadTextFile, downloadPng, downloadPdf } from "./core/export.js";
 import { getStateFromURL, setStateToURL, randomSeed32 } from "./core/urlState.js";
-import { applySobelEdgeDetection, loadImageFromFile } from "./core/imageProcessor.js";
+import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry } from "./core/imageProcessor.js";
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
@@ -47,6 +47,12 @@ const ui = {
   useImageMode: $("useImageMode"),
   imageThreshold: $("imageThreshold"),
   imageThresholdVal: $("imageThresholdVal"),
+  imageSlices: $("imageSlices"),
+  imageSlicesVal: $("imageSlicesVal"),
+  imageZoom: $("imageZoom"),
+  imageZoomVal: $("imageZoomVal"),
+  imageOffsetX: $("imageOffsetX"),
+  imageOffsetY: $("imageOffsetY"),
 
   btnRandomSeed: $("btnRandomSeed"),
   btnRender: $("btnRender"),
@@ -63,6 +69,9 @@ const ui = {
 let appState = {
   currentImage: null,
   processedImageCanvas: null,
+  isDragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
 };
 
 function num(v, fallback = 0) {
@@ -186,7 +195,31 @@ async function render() {
 }
 
 function renderImageMode(presetPaper, marginMm, inner, paperKey) {
-  // Create SVG document for image mode
+  // Create a temporary SVG-sized canvas for rendering
+  const CANVAS_SIZE = 1000;
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = CANVAS_SIZE;
+  tempCanvas.height = CANVAS_SIZE;
+
+  const slices = parseInt(ui.imageSlices.value, 10);
+  const zoom = parseFloat(ui.imageZoom.value);
+  const offsetX = parseFloat(ui.imageOffsetX.value || 0);
+  const offsetY = parseFloat(ui.imageOffsetY.value || 0);
+
+  // Draw image with symmetry
+  const resultCanvas = drawImageWithSymmetry(
+    tempCanvas,
+    appState.processedImageCanvas,
+    slices,
+    zoom,
+    offsetX,
+    offsetY
+  );
+
+  // Convert to base64 for SVG embedding
+  const imgDataUrl = resultCanvas.toDataURL("image/png");
+
+  // Create SVG document
   const doc = createSvgDoc({
     wMm: presetPaper.w,
     hMm: presetPaper.h,
@@ -197,48 +230,16 @@ function renderImageMode(presetPaper, marginMm, inner, paperKey) {
     },
   });
 
-  // Convert processed image canvas to base64 and embed in SVG
-  const imgDataUrl = appState.processedImageCanvas.toDataURL("image/png");
-
   // Add white background
   doc.body.push(`  <rect width="${presetPaper.w}mm" height="${presetPaper.h}mm" fill="white"/>`);
 
-  // Calculate scaling to fit image in the inner area
-  const imgW = appState.processedImageCanvas.width;
-  const imgH = appState.processedImageCanvas.height;
-
-  // DPI conversion: canvas pixels to mm (assuming 96 DPI typical screen)
-  const pixelsPerMm = 96 / 25.4; // 96 DPI / 25.4 mm per inch
-  const imgWidthMm = imgW / pixelsPerMm;
-  const imgHeightMm = imgH / pixelsPerMm;
-
-  // Scale to fit within inner area while maintaining aspect ratio
-  let scaledW = imgWidthMm;
-  let scaledH = imgHeightMm;
-
-  if (scaledW > inner.w) {
-    const ratio = inner.w / scaledW;
-    scaledW = inner.w;
-    scaledH *= ratio;
-  }
-
-  if (scaledH > inner.h) {
-    const ratio = inner.h / scaledH;
-    scaledH = inner.h;
-    scaledW *= ratio;
-  }
-
-  // Center the image
-  const offsetX = inner.x + (inner.w - scaledW) / 2;
-  const offsetY = inner.y + (inner.h - scaledH) / 2;
-
-  // Add image to SVG
-  doc.body.push(`  <image x="${offsetX}mm" y="${offsetY}mm" width="${scaledW}mm" height="${scaledH}mm" href="${imgDataUrl}" preserveAspectRatio="xMidYMid meet"/>`);
+  // Add the symmetric image filling the entire page
+  doc.body.push(`  <image x="0mm" y="0mm" width="${presetPaper.w}mm" height="${presetPaper.h}mm" href="${imgDataUrl}" preserveAspectRatio="xMidYMid slice"/>`);
 
   const svg = renderSvgToString(doc);
   ui.previewInner.innerHTML = svg;
 
-  ui.status.textContent = `✓ Imagen procesada | ${appState.processedImageCanvas.width}x${appState.processedImageCanvas.height}px | ${paperKey}`;
+  ui.status.textContent = `✓ Imagen con simetría (${slices} repeticiones) | ${parseFloat(ui.imageZoom.value).toFixed(1)}x zoom`;
   return { svg, paperKey };
 }
 
@@ -293,6 +294,80 @@ function bind() {
   ui.useImageMode.addEventListener("change", () => {
     render();
   });
+
+  // Image symmetry controls
+  ui.imageSlices.addEventListener("input", (e) => {
+    ui.imageSlicesVal.textContent = e.target.value;
+    if (ui.useImageMode.checked && appState.processedImageCanvas) {
+      requestAnimationFrame(render);
+    }
+  });
+
+  ui.imageZoom.addEventListener("input", (e) => {
+    ui.imageZoomVal.textContent = e.target.value + 'x';
+    if (ui.useImageMode.checked && appState.processedImageCanvas) {
+      requestAnimationFrame(render);
+    }
+  });
+
+  ui.imageOffsetX.addEventListener("input", () => {
+    if (ui.useImageMode.checked && appState.processedImageCanvas) {
+      requestAnimationFrame(render);
+    }
+  });
+
+  ui.imageOffsetY.addEventListener("input", () => {
+    if (ui.useImageMode.checked && appState.processedImageCanvas) {
+      requestAnimationFrame(render);
+    }
+  });
+
+  // Drag handlers for image preview
+  const preview = document.querySelector("#preview");
+  if (preview) {
+    const getClientPos = (e) => e.touches
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      : { x: e.clientX, y: e.clientY };
+
+    const startDrag = (e) => {
+      if (!ui.useImageMode.checked || !appState.processedImageCanvas) return;
+      appState.isDragging = true;
+      const pos = getClientPos(e);
+      appState.dragStartX = pos.x;
+      appState.dragStartY = pos.y;
+    };
+
+    const onDrag = (e) => {
+      if (!appState.isDragging) return;
+      e.preventDefault();
+      const pos = getClientPos(e);
+
+      const sensitivity = 2 / parseFloat(ui.imageZoom.value);
+      ui.imageOffsetX.value = Math.max(
+        -1000,
+        Math.min(1000, parseFloat(ui.imageOffsetX.value || 0) + (pos.x - appState.dragStartX) * sensitivity)
+      );
+      ui.imageOffsetY.value = Math.max(
+        -1000,
+        Math.min(1000, parseFloat(ui.imageOffsetY.value || 0) + (pos.y - appState.dragStartY) * sensitivity)
+      );
+
+      appState.dragStartX = pos.x;
+      appState.dragStartY = pos.y;
+      requestAnimationFrame(render);
+    };
+
+    const endDrag = () => {
+      appState.isDragging = false;
+    };
+
+    preview.addEventListener("mousedown", startDrag);
+    window.addEventListener("mousemove", onDrag);
+    window.addEventListener("mouseup", endDrag);
+    preview.addEventListener("touchstart", startDrag, { passive: false });
+    window.addEventListener("touchmove", onDrag, { passive: false });
+    window.addEventListener("touchend", endDrag);
+  }
 
   ui.btnRandomSeed.addEventListener("click", () => {
     ui.seed.value = String(randomSeed32());
