@@ -51,6 +51,8 @@ const ui = {
   imageSlicesVal: $("imageSlicesVal"),
   imageZoom: $("imageZoom"),
   imageZoomVal: $("imageZoomVal"),
+  imageBlend: $("imageBlend"),
+  imageBlendVal: $("imageBlendVal"),
   imageOffsetX: $("imageOffsetX"),
   imageOffsetY: $("imageOffsetY"),
 
@@ -146,7 +148,7 @@ async function render() {
 
   // Check if image mode is enabled and image is processed
   if (ui.useImageMode.checked && appState.processedImageCanvas) {
-    return renderImageMode(presetPaper, marginMm, inner, paperKey);
+    return await renderImageMode(presetPaper, marginMm, inner, paperKey);
   }
 
   const doc = createSvgDoc({
@@ -194,8 +196,10 @@ async function render() {
   return { svg, opts, paperKey, zPresetKey };
 }
 
-function renderImageMode(presetPaper, marginMm, inner, paperKey) {
-  // Create a temporary SVG-sized canvas for rendering
+async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
+  const { opts, zPresetKey } = buildOptsFromUI();
+
+  // --- 1) Process image with symmetry ---
   const CANVAS_SIZE = 1000;
   const tempCanvas = document.createElement("canvas");
   tempCanvas.width = CANVAS_SIZE;
@@ -206,7 +210,6 @@ function renderImageMode(presetPaper, marginMm, inner, paperKey) {
   const offsetX = parseFloat(ui.imageOffsetX.value || 0);
   const offsetY = parseFloat(ui.imageOffsetY.value || 0);
 
-  // Draw image with symmetry
   const resultCanvas = drawImageWithSymmetry(
     tempCanvas,
     appState.processedImageCanvas,
@@ -216,31 +219,49 @@ function renderImageMode(presetPaper, marginMm, inner, paperKey) {
     offsetY
   );
 
-  // Convert to base64 for SVG embedding
   const imgDataUrl = resultCanvas.toDataURL("image/png");
 
-  // Create SVG document
+  // --- 2) Build SVG with image as background layer ---
   const doc = createSvgDoc({
     wMm: presetPaper.w,
     hMm: presetPaper.h,
     meta: {
       title: "Image-based Zentangle",
-      generator: "image-processor",
+      generator: "image-zentangle",
+      seed: opts.seed,
+      preset: paperKey,
+      zPreset: zPresetKey,
       mode: "image",
     },
   });
 
-  // Add white background
-  doc.body.push(`  <rect width="${presetPaper.w}mm" height="${presetPaper.h}mm" fill="white"/>`);
+  // White background
+  doc.body.push(`  <rect width="${presetPaper.w}" height="${presetPaper.h}" fill="white"/>`);
 
-  // Add the symmetric image filling the entire page
-  doc.body.push(`  <image x="0mm" y="0mm" width="${presetPaper.w}mm" height="${presetPaper.h}mm" href="${imgDataUrl}" preserveAspectRatio="xMidYMid slice"/>`);
+  // Image layer with user-controlled opacity
+  const imageOpacity = parseFloat(ui.imageBlend ? ui.imageBlend.value : 0.35);
+  doc.body.push(`  <image x="${inner.x}" y="${inner.y}" width="${inner.w}" height="${inner.h}" href="${imgDataUrl}" preserveAspectRatio="xMidYMid slice" opacity="${imageOpacity}"/>`);
+
+  // --- 3) Generate zentangle patterns on top ---
+  await generateZentangle(doc, {
+    seed: opts.seed,
+    presetName: zPresetKey,
+    overrides: opts,
+    areaMm: inner,
+  });
 
   const svg = renderSvgToString(doc);
   ui.previewInner.innerHTML = svg;
 
-  ui.status.textContent = `✓ Imagen con simetría (${slices} repeticiones) | ${parseFloat(ui.imageZoom.value).toFixed(1)}x zoom`;
-  return { svg, paperKey };
+  setStateToURL({
+    preset: paperKey,
+    mode: "image",
+    seed: opts.seed,
+    zPreset: zPresetKey,
+  });
+
+  ui.status.textContent = `✓ Imagen + Zentangle | Seed: ${opts.seed} | ${slices} simetrías | ${paperKey}`;
+  return { svg, opts, paperKey, zPresetKey };
 }
 
 const debouncedRender = debounce(render, 100);
@@ -305,6 +326,13 @@ function bind() {
 
   ui.imageZoom.addEventListener("input", (e) => {
     ui.imageZoomVal.textContent = e.target.value + 'x';
+    if (ui.useImageMode.checked && appState.processedImageCanvas) {
+      requestAnimationFrame(render);
+    }
+  });
+
+  ui.imageBlend.addEventListener("input", (e) => {
+    ui.imageBlendVal.textContent = Math.round(parseFloat(e.target.value) * 100) + '%';
     if (ui.useImageMode.checked && appState.processedImageCanvas) {
       requestAnimationFrame(render);
     }
