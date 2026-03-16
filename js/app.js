@@ -2,6 +2,7 @@ import { createSvgDoc, PAPER_SIZES_MM } from "./core/svgDoc.js";
 import { renderSvgToString } from "./core/svgRender.js";
 import { downloadTextFile, downloadPng, downloadPdf } from "./core/export.js";
 import { getStateFromURL, setStateToURL, randomSeed32 } from "./core/urlState.js";
+import { applySobelEdgeDetection, loadImageFromFile } from "./core/imageProcessor.js";
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
@@ -40,6 +41,13 @@ const ui = {
   innerOrganicJitterMm: $("innerOrganicJitterMm"),
   innerOrganicRoundMm: $("innerOrganicRoundMm"),
 
+  // Image processing controls
+  imageUpload: $("imageUpload"),
+  imageFileName: $("imageFileName"),
+  useImageMode: $("useImageMode"),
+  imageThreshold: $("imageThreshold"),
+  imageThresholdVal: $("imageThresholdVal"),
+
   btnRandomSeed: $("btnRandomSeed"),
   btnRender: $("btnRender"),
   btnDownloadSVG: $("btnDownloadSVG"),
@@ -49,6 +57,12 @@ const ui = {
 
   previewInner: $("previewInner"),
   status: $("status"),
+};
+
+// State for image processing
+let appState = {
+  currentImage: null,
+  processedImageCanvas: null,
 };
 
 function num(v, fallback = 0) {
@@ -121,6 +135,11 @@ async function render() {
     h: presetPaper.h - marginMm * 2,
   };
 
+  // Check if image mode is enabled and image is processed
+  if (ui.useImageMode.checked && appState.processedImageCanvas) {
+    return renderImageMode(presetPaper, marginMm, inner, paperKey);
+  }
+
   const doc = createSvgDoc({
     wMm: presetPaper.w,
     hMm: presetPaper.h,
@@ -166,7 +185,72 @@ async function render() {
   return { svg, opts, paperKey, zPresetKey };
 }
 
+function renderImageMode(presetPaper, marginMm, inner, paperKey) {
+  // Create SVG document for image mode
+  const doc = createSvgDoc({
+    wMm: presetPaper.w,
+    hMm: presetPaper.h,
+    meta: {
+      title: "Image-based Zentangle",
+      generator: "image-processor",
+      mode: "image",
+    },
+  });
+
+  // Convert processed image canvas to base64 and embed in SVG
+  const imgDataUrl = appState.processedImageCanvas.toDataURL("image/png");
+
+  // Add white background
+  doc.body.push(`  <rect width="${presetPaper.w}mm" height="${presetPaper.h}mm" fill="white"/>`);
+
+  // Calculate scaling to fit image in the inner area
+  const imgW = appState.processedImageCanvas.width;
+  const imgH = appState.processedImageCanvas.height;
+
+  // DPI conversion: canvas pixels to mm (assuming 96 DPI typical screen)
+  const pixelsPerMm = 96 / 25.4; // 96 DPI / 25.4 mm per inch
+  const imgWidthMm = imgW / pixelsPerMm;
+  const imgHeightMm = imgH / pixelsPerMm;
+
+  // Scale to fit within inner area while maintaining aspect ratio
+  let scaledW = imgWidthMm;
+  let scaledH = imgHeightMm;
+
+  if (scaledW > inner.w) {
+    const ratio = inner.w / scaledW;
+    scaledW = inner.w;
+    scaledH *= ratio;
+  }
+
+  if (scaledH > inner.h) {
+    const ratio = inner.h / scaledH;
+    scaledH = inner.h;
+    scaledW *= ratio;
+  }
+
+  // Center the image
+  const offsetX = inner.x + (inner.w - scaledW) / 2;
+  const offsetY = inner.y + (inner.h - scaledH) / 2;
+
+  // Add image to SVG
+  doc.body.push(`  <image x="${offsetX}mm" y="${offsetY}mm" width="${scaledW}mm" height="${scaledH}mm" href="${imgDataUrl}" preserveAspectRatio="xMidYMid meet"/>`);
+
+  const svg = renderSvgToString(doc);
+  ui.previewInner.innerHTML = svg;
+
+  ui.status.textContent = `✓ Imagen procesada | ${appState.processedImageCanvas.width}x${appState.processedImageCanvas.height}px | ${paperKey}`;
+  return { svg, paperKey };
+}
+
 const debouncedRender = debounce(render, 100);
+
+async function processImage(threshold) {
+  if (!appState.currentImage) return;
+
+  ui.status.textContent = "Procesando imagen...";
+  appState.processedImageCanvas = applySobelEdgeDetection(appState.currentImage, threshold);
+  ui.status.textContent = "Imagen procesada";
+}
 
 function bind() {
   const st = getStateFromURL(DEFAULT_STATE);
@@ -174,6 +258,41 @@ function bind() {
   ui.paper.value = st.preset;
   ui.seed.value = String(st.seed >>> 0);
   ui.zPreset.value = st.zPreset;
+
+  // Image upload handler
+  ui.imageUpload.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      appState.currentImage = await loadImageFromFile(file);
+      ui.imageFileName.textContent = `✓ ${file.name} (${appState.currentImage.width}x${appState.currentImage.height}px)`;
+      ui.useImageMode.checked = true;
+
+      const threshold = parseInt(ui.imageThreshold.value, 10);
+      await processImage(threshold);
+      render();
+    } catch (err) {
+      ui.imageFileName.textContent = `✗ Error: ${err.message}`;
+      console.error("Image load error:", err);
+    }
+  });
+
+  // Image threshold handler
+  ui.imageThreshold.addEventListener("input", (e) => {
+    ui.imageThresholdVal.textContent = e.target.value;
+  });
+
+  ui.imageThreshold.addEventListener("change", async (e) => {
+    if (appState.currentImage) {
+      await processImage(parseInt(e.target.value, 10));
+      render();
+    }
+  });
+
+  ui.useImageMode.addEventListener("change", () => {
+    render();
+  });
 
   ui.btnRandomSeed.addEventListener("click", () => {
     ui.seed.value = String(randomSeed32());
