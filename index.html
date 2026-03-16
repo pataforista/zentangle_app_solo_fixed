@@ -350,12 +350,34 @@
               <span style="font-size: 13px;">Usar modo imagen</span>
             </label>
           </div>
-          <div>
+          <div style="margin-bottom: 12px;">
             <label for="imageThreshold" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 6px;">
               <span>Sensibilidad de bordes</span>
               <span id="imageThresholdVal">40</span>
             </label>
             <input type="range" id="imageThreshold" min="10" max="150" value="40" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="imageSlices" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 6px;">
+              <span>Repeticiones (Simetría)</span>
+              <span id="imageSlicesVal">12</span>
+            </label>
+            <input type="range" id="imageSlices" min="4" max="32" step="2" value="12" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="imageZoom" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 6px;">
+              <span>Zoom</span>
+              <span id="imageZoomVal">1.5x</span>
+            </label>
+            <input type="range" id="imageZoom" min="0.1" max="5" step="0.1" value="1.5" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 8px;">Posición (Arrastra en preview)</label>
+            <div style="display: none;">
+              <input type="range" id="imageOffsetX" min="-500" max="500" value="0" />
+              <input type="range" id="imageOffsetY" min="-500" max="500" value="0" />
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">👆 Arrastra la imagen en el preview para mover</p>
           </div>
         </div>
 

@@ -1,7 +1,46 @@
 /**
- * Image Processing Module - Sobel Edge Detection
+ * Image Processing Module - Sobel Edge Detection with Smoothing
  * Converts images to zentangle-compatible edge-detected versions
  */
+
+/**
+ * Apply Gaussian blur for noise reduction
+ * @param {Uint8ClampedArray} gray - Grayscale pixel data
+ * @param {number} width - Image width
+ * @param {number} height - Image height
+ * @returns {Uint8ClampedArray} Blurred grayscale data
+ */
+function gaussianBlur(gray, width, height) {
+  const kernel = [1, 2, 1, 2, 4, 2, 1, 2, 1];
+  const factor = 16;
+  const blurred = new Uint8ClampedArray(gray.length);
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let sum = 0;
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const idx = (y + ky) * width + (x + kx);
+          const weight = kernel[(ky + 1) * 3 + (kx + 1)];
+          sum += gray[idx] * weight;
+        }
+      }
+      blurred[y * width + x] = Math.round(sum / factor);
+    }
+  }
+
+  // Copy edges
+  for (let x = 0; x < width; x++) {
+    blurred[x] = gray[x];
+    blurred[(height - 1) * width + x] = gray[(height - 1) * width + x];
+  }
+  for (let y = 0; y < height; y++) {
+    blurred[y * width] = gray[y * width];
+    blurred[y * width + (width - 1)] = gray[y * width + (width - 1)];
+  }
+
+  return blurred;
+}
 
 /**
  * Apply Sobel edge detection to an image
@@ -11,7 +50,7 @@
  */
 export function applySobelEdgeDetection(image, threshold = 40) {
   // Optimize size for performance
-  const MAX_SIZE = 800;
+  const MAX_SIZE = 1000;
   let w = image.width;
   let h = image.height;
 
@@ -39,7 +78,10 @@ export function applySobelEdgeDetection(image, threshold = 40) {
     gray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
   }
 
-  // 2. Apply Sobel operator
+  // 2. Apply Gaussian blur to reduce noise
+  const blurred = gaussianBlur(gray, w, h);
+
+  // 3. Apply Sobel operator
   const kernelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
   const kernelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
 
@@ -50,7 +92,7 @@ export function applySobelEdgeDetection(image, threshold = 40) {
 
       for (let ky = -1; ky <= 1; ky++) {
         for (let kx = -1; kx <= 1; kx++) {
-          const val = gray[(y + ky) * w + (x + kx)];
+          const val = blurred[(y + ky) * w + (x + kx)];
           const weightX = kernelX[(ky + 1) * 3 + (kx + 1)];
           const weightY = kernelY[(ky + 1) * 3 + (kx + 1)];
           px += val * weightX;
@@ -94,84 +136,64 @@ export function loadImageFromFile(file) {
 }
 
 /**
- * Convert processed image canvas to SVG paths for integration with zentangle
- * @param {HTMLCanvasElement} canvas - Processed image canvas
- * @param {number} scaleFactor - Scale the image
- * @returns {string} SVG path data
+ * Draw image with radial symmetry (zentangle style)
+ * @param {HTMLCanvasElement} svgCanvas - Target SVG canvas
+ * @param {HTMLCanvasElement} imageCanvas - Processed image canvas
+ * @param {number} slices - Number of symmetry slices
+ * @param {number} zoom - Zoom factor
+ * @param {number} offsetX - Horizontal offset
+ * @param {number} offsetY - Vertical offset
  */
-export function canvasToSVGPaths(canvas, scaleFactor = 1) {
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
+export function drawImageWithSymmetry(
+  svgCanvas,
+  imageCanvas,
+  slices = 12,
+  zoom = 1.5,
+  offsetX = 0,
+  offsetY = 0
+) {
+  // Create temporary canvas for the symmetric pattern
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = svgCanvas.width;
+  tempCanvas.height = svgCanvas.height;
+  const ctx = tempCanvas.getContext("2d");
 
-  let paths = [];
-  const visited = new Set();
+  // Fill with white background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
-  // Simple edge tracing - find connected black pixels
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i] === 0 && !visited.has(i / 4)) {
-      // Black pixel
-      const path = traceEdge(imageData, i / 4, visited);
-      if (path.length > 2) {
-        paths.push(path);
-      }
+  const cx = tempCanvas.width / 2;
+  const cy = tempCanvas.height / 2;
+  const radius = Math.max(cx, cy) * 1.5;
+  const angle = (Math.PI * 2) / slices;
+  const anglePadding = 0.005;
+
+  // Draw image slices with symmetry
+  for (let i = 0; i < slices; i++) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(i * angle);
+    if (i % 2 === 1) {
+      ctx.scale(1, -1);
     }
+
+    // Create clipping path for this slice
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, radius, -(angle / 2) - anglePadding, (angle / 2) + anglePadding);
+    ctx.closePath();
+    ctx.clip();
+
+    // Apply transformations and draw image
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(zoom, zoom);
+
+    const imgW = imageCanvas.width;
+    const imgH = imageCanvas.height;
+    ctx.drawImage(imageCanvas, -imgW / 2, -imgH / 2);
+
+    ctx.restore();
   }
 
-  return pathsToSVG(paths, scaleFactor);
-}
-
-function traceEdge(imageData, startIdx, visited) {
-  const w = imageData.width;
-  const data = imageData.data;
-  const path = [];
-  const queue = [startIdx];
-  const localVisited = new Set();
-
-  while (queue.length > 0) {
-    const idx = queue.shift();
-    if (visited.has(idx) || localVisited.has(idx)) continue;
-
-    localVisited.add(idx);
-    visited.add(idx);
-
-    const x = idx % w;
-    const y = Math.floor(idx / w);
-    path.push({ x, y });
-
-    // Check neighbors
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx >= 0 && nx < w && ny >= 0 && ny < imageData.height) {
-          const nIdx = ny * w + nx;
-          if (!visited.has(nIdx) && !localVisited.has(nIdx)) {
-            const pixelIdx = nIdx * 4;
-            if (data[pixelIdx] === 0) {
-              queue.push(nIdx);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return path;
-}
-
-function pathsToSVG(paths, scaleFactor) {
-  if (paths.length === 0) return "";
-
-  let svg = '';
-  for (const path of paths) {
-    if (path.length < 2) continue;
-
-    svg += `M ${path[0].x * scaleFactor} ${path[0].y * scaleFactor}`;
-    for (let i = 1; i < path.length; i++) {
-      svg += ` L ${path[i].x * scaleFactor} ${path[i].y * scaleFactor}`;
-    }
-  }
-
-  return svg;
+  return tempCanvas;
 }
