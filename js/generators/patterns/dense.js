@@ -17,12 +17,16 @@ export function fillStippling(rng, r, cfg, isMeta = false) {
         let x = rFloat(rng, r.x0, r.x1);
         let y = rFloat(rng, r.y0, r.y1);
 
+        const rad = rFloat(rng, 0.1, 0.25);
+
         if (!isMeta) {
-            const prob = (y - r.y0) / h;
+            const distToEdge = Math.min(x - r.x0, r.x1 - x, y - r.y0, r.y1 - y);
+            const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
+            // Perceptual stippling: higher density towards the center or intentionally grouped
+            const prob = Math.min(0.9, 0.2 + (distToEdge / (minDim * 0.5)) * 0.7);
             if (rng() > prob) continue;
         }
 
-        const rad = rFloat(rng, 0.1, 0.25);
         b.circle(x, y, rad);
     }
     return b.d;

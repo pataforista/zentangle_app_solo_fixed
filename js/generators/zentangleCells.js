@@ -70,6 +70,10 @@ export async function generateZentangleCells(doc, opts) {
 
     // New: Styles
     sketchy = 0,
+
+    // KDP Standards
+    kdpBleedMm = 0,         // Extension beyond cut (e.g. 3.175)
+    showSafeZone = false,   // Show 9.5mm safety guides
   } = opts;
 
   const rng = createRNG(seed >>> 0);
@@ -87,17 +91,40 @@ export async function generateZentangleCells(doc, opts) {
   };
 
   const baseRect = {
-    x0: areaMm.x, y0: areaMm.y,
-    x1: areaMm.x + areaMm.w, y1: areaMm.y + areaMm.h,
+    x0: areaMm.x - kdpBleedMm, y0: areaMm.y - kdpBleedMm,
+    x1: areaMm.x + areaMm.w + kdpBleedMm, y1: areaMm.y + areaMm.h + kdpBleedMm,
   };
 
+  // Safe Zone Guide Overlay (9.5mm from trim)
+  if (showSafeZone) {
+    const safeRect = {
+      x0: areaMm.x + 9.5, y0: areaMm.y + 9.5,
+      x1: areaMm.x + areaMm.w - 9.5, y1: areaMm.y + areaMm.h - 9.5
+    };
+    pushDef(`<rect id="${renderPrefix}safeZone" x="${safeRect.x0}" y="${safeRect.y0}" width="${safeRect.x1 - safeRect.x0}" height="${safeRect.y1 - safeRect.y0}" fill="none" stroke="rgba(255,0,0,0.3)" stroke-width="0.2" stroke-dasharray="2,2" pointer-events="none" />`);
+  }
+
   // 1) Generar celdas (rect o polígonos)
-  const cells = _makeCells(rng, baseRect, {
+  let cells = _makeCells(rng, baseRect, {
     cellLayout,
     cellCount,
     minCellSizeMm,
     hexRadiusMm,
     triSideMm,
+  });
+
+  // KDP Quality Rule: Area mínima 4mm² (evita manchas negras ilegibles)
+  cells = cells.filter(cell => {
+    if (cell.kind === "rect") {
+      const area = (cell.bbox.x1 - cell.bbox.x0) * (cell.bbox.y1 - cell.bbox.y0);
+      return area >= 4;
+    } else if (cell.poly) {
+      // Shoelace area check (indirectly or via bbox check if complex)
+      const w = cell.bbox.x1 - cell.bbox.x0;
+      const h = cell.bbox.y1 - cell.bbox.y0;
+      return (w * h) >= 6; // slightly higher for irregular poly
+    }
+    return true;
   });
 
   // 2) Outer border
@@ -177,12 +204,18 @@ export async function generateZentangleCells(doc, opts) {
     `);
 
     // --- Textura de Papel (Premium) ---
+    // If sketchy > 0.5, we add a displacement map to simulate paper fiber interaction
+    const displacement = (sketchy > 0.5) ? `
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="${Math.min(1.2, sketchy * 0.8)}" xChannelSelector="R" yChannelSelector="G" />
+    ` : "";
+
     pushDef(`
       <filter id="${renderPrefix}paperTexture" x="0" y="0" width="100%" height="100%">
         <feTurbulence type="fractalNoise" baseFrequency="0.03 0.04" numOctaves="5" result="noise" />
         <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="1.5" result="light">
           <feDistantLight azimuth="45" elevation="65" />
         </feDiffuseLighting>
+        ${displacement}
         
         <!-- Subtle tooth for the paper -->
         <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="1" result="tooth" />
@@ -353,6 +386,11 @@ export async function generateZentangleCells(doc, opts) {
   // Fallback defs injection
   if (!useDocDefs && localDefs.length) {
     doc.body.unshift(`<defs>${localDefs.join("")}</defs>`);
+  }
+
+  // Draw Safe Zone Guide Overlay last (on top)
+  if (showSafeZone) {
+    doc.body.push(`<use href="#${renderPrefix}safeZone" />`);
   }
 }
 

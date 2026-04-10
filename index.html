@@ -455,7 +455,29 @@
                 </optgroup>
               </select>
             </div>
+        </div>
+        
+        <!-- KDP Standards & Quality -->
+        <span class="control-group-title">Estándares KDP & Calidad</span>
+        <div class="control-group">
+          <div class="form-row">
+            <div>
+              <label for="kdpBleedMm">Sangrado (Bleed mm)</label>
+              <select id="kdpBleedMm">
+                <option value="0">Sin sangrado</option>
+                <option value="3.175">3.175 mm (Full Bleed)</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 0;">
+                <input type="checkbox" id="showSafeZone" style="cursor: pointer;" />
+                <span style="font-size: 13px;">Guías Zona Segura</span>
+              </label>
+            </div>
           </div>
+          <p style="font-size: 11px; color: var(--text-muted); margin: 0;">
+            ⚠️ 4mm² min área activado automáticamente para KDP.
+          </p>
         </div>
 
         <!-- Grid & Layout -->

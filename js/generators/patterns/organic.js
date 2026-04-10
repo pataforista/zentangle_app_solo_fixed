@@ -130,23 +130,23 @@ export function fillFlow(rng, r, cfg) {
     const cols = Math.max(3, Math.floor((r.x1 - r.x0) / (cfg.minGapMm * 2.5)));
     const stepX = (r.x1 - r.x0) / cols;
 
-    for (let i = 0; i <= cols; i++) {
+    for (let i = 1; i < cols; i++) {
         const xBase = r.x0 + i * stepX;
-        if (i === 0 || i === cols) continue;
 
-        const c1x = xBase + rFloat(rng, -minDim * 0.3, minDim * 0.3);
-        const c1y = r.y0 + (r.y1 - r.y0) * 0.33;
-        const c2x = xBase + rFloat(rng, -minDim * 0.3, minDim * 0.3);
-        const c2y = r.y0 + (r.y1 - r.y0) * 0.66;
-        const destX = xBase + rFloat(rng, -stepX, stepX);
+        // Intentional Bézier points: follow a main flow axis with controlled curvature
+        const cp1x = xBase + (i % 2 === 0 ? stepX * 0.4 : -stepX * 0.4);
+        const cp1y = r.y0 + (r.y1 - r.y0) * 0.33;
+        const cp2x = xBase + (i % 2 === 0 ? -stepX * 0.4 : stepX * 0.4);
+        const cp2y = r.y0 + (r.y1 - r.y0) * 0.66;
+        const destX = xBase;
 
         b.moveTo(xBase, r.y0);
-        b.cubicTo(c1x, c1y, c2x, c2y, destX, r.y1);
+        b.cubicTo(cp1x, cp1y, cp2x, cp2y, destX, r.y1);
 
-        if (rng() < 0.5) {
-            const gap = cfg.minGapMm * 0.6;
+        if (rng() < 0.4) {
+            const gap = cfg.minGapMm * 0.7;
             b.moveTo(xBase + gap, r.y0);
-            b.cubicTo(c1x + gap, c1y, c2x + gap, c2y, destX + gap, r.y1);
+            b.cubicTo(cp1x + gap, cp1y, cp2x + gap, cp2y, destX + gap, r.y1);
         }
     }
     return b.d;
@@ -161,12 +161,14 @@ export function fillWaves(rng, r, cfg) {
 
     for (let y = r.y0 + stepY/2; y < r.y1; y += stepY) {
         b.moveTo(r.x0, y);
-        const steps = 20;
-        const dx = (r.x1 - r.x0) / steps;
-        for (let i = 0; i <= steps; i++) {
-            const x = r.x0 + i * dx;
-            const waveY = y + Math.sin(x * freq) * amp;
-            b.lineTo(x, waveY);
+        const segs = 4;
+        const dx = (r.x1 - r.x0) / segs;
+        for (let i = 0; i < segs; i++) {
+            const x1 = r.x0 + i * dx;
+            const x2 = r.x0 + (i + 1) * dx;
+            const mx = (x1 + x2) / 2;
+            const flip = (i % 2 === 0) ? 1 : -1;
+            b.quadTo(mx, y + amp * flip, x2, y);
         }
     }
     return b.d;

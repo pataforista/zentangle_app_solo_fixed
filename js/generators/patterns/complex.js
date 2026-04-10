@@ -15,9 +15,9 @@ export function fillParadox(rng, r, cfg) {
     if (!poly || poly.length < 3) return null;
 
     let pts = [...poly];
-    const steps = rInt(rng, 12, 28);
-    const ratio = rFloat(rng, 0.08, 0.16); // Thinner offset for higher density
-    const sw = Math.max(0.15, cfg.patternStrokeMm * 0.7); // Thinner stroke
+    const steps = Math.min(12, Math.floor(minDim / 4)); // Capped to avoid "black hole" collapse
+    const ratio = rFloat(rng, 0.12, 0.18); 
+    const sw = Math.max(0.2, cfg.patternStrokeMm * 0.8);
 
     // The original code drew two triangles.
     // This new approach assumes a single polygon and recursively draws it.
@@ -70,9 +70,10 @@ function _drawParadoxTriangle(b, pts, steps, ratio) {
 export function fillHollibaugh(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const count = Math.floor(rInt(rng, 10, 16) * (minDim / 15 + 0.5));
-    // Make ribbons much narrower so they weave instead of obscuring everything
-    const width = rFloat(rng, 0.3, 0.8); // Thinner ribbons as per instruction
+    const width = rFloat(rng, 0.6, 1.2); // Sane ribbon width for KDP coloring
+    
+    // Use an alternating order or ensuring we don't just use white fill blindly
+    // For KDP we want clean strokes. Fill will be handled by the renderer.
     
     // Dibujamos las cintas de atrás hacia adelante conceptualmente, 
     // pero para SVG Zentangle usamos 'fill: white' para tapar lo de abajo.

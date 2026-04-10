@@ -65,6 +65,10 @@ const ui = {
 
   previewInner: $("previewInner"),
   status: $("status"),
+
+  // KDP Controls
+  kdpBleedMm: $("kdpBleedMm"),
+  showSafeZone: $("showSafeZone"),
 };
 
 // State for image processing
@@ -122,6 +126,10 @@ function buildOptsFromUI() {
     innerOrganicBorderInsetMm: num(ui.innerOrganicBorderInsetMm.value, 0.9),
     innerOrganicJitterMm: num(ui.innerOrganicJitterMm.value, 0.55),
     innerOrganicRoundMm: num(ui.innerOrganicRoundMm.value, 1.0),
+
+    // KDP Professional Standards
+    kdpBleedMm: num(ui.kdpBleedMm.value, 0),
+    showSafeZone: ui.showSafeZone.checked,
   };
 
   return { opts, zPresetKey };
@@ -435,9 +443,16 @@ function bind() {
     ui.cellBorderWidthMm, ui.patternStrokeMm, ui.minGapMm, ui.whiteSpaceMm, ui.sketchy,
     ui.maxPatternPassesPerCell, ui.patternSkipProb,
     ui.rotatePatterns, ui.rotationSet,
-    ui.innerOrganicBorderEnabled, ui.innerOrganicBorderInsetMm, ui.innerOrganicJitterMm, ui.innerOrganicRoundMm
+    ui.innerOrganicBorderEnabled, ui.innerOrganicBorderInsetMm, ui.innerOrganicJitterMm, ui.innerOrganicRoundMm,
+    ui.kdpBleedMm, ui.showSafeZone
   ].forEach((el) => {
-    if (el) el.addEventListener("input", debouncedRender);
+    if (el) {
+      if (el.type === "checkbox") {
+        el.addEventListener("change", debouncedRender);
+      } else {
+        el.addEventListener("input", debouncedRender);
+      }
+    }
   });
 
   ui.btnDownloadSVG.addEventListener("click", async () => {

@@ -49,7 +49,8 @@ export function fillCrosses(rng, r, cfg) {
 export function fillTriangles(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 2.2, minDim * 0.12), Math.max(cfg.minGapMm * 3.5, minDim * 0.25));
+    const ratio = Math.SQRT2; // 1.414 — rational proportion for geometric harmony
+    const step = minDim / (Math.floor(minDim / (cfg.minGapMm * ratio)) + 1);
     const sw = cfg.patternStrokeMm;
     
     // Draw a structured grid of triangles (diagonal hatch overlay)
