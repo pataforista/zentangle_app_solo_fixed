@@ -481,6 +481,33 @@ export const ZENTANGLE_PRESETS = {
     borderStrokeMultiplier: 1.45,
   },
 
+  kdp_tangles_classic: {
+    // Tangles auténticos reconocibles (Cadent, Florz, Tipple, Printemps,
+    // Crescent Moon...). Look Zentangle clásico, muy coloreable.
+    cellLayout: "rect_bsp",
+    cellCount: 22,
+    minCellSizeMm: 20,
+    cellBorderWidthMm: 0.82,
+    patternStrokeMm: 0.36,
+    minStrokeMm: 0.30,
+    minGapMm: 1.6,
+    layersPerCell: "auto",
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.12,
+    whiteSpaceMm: 1.2,
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+    enableDrawBehind: false,
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.82,
+    innerOrganicJitterMm: 0.50,
+    innerOrganicRoundMm: 1.0,
+    organicBorder: false,
+    patternFamily: "tangles",
+    focusMode: false,
+    borderStrokeMultiplier: 1.5,
+  },
+
   kdp_intricate: {
     cellLayout: "voronoi",
     cellCount: 32,
