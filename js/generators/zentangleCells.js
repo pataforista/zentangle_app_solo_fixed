@@ -141,9 +141,13 @@ export async function generateZentangleCells(doc, opts) {
     }));
   }
 
-  // 3) Fondo con textura de papel (para look premium)
-  doc.body.push(`<rect x="${baseRect.x0}" y="${baseRect.y0}" width="${areaMm.w}" height="${areaMm.h}" 
-    fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
+  // 3) Fondo con textura de papel (look "premium"). Desactivado por defecto:
+  // tiñe de gris toda la página y ensucia el coloreado / la impresión KDP.
+  // Útil solo para imágenes de marketing, no para el interior coloreable.
+  if (opts.paperTextureEnabled === true) {
+    doc.body.push(`<rect x="${baseRect.x0}" y="${baseRect.y0}" width="${areaMm.w}" height="${areaMm.h}"
+      fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
+  }
 
   // 4) Patrones disponibles por "Familias" para reducir caos
   const families = {
@@ -186,25 +190,26 @@ export async function generateZentangleCells(doc, opts) {
     const minDim = Math.min(w, h);
 
     // --- Grafitado (Graphite Shading) ---
+    // Desactivado por defecto: la sombra texturada añade gris bajo cada borde
+    // y al imprimir en KDP deja halos grises. Opcional para look "premium".
     const shadowId = `${renderPrefix}shadow_${i}`;
     const clipId = `${renderPrefix}clip_${i}`;
     let clipD = "";
-    pushDef(`
-      <filter id="${shadowId}" x="-30%" y="-30%" width="160%" height="160%">
-        <!-- Base Shadow -->
-        <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur" />
-        <feOffset in="blur" dx="0.6" dy="0.6" result="offsetBlur" />
-        
-        <!-- Grain / Graphite Texture -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" result="grain" />
-        <feComposite in="offsetBlur" in2="grain" operator="arithmetic" k1="0.4" k2="0.6" k3="0" k4="0" result="texturedShadow" />
-
-        <feComponentTransfer in="texturedShadow" result="finalShadow">
-          <feFuncA type="linear" slope="0.35" />
-        </feComponentTransfer>
-        <feComposite in="SourceGraphic" in2="finalShadow" operator="over" />
-      </filter>
-    `);
+    const shadowAttr = (opts.cellShadowEnabled === true) ? ` filter="url(#${shadowId})"` : "";
+    if (opts.cellShadowEnabled === true) {
+      pushDef(`
+        <filter id="${shadowId}" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur" />
+          <feOffset in="blur" dx="0.6" dy="0.6" result="offsetBlur" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" result="grain" />
+          <feComposite in="offsetBlur" in2="grain" operator="arithmetic" k1="0.4" k2="0.6" k3="0" k4="0" result="texturedShadow" />
+          <feComponentTransfer in="texturedShadow" result="finalShadow">
+            <feFuncA type="linear" slope="0.35" />
+          </feComponentTransfer>
+          <feComposite in="SourceGraphic" in2="finalShadow" operator="over" />
+        </filter>
+      `);
+    }
 
     // --- Textura de Papel (Premium) ---
     // If sketchy > 0.5, we add a displacement map to simulate paper fiber interaction
@@ -244,7 +249,7 @@ export async function generateZentangleCells(doc, opts) {
 
       // Borde visible + Sombra
       const borderD = clipD;
-      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
     } else {
       // Polígono
       const poly = _clipPolyToRect(cell.poly, box);
@@ -258,10 +263,10 @@ export async function generateZentangleCells(doc, opts) {
         const innerPoly = _polyInsetToCentroid(poly, dynInset);
         if (innerPoly && innerPoly.length >= 3) {
           const innerD = _organicPolyStrokeD(rng, innerPoly, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
-          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
         }
       } else {
-        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
       }
     }
 
@@ -367,8 +372,10 @@ export async function generateZentangleCells(doc, opts) {
     }
   }
 
-  // 6) Flow Lines (Global Continuity)
-  if (opts.flowLinesEnabled !== false) {
+  // 6) Flow Lines (continuidad global). Desactivadas por defecto: en un libro
+  // para colorear estas líneas grises punteadas parecen manchas de impresión
+  // sobre el espacio blanco. Solo se dibujan si se piden explícitamente.
+  if (opts.flowLinesEnabled === true) {
     const flowCount = rInt(rng, 1, 3);
     for (let i = 0; i < flowCount; i++) {
       // Uses sketchy too? maybe not for flow lines, or yes?
