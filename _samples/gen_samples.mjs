@@ -3,7 +3,7 @@ import { renderSvgToString } from "../js/core/svgRender.js";
 import { createSvgDoc } from "../js/core/svgDoc.js";
 import { writeFileSync } from "node:fs";
 
-const families = ["geometric", "organic", "dense"];
+const families = ["geometric", "organic", "dense", "tangles"];
 const W = 210, H = 297, margin = 12;
 
 for (const fam of families) {

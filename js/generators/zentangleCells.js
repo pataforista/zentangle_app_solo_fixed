@@ -9,6 +9,7 @@ import {
 import { fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillWaves } from "./patterns/organic.js";
 import { fillParadox, fillHollibaugh, fillFlux } from "./patterns/complex.js";
 import { fillStippling, fillPokerChips } from "./patterns/dense.js";
+import { fillCadent, fillTipple, fillPrintemps, fillCrescentMoon, fillFlorz } from "./patterns/tangles.js";
 
 /**
  * Zentangle Cells — v5 (integrated)
@@ -146,12 +147,14 @@ export async function generateZentangleCells(doc, opts) {
 
   // 4) Patrones disponibles por "Familias" para reducir caos
   const families = {
-    geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit],
-    organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves],
-    dense: [fillStippling, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles]
+    geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit, fillFlorz, fillCadent],
+    organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves, fillCrescentMoon, fillTipple, fillPrintemps],
+    dense: [fillStippling, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
+    // Familia dedicada a tangles auténticos reconocibles (look Zentangle clásico)
+    tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
   };
 
-  const familyKey = opts.patternFamily || (rng() < 0.5 ? "geometric" : "organic");
+  const familyKey = opts.patternFamily || pick(rng, ["geometric", "organic", "tangles"]);
   const patterns = families[familyKey] || [...families.geometric, ...families.organic];
 
   // Jerarquía de línea: Bordes/Strings claramente más gruesos
