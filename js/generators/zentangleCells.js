@@ -283,8 +283,8 @@ export async function generateZentangleCells(doc, opts) {
     } else if (layersPerCell === "auto") {
       // Capping layers to 2 mostly. Too many layers creates a scribble effect.
       if (minDim < 15) layers = 1;
-      else if (minDim < 35) layers = (rng() < 0.7 ? 1 : 2); 
-      else layers = (rng() < 0.6 ? 2 : 3); // Max 3 for very large cells
+      else if (minDim < 35) layers = (rng() < 0.85 ? 1 : 2);
+      else layers = (rng() < 0.7 ? 1 : 2); // Keep cells colorable: avoid stacking many fills
     } else {
       layers = Math.max(1, Math.min(3, Number(layersPerCell)));
     }
@@ -329,8 +329,8 @@ export async function generateZentangleCells(doc, opts) {
 
       let d = fn(rng, box, cellCfg);
 
-      // Meta-Patterns: Círculos invocan stippling en los huecos
-      if (fn === fillCircles && rng() < 0.7 && minDim > 20) {
+      // Meta-Patterns: Círculos invocan stippling en los huecos (ocasional, para no entintar)
+      if (fn === fillCircles && rng() < 0.30 && minDim > 20) {
         const stipD = fillStippling(rng, box, cellCfg, true);
         if (stipD) d += " " + stipD;
       }

@@ -48,28 +48,30 @@ export function fillCrosses(rng, r, cfg) {
 
 export function fillTriangles(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const ratio = Math.SQRT2; // 1.414 — rational proportion for geometric harmony
-    const step = minDim / (Math.floor(minDim / (cfg.minGapMm * ratio)) + 1);
-    const sw = cfg.patternStrokeMm;
-    
-    // Draw a structured grid of triangles (diagonal hatch overlay)
-    for (let x = r.x0; x < r.x1; x += step) {
-        b.taperedLine(x, r.y0, r.x0, r.y0 + (x - r.x0), sw); // Left-top to bottom-right
-        b.taperedLine(x, r.y1, r.x1, r.y0 + (r.x1 - x), sw);
+    const w = r.x1 - r.x0, h = r.y1 - r.y0;
+    const minDim = Math.min(w, h);
+    // Clean isometric triangular grid (recognizable tangle, leaves white space to color)
+    const rows = Math.max(2, Math.round(minDim / Math.max(cfg.minGapMm * 3.0, 5)));
+    const stepY = h / rows;
+    const stepX = stepY * 1.1547; // equilateral-ish (2/sqrt3)
+    const cols = Math.max(2, Math.round(w / stepX));
+    const dx = w / cols;
+
+    // Horizontal rails
+    for (let j = 0; j <= rows; j++) {
+        const y = r.y0 + j * stepY;
+        b.moveTo(r.x0, y).lineTo(r.x1, y);
     }
-    for (let y = r.y0; y < r.y1; y += step) {
-        b.taperedLine(r.x0, y, r.x1, y + (r.x1 - r.x0), sw);
-        b.taperedLine(r.x0, y, r.x0 + (r.y1 - y), r.y1, sw);
-    }
-    
-    // Reverse diagonals to form triangles
-    for (let x = r.x0; x < r.x1; x += step) {
-        b.taperedLine(x, r.y0, r.x1, r.y0 + (r.x1 - x), sw);
-        b.taperedLine(x, r.y1, r.x0, r.y1 - (x - r.x0), sw);
-    }
-    for (let y = r.y0; y < r.y1; y += step) {
-        b.taperedLine(r.x1, y, r.x0, y + (r.x1 - r.x0), sw);
+    // Alternating diagonals row by row -> rows of up/down triangles
+    for (let j = 0; j < rows; j++) {
+        const yTop = r.y0 + j * stepY;
+        const yBot = yTop + stepY;
+        const shift = (j % 2) ? dx / 2 : 0;
+        for (let i = -1; i <= cols; i++) {
+            const x = r.x0 + i * dx + shift;
+            b.moveTo(x, yBot).lineTo(x + dx / 2, yTop);
+            b.moveTo(x + dx / 2, yTop).lineTo(x + dx, yBot);
+        }
     }
     return b.d;
 }
