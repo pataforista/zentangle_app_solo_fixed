@@ -15,8 +15,8 @@ export function fillParadox(rng, r, cfg) {
     if (!poly || poly.length < 3) return null;
 
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    // Capped to avoid "black hole" collapse on large cells
-    const steps = Math.min(12, Math.floor(minDim / 4));
+    // Pocos pasos: la recursión se acumula hacia el centro y entinta la celda
+    const steps = Math.min(9, Math.floor(minDim / 5));
     const ratio = rFloat(rng, 0.12, 0.18);
 
     _drawParadoxTriangle(b, [poly[0], poly[1], poly[2]], steps, ratio);

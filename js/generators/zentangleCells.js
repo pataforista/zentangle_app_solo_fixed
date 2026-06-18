@@ -282,9 +282,10 @@ export async function generateZentangleCells(doc, opts) {
       layers = 1; 
     } else if (layersPerCell === "auto") {
       // Capping layers to 2 mostly. Too many layers creates a scribble effect.
-      if (minDim < 15) layers = 1;
-      else if (minDim < 35) layers = (rng() < 0.85 ? 1 : 2);
-      else layers = (rng() < 0.7 ? 1 : 2); // Keep cells colorable: avoid stacking many fills
+      // Zentangle auténtico: un solo tangle por celda. Apilar dos rellenos de
+      // líneas crea una trama cruzada (crosshatch) que entinta la celda y la
+      // vuelve inviable para colorear, así que en modo auto usamos 1 capa.
+      layers = 1;
     } else {
       layers = Math.max(1, Math.min(3, Number(layersPerCell)));
     }
@@ -312,19 +313,22 @@ export async function generateZentangleCells(doc, opts) {
       const fn = pick(rng, available);
       lastFn = fn;
 
-      // Escalado Dinámico: Ajustar parámetros para llenar más espacio densamente
-      // Máximo aire (v3.6): Nunca bajamos del 90% del gap original en presets normales
-      const stepScale = Math.max(0.9, Math.min(1.0, minDim / 60)); 
+      // Escalado dinámico: las celdas grandes ensanchan el espaciado para no
+      // acumular cientos de repeticiones (que leen como un campo oscuro).
+      // Celdas pequeñas ~1.0; celdas grandes hasta ~1.8x de aire.
+      const stepScale = Math.max(0.95, Math.min(1.8, minDim / 28));
       
       let strokeScale = 1.0;
       if (opts.focusMode || familyKey === "dense") {
         strokeScale = 0.7; // Solo adelgazamos si se busca densidad extrema
       }
 
+      // El trazo crece más suave que el espaciado para no engrosar de más
+      const strokeStep = Math.min(stepScale, 1.25);
       const cellCfg = {
         ...cfg,
-        minGapMm: Math.max(1.1, cfg.minGapMm * stepScale), 
-        patternStrokeMm: Math.max(0.25, cfg.patternStrokeMm * stepScale * strokeScale)
+        minGapMm: Math.max(1.1, cfg.minGapMm * stepScale),
+        patternStrokeMm: Math.max(0.25, cfg.patternStrokeMm * strokeStep * strokeScale)
       };
 
       let d = fn(rng, box, cellCfg);

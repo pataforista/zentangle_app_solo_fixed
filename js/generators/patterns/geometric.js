@@ -8,7 +8,7 @@ function _isValidRect(r) {
 export function fillConcentricSquares(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 0.8, minDim * 0.04), Math.max(cfg.minGapMm * 1.1, minDim * 0.07));
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.3, minDim * 0.055), Math.max(cfg.minGapMm * 1.7, minDim * 0.09));
     let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
     while (x1 - x0 > step * 1.15 && y1 - y0 > step * 1.15) {
         b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
@@ -20,8 +20,9 @@ export function fillConcentricSquares(rng, r, cfg) {
 export function fillAuraSquares(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 0.9, minDim * 0.05), Math.max(cfg.minGapMm * 1.2, minDim * 0.08));
-    const aura = rFloat(rng, Math.max(0.25, cfg.minGapMm * 0.2), Math.min(step * 0.4, 0.8));
+    // Paso amplio: el "aura" duplica cada línea, así que necesita más separación
+    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.8, minDim * 0.08), Math.max(cfg.minGapMm * 2.3, minDim * 0.12));
+    const aura = rFloat(rng, Math.max(0.3, cfg.minGapMm * 0.25), Math.min(step * 0.3, 0.9));
     let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
     while (x1 - x0 > step * 1.25 && y1 - y0 > step * 1.25) {
         b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
@@ -33,8 +34,11 @@ export function fillAuraSquares(rng, r, cfg) {
 
 export function fillCrosses(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.2, 1.5), Math.max(cfg.minGapMm * 1.8, 2.5));
-    const s = step * 0.35; // slightly larger relative cross
+    const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
+    // Escalar con la celda: en celdas grandes evitamos un campo denso de cruces
+    const base = rFloat(rng, Math.max(cfg.minGapMm * 1.6, 2.2), Math.max(cfg.minGapMm * 2.2, 3.2));
+    const step = Math.max(base, minDim / 11);
+    const s = step * 0.26; // arm length; keep crosses well separated
     const sw = cfg.patternStrokeMm;
 
     for (let x = r.x0 + step / 2; x < r.x1; x += step) {
