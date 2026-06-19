@@ -249,7 +249,7 @@ export async function generateZentangleCells(doc, opts) {
 
       // Borde visible + Sombra
       const borderD = clipD;
-      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
+      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
     } else {
       // Polígono
       const poly = _clipPolyToRect(cell.poly, box);
@@ -263,10 +263,10 @@ export async function generateZentangleCells(doc, opts) {
         const innerPoly = _polyInsetToCentroid(poly, dynInset);
         if (innerPoly && innerPoly.length >= 3) {
           const innerD = _organicPolyStrokeD(rng, innerPoly, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
-          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
+          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
         }
       } else {
-        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
+        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
       }
     }
 
@@ -360,7 +360,7 @@ export async function generateZentangleCells(doc, opts) {
       patternsGroup.push(
         `<path d="${d}"
           fill="${fill}"
-          stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}mm"
+          stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}"
           stroke-linecap="round" stroke-linejoin="round"
           transform="rotate(${_fmt(rot + jitter)} ${_fmt(cx)} ${_fmt(cy)})"
         />`
@@ -393,7 +393,7 @@ export async function generateZentangleCells(doc, opts) {
       const yEnd = baseRect.y0 + rng() * (baseRect.y1 - baseRect.y0);
 
       b.cubicTo(cp1x, cp1y, cp2x, cp2y, xEnd, yEnd);
-      doc.body.push(`<path d="${b.d}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke * 0.45)}mm" stroke-opacity="0.30" stroke-dasharray="3,3" pointer-events="none" />`);
+      doc.body.push(`<path d="${b.d}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke * 0.45)}" stroke-opacity="0.30" stroke-dasharray="3,3" pointer-events="none" />`);
     }
   }
 

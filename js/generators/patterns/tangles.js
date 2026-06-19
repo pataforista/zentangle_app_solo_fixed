@@ -168,9 +168,10 @@ export function fillFlorz(rng, r, cfg) {
     const x = r.x0 + i * dx;
     b.moveTo(x, r.y0).lineTo(x, r.y1);
   }
-  // pequeño rombo en cada nodo => aspecto "Florz"
-  for (let i = 0; i <= cols; i++) {
-    for (let j = 0; j <= rows; j++) {
+  // Rombo solo en nodos INTERIORES: los del borde se recortarían a la mitad
+  // por el clip de la celda y dejarían "flechas" feas.
+  for (let i = 1; i < cols; i++) {
+    for (let j = 1; j < rows; j++) {
       const x = r.x0 + i * dx, y = r.y0 + j * dy;
       b.moveTo(x, y - node).lineTo(x + node, y)
        .lineTo(x, y + node).lineTo(x - node, y).close();
