@@ -481,6 +481,34 @@ export const ZENTANGLE_PRESETS = {
     borderStrokeMultiplier: 1.45,
   },
 
+  kdp_tangles_classic: {
+    // Tangles auténticos reconocibles (Cadent, Florz, Tipple, Printemps,
+    // Crescent Moon...). Pocas celdas grandes + bordes finos => los tangles
+    // lucen y la página respira (muy coloreable, look Zentangle clásico).
+    cellLayout: "rect_bsp",
+    cellCount: 15,
+    minCellSizeMm: 26,
+    cellBorderWidthMm: 0.60,
+    patternStrokeMm: 0.45,
+    minStrokeMm: 0.35,
+    minGapMm: 1.8,
+    layersPerCell: "auto",
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.06,
+    whiteSpaceMm: 1.5,
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+    enableDrawBehind: false,
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.82,
+    innerOrganicJitterMm: 0.50,
+    innerOrganicRoundMm: 1.0,
+    organicBorder: false,
+    patternFamily: "tangles",
+    focusMode: false,
+    borderStrokeMultiplier: 1.25,
+  },
+
   kdp_intricate: {
     cellLayout: "voronoi",
     cellCount: 32,

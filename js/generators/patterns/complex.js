@@ -14,25 +14,10 @@ export function fillParadox(rng, r, cfg) {
     ], r);
     if (!poly || poly.length < 3) return null;
 
-    let pts = [...poly];
-    const steps = Math.min(12, Math.floor(minDim / 4)); // Capped to avoid "black hole" collapse
-    const ratio = rFloat(rng, 0.12, 0.18); 
-    const sw = Math.max(0.2, cfg.patternStrokeMm * 0.8);
-
-    // The original code drew two triangles.
-    // This new approach assumes a single polygon and recursively draws it.
-    // If the intent was to draw two triangles from the initial rect,
-    // the logic below needs to be adapted.
-    // For now, I'll assume the `pts` variable is meant to be used for the recursive drawing.
-    // Given the `_drawParadoxTriangle` function signature, it expects a single triangle.
-    // The original code explicitly split the rectangle into two triangles.
-    // Let's adapt the new `steps` and `ratio` to the original structure.
-
-    // Simplificar pasos según tamaño para evitar hangs
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    // The `steps` variable was already defined above with `rInt(rng, 12, 28)`.
-    // The line `inDim < 8 ? 4 : (minDim < 15 ? 8 : 12);` from the instruction was a copy-paste error.
-    // We will use the new `steps` and `ratio` in the `_drawParadoxTriangle` function.
+    // Pocos pasos: la recursión se acumula hacia el centro y entinta la celda
+    const steps = Math.min(9, Math.floor(minDim / 5));
+    const ratio = rFloat(rng, 0.12, 0.18);
 
     _drawParadoxTriangle(b, [poly[0], poly[1], poly[2]], steps, ratio);
     _drawParadoxTriangle(b, [poly[0], poly[3], poly[2]], steps, ratio);
@@ -70,13 +55,12 @@ function _drawParadoxTriangle(b, pts, steps, ratio) {
 export function fillHollibaugh(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const width = rFloat(rng, 0.6, 1.2); // Sane ribbon width for KDP coloring
-    
-    // Use an alternating order or ensuring we don't just use white fill blindly
-    // For KDP we want clean strokes. Fill will be handled by the renderer.
-    
-    // Dibujamos las cintas de atrás hacia adelante conceptualmente, 
-    // pero para SVG Zentangle usamos 'fill: white' para tapar lo de abajo.
+    // Wide ribbons read better for KDP coloring than hairline strokes
+    const width = rFloat(rng, minDim * 0.10, minDim * 0.18);
+    const count = rInt(rng, 3, 6);
+
+    // Cada cinta se dibuja como banda cerrada; el renderer la rellena de blanco
+    // para tapar lo de abajo y dar sensación de entrelazado.
     for (let i = 0; i < count; i++) {
         const isVertical = rng() > 0.5;
         // Introduce slight angles instead of pure orthogonal for better weaving

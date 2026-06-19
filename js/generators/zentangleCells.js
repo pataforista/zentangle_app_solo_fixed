@@ -9,6 +9,7 @@ import {
 import { fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillWaves } from "./patterns/organic.js";
 import { fillParadox, fillHollibaugh, fillFlux } from "./patterns/complex.js";
 import { fillStippling, fillPokerChips } from "./patterns/dense.js";
+import { fillCadent, fillTipple, fillPrintemps, fillCrescentMoon, fillFlorz } from "./patterns/tangles.js";
 
 /**
  * Zentangle Cells — v5 (integrated)
@@ -140,18 +141,24 @@ export async function generateZentangleCells(doc, opts) {
     }));
   }
 
-  // 3) Fondo con textura de papel (para look premium)
-  doc.body.push(`<rect x="${baseRect.x0}" y="${baseRect.y0}" width="${areaMm.w}" height="${areaMm.h}" 
-    fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
+  // 3) Fondo con textura de papel (look "premium"). Desactivado por defecto:
+  // tiñe de gris toda la página y ensucia el coloreado / la impresión KDP.
+  // Útil solo para imágenes de marketing, no para el interior coloreable.
+  if (opts.paperTextureEnabled === true) {
+    doc.body.push(`<rect x="${baseRect.x0}" y="${baseRect.y0}" width="${areaMm.w}" height="${areaMm.h}"
+      fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
+  }
 
   // 4) Patrones disponibles por "Familias" para reducir caos
   const families = {
-    geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit],
-    organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves],
-    dense: [fillStippling, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles]
+    geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit, fillFlorz, fillCadent],
+    organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves, fillCrescentMoon, fillTipple, fillPrintemps],
+    dense: [fillStippling, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
+    // Familia dedicada a tangles auténticos reconocibles (look Zentangle clásico)
+    tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
   };
 
-  const familyKey = opts.patternFamily || (rng() < 0.5 ? "geometric" : "organic");
+  const familyKey = opts.patternFamily || pick(rng, ["geometric", "organic", "tangles"]);
   const patterns = families[familyKey] || [...families.geometric, ...families.organic];
 
   // Jerarquía de línea: Bordes/Strings claramente más gruesos
@@ -183,25 +190,26 @@ export async function generateZentangleCells(doc, opts) {
     const minDim = Math.min(w, h);
 
     // --- Grafitado (Graphite Shading) ---
+    // Desactivado por defecto: la sombra texturada añade gris bajo cada borde
+    // y al imprimir en KDP deja halos grises. Opcional para look "premium".
     const shadowId = `${renderPrefix}shadow_${i}`;
     const clipId = `${renderPrefix}clip_${i}`;
     let clipD = "";
-    pushDef(`
-      <filter id="${shadowId}" x="-30%" y="-30%" width="160%" height="160%">
-        <!-- Base Shadow -->
-        <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur" />
-        <feOffset in="blur" dx="0.6" dy="0.6" result="offsetBlur" />
-        
-        <!-- Grain / Graphite Texture -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" result="grain" />
-        <feComposite in="offsetBlur" in2="grain" operator="arithmetic" k1="0.4" k2="0.6" k3="0" k4="0" result="texturedShadow" />
-
-        <feComponentTransfer in="texturedShadow" result="finalShadow">
-          <feFuncA type="linear" slope="0.35" />
-        </feComponentTransfer>
-        <feComposite in="SourceGraphic" in2="finalShadow" operator="over" />
-      </filter>
-    `);
+    const shadowAttr = (opts.cellShadowEnabled === true) ? ` filter="url(#${shadowId})"` : "";
+    if (opts.cellShadowEnabled === true) {
+      pushDef(`
+        <filter id="${shadowId}" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur" />
+          <feOffset in="blur" dx="0.6" dy="0.6" result="offsetBlur" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" result="grain" />
+          <feComposite in="offsetBlur" in2="grain" operator="arithmetic" k1="0.4" k2="0.6" k3="0" k4="0" result="texturedShadow" />
+          <feComponentTransfer in="texturedShadow" result="finalShadow">
+            <feFuncA type="linear" slope="0.35" />
+          </feComponentTransfer>
+          <feComposite in="SourceGraphic" in2="finalShadow" operator="over" />
+        </filter>
+      `);
+    }
 
     // --- Textura de Papel (Premium) ---
     // If sketchy > 0.5, we add a displacement map to simulate paper fiber interaction
@@ -241,7 +249,7 @@ export async function generateZentangleCells(doc, opts) {
 
       // Borde visible + Sombra
       const borderD = clipD;
-      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+      doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
     } else {
       // Polígono
       const poly = _clipPolyToRect(cell.poly, box);
@@ -255,10 +263,10 @@ export async function generateZentangleCells(doc, opts) {
         const innerPoly = _polyInsetToCentroid(poly, dynInset);
         if (innerPoly && innerPoly.length >= 3) {
           const innerD = _organicPolyStrokeD(rng, innerPoly, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
-          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
         }
       } else {
-        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}mm" stroke-linecap="round" stroke-linejoin="round" filter="url(#${shadowId})"/>`);
+        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
       }
     }
 
@@ -282,9 +290,10 @@ export async function generateZentangleCells(doc, opts) {
       layers = 1; 
     } else if (layersPerCell === "auto") {
       // Capping layers to 2 mostly. Too many layers creates a scribble effect.
-      if (minDim < 15) layers = 1;
-      else if (minDim < 35) layers = (rng() < 0.7 ? 1 : 2); 
-      else layers = (rng() < 0.6 ? 2 : 3); // Max 3 for very large cells
+      // Zentangle auténtico: un solo tangle por celda. Apilar dos rellenos de
+      // líneas crea una trama cruzada (crosshatch) que entinta la celda y la
+      // vuelve inviable para colorear, así que en modo auto usamos 1 capa.
+      layers = 1;
     } else {
       layers = Math.max(1, Math.min(3, Number(layersPerCell)));
     }
@@ -312,25 +321,28 @@ export async function generateZentangleCells(doc, opts) {
       const fn = pick(rng, available);
       lastFn = fn;
 
-      // Escalado Dinámico: Ajustar parámetros para llenar más espacio densamente
-      // Máximo aire (v3.6): Nunca bajamos del 90% del gap original en presets normales
-      const stepScale = Math.max(0.9, Math.min(1.0, minDim / 60)); 
+      // Escalado dinámico: las celdas grandes ensanchan el espaciado para no
+      // acumular cientos de repeticiones (que leen como un campo oscuro).
+      // Celdas pequeñas ~1.0; celdas grandes hasta ~1.8x de aire.
+      const stepScale = Math.max(0.95, Math.min(1.8, minDim / 28));
       
       let strokeScale = 1.0;
       if (opts.focusMode || familyKey === "dense") {
         strokeScale = 0.7; // Solo adelgazamos si se busca densidad extrema
       }
 
+      // El trazo crece más suave que el espaciado para no engrosar de más
+      const strokeStep = Math.min(stepScale, 1.25);
       const cellCfg = {
         ...cfg,
-        minGapMm: Math.max(1.1, cfg.minGapMm * stepScale), 
-        patternStrokeMm: Math.max(0.25, cfg.patternStrokeMm * stepScale * strokeScale)
+        minGapMm: Math.max(1.1, cfg.minGapMm * stepScale),
+        patternStrokeMm: Math.max(0.25, cfg.patternStrokeMm * strokeStep * strokeScale)
       };
 
       let d = fn(rng, box, cellCfg);
 
-      // Meta-Patterns: Círculos invocan stippling en los huecos
-      if (fn === fillCircles && rng() < 0.7 && minDim > 20) {
+      // Meta-Patterns: Círculos invocan stippling en los huecos (ocasional, para no entintar)
+      if (fn === fillCircles && rng() < 0.30 && minDim > 20) {
         const stipD = fillStippling(rng, box, cellCfg, true);
         if (stipD) d += " " + stipD;
       }
@@ -348,7 +360,7 @@ export async function generateZentangleCells(doc, opts) {
       patternsGroup.push(
         `<path d="${d}"
           fill="${fill}"
-          stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}mm"
+          stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}"
           stroke-linecap="round" stroke-linejoin="round"
           transform="rotate(${_fmt(rot + jitter)} ${_fmt(cx)} ${_fmt(cy)})"
         />`
@@ -360,8 +372,10 @@ export async function generateZentangleCells(doc, opts) {
     }
   }
 
-  // 6) Flow Lines (Global Continuity)
-  if (opts.flowLinesEnabled !== false) {
+  // 6) Flow Lines (continuidad global). Desactivadas por defecto: en un libro
+  // para colorear estas líneas grises punteadas parecen manchas de impresión
+  // sobre el espacio blanco. Solo se dibujan si se piden explícitamente.
+  if (opts.flowLinesEnabled === true) {
     const flowCount = rInt(rng, 1, 3);
     for (let i = 0; i < flowCount; i++) {
       // Uses sketchy too? maybe not for flow lines, or yes?
@@ -379,7 +393,7 @@ export async function generateZentangleCells(doc, opts) {
       const yEnd = baseRect.y0 + rng() * (baseRect.y1 - baseRect.y0);
 
       b.cubicTo(cp1x, cp1y, cp2x, cp2y, xEnd, yEnd);
-      doc.body.push(`<path d="${b.d}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke * 0.45)}mm" stroke-opacity="0.30" stroke-dasharray="3,3" pointer-events="none" />`);
+      doc.body.push(`<path d="${b.d}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke * 0.45)}" stroke-opacity="0.30" stroke-dasharray="3,3" pointer-events="none" />`);
     }
   }
 
