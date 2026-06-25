@@ -497,7 +497,7 @@
             </div>
             <div>
               <label for="minGapMm">Espaciado int.</label>
-              <input id="minGapMm" type="range" min="0.6" max="2.6" step="0.1" value="1.4" />
+              <input id="minGapMm" type="range" min="0.6" max="5.0" step="0.1" value="1.4" />
             </div>
           </div>
         </div>
@@ -534,7 +534,7 @@
               </div>
               <div>
                 <label for="patternSkipProb">Prob. Saltar</label>
-                <input id="patternSkipProb" type="range" min="0" max="0.55" step="0.01" value="0.18" />
+                <input id="patternSkipProb" type="range" min="0" max="0.65" step="0.01" value="0.18" />
               </div>
             </div>
 
@@ -559,7 +559,7 @@
             <div class="form-row">
               <div style="grid-column: span 2">
                 <label for="whiteSpaceMm">Aire Extra (mm)</label>
-                <input id="whiteSpaceMm" type="range" min="0" max="2.5" step="0.1" value="1.0" />
+                <input id="whiteSpaceMm" type="range" min="0" max="4.0" step="0.1" value="1.0" />
               </div>
             </div>
 
@@ -587,6 +587,34 @@
                 <input id="innerOrganicRoundMm" type="range" min="0" max="2.0" step="0.1" value="1.0" />
               </div>
             </div>
+
+            <span class="control-group-title" style="margin-top:10px">Composición & Variación</span>
+            <div class="form-row">
+              <div style="grid-column: span 2">
+                <label for="patternFamily">Familia de Patrón</label>
+                <select id="patternFamily">
+                  <option value="">Auto (según preset)</option>
+                  <option value="geometric">Geométrico</option>
+                  <option value="organic">Orgánico</option>
+                  <option value="tangles">Tangles clásicos</option>
+                  <option value="dense">Denso</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="focalStrength">Punto Focal</label>
+                <input id="focalStrength" type="range" min="0" max="0.6" step="0.05" value="0.3" />
+              </div>
+              <div>
+                <label for="rotationJitterDeg">Jitter Rotación (°)</label>
+                <input id="rotationJitterDeg" type="range" min="0" max="6" step="0.5" value="2.5" />
+              </div>
+            </div>
+            <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0;">
+              Punto focal: concentra detalle al centro, deja aire en los bordes (0 = uniforme).
+              Jitter: leve giro "hecho a mano" (solo si rotas patrones).
+            </p>
 
           </div>
         </details>

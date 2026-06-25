@@ -41,6 +41,11 @@ const ui = {
   innerOrganicJitterMm: $("innerOrganicJitterMm"),
   innerOrganicRoundMm: $("innerOrganicRoundMm"),
 
+  // Composición & variación
+  patternFamily: $("patternFamily"),
+  focalStrength: $("focalStrength"),
+  rotationJitterDeg: $("rotationJitterDeg"),
+
   // Image processing controls
   imageUpload: $("imageUpload"),
   imageFileName: $("imageFileName"),
@@ -127,12 +132,49 @@ function buildOptsFromUI() {
     innerOrganicJitterMm: num(ui.innerOrganicJitterMm.value, 0.55),
     innerOrganicRoundMm: num(ui.innerOrganicRoundMm.value, 1.0),
 
+    // Composición & variación
+    focalStrength: num(ui.focalStrength.value, 0.3),
+    rotationJitterDeg: num(ui.rotationJitterDeg.value, 2.5),
+
     // KDP Professional Standards
     kdpBleedMm: num(ui.kdpBleedMm.value, 0),
     showSafeZone: ui.showSafeZone.checked,
   };
 
+  // Familia de patrón: solo sobreescribe el preset si el usuario eligió una.
+  const famVal = String(ui.patternFamily.value || "");
+  if (famVal) opts.patternFamily = famVal;
+
   return { opts, zPresetKey };
+}
+
+// Sincroniza los sliders/selectores con los valores del preset elegido, de modo
+// que el preset funcione como base de estilo real (antes los sliders pisaban
+// silenciosamente al preset) y el usuario pueda ajustar desde ahí.
+function applyPresetToUI(presetKey) {
+  const p = ZENTANGLE_PRESETS[presetKey];
+  if (!p) return;
+  const set = (el, v) => { if (el && v !== undefined && v !== null) el.value = String(v); };
+  const setBool = (el, v) => { if (el && v !== undefined) el.value = v ? "1" : "0"; };
+
+  if (p.cellCount) set(ui.cellCount, p.cellCount);
+  if (p.minCellSizeMm) set(ui.minCellSizeMm, p.minCellSizeMm);
+  set(ui.cellBorderWidthMm, p.cellBorderWidthMm);
+  set(ui.patternStrokeMm, p.patternStrokeMm);
+  set(ui.minGapMm, p.minGapMm);
+  set(ui.whiteSpaceMm, p.whiteSpaceMm);
+  set(ui.maxPatternPassesPerCell, p.maxPatternPassesPerCell);
+  set(ui.patternSkipProb, p.patternSkipProb);
+  setBool(ui.rotatePatterns, p.rotatePatterns);
+  set(ui.rotationSet, p.rotationSet);
+  setBool(ui.innerOrganicBorderEnabled, p.innerOrganicBorderEnabled);
+  set(ui.innerOrganicBorderInsetMm, p.innerOrganicBorderInsetMm);
+  set(ui.innerOrganicJitterMm, p.innerOrganicJitterMm);
+  set(ui.innerOrganicRoundMm, p.innerOrganicRoundMm);
+
+  set(ui.patternFamily, p.patternFamily || "");
+  set(ui.focalStrength, p.focalStrength != null ? p.focalStrength : 0.3);
+  set(ui.rotationJitterDeg, p.rotationJitterDeg != null ? p.rotationJitterDeg : 2.5);
 }
 
 async function render() {
@@ -307,6 +349,8 @@ function bind() {
   ui.paper.value = st.preset;
   ui.seed.value = String(st.seed >>> 0);
   ui.zPreset.value = st.zPreset;
+  // Aplica el preset inicial a los controles (base de estilo real).
+  applyPresetToUI(st.zPreset);
 
   // Image upload handler
   ui.imageUpload.addEventListener("change", async (e) => {
@@ -437,13 +481,20 @@ function bind() {
 
   ui.btnRender.addEventListener("click", () => render());
 
+  // El preset sincroniza los controles antes de renderizar (base de estilo).
+  ui.zPreset.addEventListener("change", () => {
+    applyPresetToUI(ui.zPreset.value);
+    debouncedRender();
+  });
+
   [
-    ui.paper, ui.marginMm, ui.seed, ui.zPreset,
+    ui.paper, ui.marginMm, ui.seed,
     ui.cellCount, ui.minCellSizeMm,
     ui.cellBorderWidthMm, ui.patternStrokeMm, ui.minGapMm, ui.whiteSpaceMm, ui.sketchy,
     ui.maxPatternPassesPerCell, ui.patternSkipProb,
     ui.rotatePatterns, ui.rotationSet,
     ui.innerOrganicBorderEnabled, ui.innerOrganicBorderInsetMm, ui.innerOrganicJitterMm, ui.innerOrganicRoundMm,
+    ui.patternFamily, ui.focalStrength, ui.rotationJitterDeg,
     ui.kdpBleedMm, ui.showSafeZone
   ].forEach((el) => {
     if (el) {
