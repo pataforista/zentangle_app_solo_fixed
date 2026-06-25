@@ -61,6 +61,7 @@ const ui = {
   imageOffsetX: $("imageOffsetX"),
   imageOffsetY: $("imageOffsetY"),
 
+  btnResetPreset: $("btnResetPreset"),
   btnRandomSeed: $("btnRandomSeed"),
   btnRender: $("btnRender"),
   btnDownloadSVG: $("btnDownloadSVG"),
@@ -148,14 +149,20 @@ function buildOptsFromUI() {
   return { opts, zPresetKey };
 }
 
+// Controles que el usuario ha ajustado a mano. Al cambiar de preset se
+// conservan (para iterar diseños rápido sin re-tunear); el resto se sincroniza
+// con el preset. El botón "Reset" reaplica el preset completo (force).
+const touched = new Set();
+
 // Sincroniza los sliders/selectores con los valores del preset elegido, de modo
 // que el preset funcione como base de estilo real (antes los sliders pisaban
-// silenciosamente al preset) y el usuario pueda ajustar desde ahí.
-function applyPresetToUI(presetKey) {
+// silenciosamente al preset). Respeta los controles tocados salvo force=true.
+function applyPresetToUI(presetKey, { force = false } = {}) {
   const p = ZENTANGLE_PRESETS[presetKey];
   if (!p) return;
-  const set = (el, v) => { if (el && v !== undefined && v !== null) el.value = String(v); };
-  const setBool = (el, v) => { if (el && v !== undefined) el.value = v ? "1" : "0"; };
+  const keep = (el) => !force && el && touched.has(el.id);
+  const set = (el, v) => { if (el && v !== undefined && v !== null && !keep(el)) el.value = String(v); };
+  const setBool = (el, v) => { if (el && v !== undefined && !keep(el)) el.value = v ? "1" : "0"; };
 
   if (p.cellCount) set(ui.cellCount, p.cellCount);
   if (p.minCellSizeMm) set(ui.minCellSizeMm, p.minCellSizeMm);
@@ -481,29 +488,42 @@ function bind() {
 
   ui.btnRender.addEventListener("click", () => render());
 
-  // El preset sincroniza los controles antes de renderizar (base de estilo).
+  // El preset sincroniza los controles NO tocados antes de renderizar; tus
+  // ajustes manuales se conservan para iterar rápido entre presets.
   ui.zPreset.addEventListener("change", () => {
     applyPresetToUI(ui.zPreset.value);
     debouncedRender();
   });
 
-  [
-    ui.paper, ui.marginMm, ui.seed,
+  // Reset: reaplica el preset completo (descarta tus ajustes) y vuelve al estilo limpio.
+  if (ui.btnResetPreset) {
+    ui.btnResetPreset.addEventListener("click", () => {
+      touched.clear();
+      applyPresetToUI(ui.zPreset.value, { force: true });
+      debouncedRender();
+    });
+  }
+
+  // Controles de estilo: marcan "tocado" (para conservarse al cambiar de preset).
+  const styleControls = [
     ui.cellCount, ui.minCellSizeMm,
     ui.cellBorderWidthMm, ui.patternStrokeMm, ui.minGapMm, ui.whiteSpaceMm, ui.sketchy,
     ui.maxPatternPassesPerCell, ui.patternSkipProb,
     ui.rotatePatterns, ui.rotationSet,
     ui.innerOrganicBorderEnabled, ui.innerOrganicBorderInsetMm, ui.innerOrganicJitterMm, ui.innerOrganicRoundMm,
     ui.patternFamily, ui.focalStrength, ui.rotationJitterDeg,
-    ui.kdpBleedMm, ui.showSafeZone
-  ].forEach((el) => {
-    if (el) {
-      if (el.type === "checkbox") {
-        el.addEventListener("change", debouncedRender);
-      } else {
-        el.addEventListener("input", debouncedRender);
-      }
-    }
+  ];
+  styleControls.forEach((el) => {
+    if (!el) return;
+    const evt = el.type === "checkbox" ? "change" : "input";
+    el.addEventListener(evt, () => { touched.add(el.id); debouncedRender(); });
+  });
+
+  // Controles no ligados al estilo del preset: solo re-renderizan.
+  [ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone].forEach((el) => {
+    if (!el) return;
+    const evt = el.type === "checkbox" ? "change" : "input";
+    el.addEventListener(evt, debouncedRender);
   });
 
   ui.btnDownloadSVG.addEventListener("click", async () => {

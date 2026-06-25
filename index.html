@@ -423,7 +423,11 @@
               <input id="seed" type="number" min="0" step="1" value="1" />
             </div>
             <div>
-              <label for="zPreset">Estilo</label>
+              <label for="zPreset" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Estilo</span>
+                <button id="btnResetPreset" type="button" title="Volver a los valores originales del preset"
+                  style="font-size:11px; padding:1px 6px; cursor:pointer; background:none; border:1px solid var(--border, #ccc); border-radius:4px; color:var(--text-muted);">↺ Reset</button>
+              </label>
               <select id="zPreset">
                 <optgroup label="📚 KDP Profesionales">
                   <option value="kdp_balanced" selected>🎨 KDP Balanceado (Intermedio)</option>
