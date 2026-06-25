@@ -63,7 +63,9 @@ const ui = {
 
   btnResetPreset: $("btnResetPreset"),
   btnRandomSeed: $("btnRandomSeed"),
+  btnGallery: $("btnGallery"),
   btnRender: $("btnRender"),
+  previewPanel: document.querySelector(".preview-panel"),
   btnDownloadSVG: $("btnDownloadSVG"),
   btnDownloadPNG: $("btnDownloadPNG"),
   btnDownloadPDF: $("btnDownloadPDF"),
@@ -184,8 +186,65 @@ function applyPresetToUI(presetKey, { force = false } = {}) {
   set(ui.rotationJitterDeg, p.rotationJitterDeg != null ? p.rotationJitterDeg : 2.5);
 }
 
+// Genera N variaciones (misma configuración, distintas semillas) como galería
+// clicable, para elegir el diseño que más guste e iterar rápido.
+async function renderGallery(count = 8) {
+  if (ui.useImageMode.checked && appState.processedImageCanvas) {
+    // En modo imagen no aplica la galería de semillas; render normal.
+    return render();
+  }
+  ui.status.textContent = "Generando variaciones...";
+
+  const paperKey = String(ui.paper.value || "A4");
+  const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
+  let marginMm = Math.max(0, num(ui.marginMm.value, 8));
+  const { opts, zPresetKey } = buildOptsFromUI();
+  if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") {
+    marginMm = Math.max(marginMm, 12.5);
+  }
+  const inner = { x: marginMm, y: marginMm, w: presetPaper.w - marginMm * 2, h: presetPaper.h - marginMm * 2 };
+
+  // La semilla actual primero, luego aleatorias para comparar.
+  const seeds = [opts.seed >>> 0];
+  while (seeds.length < count) {
+    const s = randomSeed32();
+    if (!seeds.includes(s)) seeds.push(s);
+  }
+
+  if (ui.previewPanel) ui.previewPanel.classList.add("gallery-active");
+  const grid = document.createElement("div");
+  grid.className = "gallery-grid";
+  ui.previewInner.innerHTML = "";
+  ui.previewInner.appendChild(grid);
+
+  for (let i = 0; i < seeds.length; i++) {
+    const seed = seeds[i];
+    const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "zentangle" } });
+    await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner });
+    const innerSvg = renderSvgToString(doc);
+
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "gallery-item";
+    item.title = `Usar semilla ${seed}`;
+    item.innerHTML =
+      `<div class="gallery-thumb"><div style="background:#fff">${innerSvg}</div></div>` +
+      `<span class="gallery-label">seed ${seed}</span>`;
+    item.addEventListener("click", () => {
+      ui.seed.value = String(seed);
+      render();
+    });
+    grid.appendChild(item);
+    await new Promise((r) => setTimeout(r, 0)); // mantener la UI responsiva
+    ui.status.textContent = `Generando variaciones… ${i + 1}/${seeds.length}`;
+  }
+
+  ui.status.textContent = `✓ ${seeds.length} variaciones · haz clic en una para usarla`;
+}
+
 async function render() {
   ui.status.textContent = "Renderizando...";
+  if (ui.previewPanel) ui.previewPanel.classList.remove("gallery-active");
   const paperKey = String(ui.paper.value || "A4");
   const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
 
@@ -487,6 +546,8 @@ function bind() {
   });
 
   ui.btnRender.addEventListener("click", () => render());
+
+  if (ui.btnGallery) ui.btnGallery.addEventListener("click", () => renderGallery(8));
 
   // El preset sincroniza los controles NO tocados antes de renderizar; tus
   // ajustes manuales se conservan para iterar rápido entre presets.

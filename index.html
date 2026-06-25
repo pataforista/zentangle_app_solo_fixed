@@ -284,6 +284,51 @@
       display: block;
     }
 
+    /* Galería de variaciones */
+    .preview-panel.gallery-active {
+      align-items: flex-start;
+      justify-content: center;
+      overflow: auto;
+    }
+    .preview-panel.gallery-active #preview {
+      width: 100%;
+      max-width: 1040px;
+      background: transparent;
+      box-shadow: none;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      width: 100%;
+    }
+    @media (max-width: 720px) { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
+    .gallery-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      background: #fff;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    }
+    .gallery-item:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md, 0 4px 12px rgb(0 0 0 / 0.12));
+    }
+    .gallery-thumb { width: 100%; line-height: 0; background: #fff; }
+    .gallery-thumb svg {
+      width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      display: block;
+    }
+    .gallery-label { font-size: 11px; color: var(--text-muted); }
+
     /* Status Bar */
     .status-bar {
       position: absolute;
@@ -630,6 +675,7 @@
           <button id="btnRandomSeed" class="btn btn-secondary">🎲 Random Seed</button>
           <button id="btnRender" class="btn btn-primary">⚡ Renderizar</button>
         </div>
+        <button id="btnGallery" class="btn btn-secondary">🖼️ Generar 8 variaciones</button>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           <button id="btnDownloadSVG" class="btn btn-secondary">
             <i class="fas fa-file-code"></i> Descargar SVG
