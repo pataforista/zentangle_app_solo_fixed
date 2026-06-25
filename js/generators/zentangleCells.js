@@ -1,5 +1,5 @@
 // zentangleCells.js
-import { createRNG, rFloat, rInt, pick } from "../core/prng.js";
+import { createRNG, rFloat, rInt, pick, hash } from "../core/prng.js";
 import { PathBuilder } from "../core/pathBuilder.js";
 import { LAYOUT_TEMPLATES, getTemplateCells } from "./layoutTemplates.js";
 
@@ -79,6 +79,23 @@ export async function generateZentangleCells(doc, opts) {
 
   const rng = createRNG(seed >>> 0);
   const renderPrefix = `z_${Math.floor(Math.random() * 1000000).toString(16)}_`;
+
+  // --- Variabilidad por página ---
+  // Derivada del seed con hash() (NO consume el rng principal, así el layout
+  // no cambia): cada página recibe su propia densidad para que un libro no se
+  // sienta monótono entre semillas. densityMul: 0.85 (aireado) .. 1.20 (denso).
+  const pageVar = (hash(seed >>> 0, 7) % 1000) / 1000;        // 0..1 estable
+  const densityMul = 0.85 + pageVar * 0.35;
+  const airBias = 2 - densityMul;                              // 0.80 (denso) .. 1.15 (aireado)
+
+  // --- Control fino opcional ---
+  // focalStrength: 0 => uniforme (comportamiento anterior); >0 => punto focal
+  // (centro con más patrón, bordes con más aire).
+  const focalStrength = Number.isFinite(opts.focalStrength) ? opts.focalStrength : 0.3;
+  // patternWeights: { fillCadent: 3, fillTipple: 1, ... } favorece tangles concretos.
+  const patternWeights = opts.patternWeights || null;
+  // Jitter de rotación perceptible (look "hecho a mano"), solo si se rota.
+  const rotationJitterDeg = Number.isFinite(opts.rotationJitterDeg) ? opts.rotationJitterDeg : 2.5;
 
   // Pisos técnicos
   const cellStroke = Math.max(minStrokeMm, cellBorderWidthMm);
@@ -171,6 +188,9 @@ export async function generateZentangleCells(doc, opts) {
   const pushDef = (s) => { if (useDocDefs) doc.defs.push(s); else localDefs.push(s); };
 
   // 2) Dibujar cada celda
+  // Anti-repetición GLOBAL: se conserva entre celdas (no solo entre capas) para
+  // que celdas vecinas no caigan en el mismo tangle => páginas más variadas.
+  let lastFn = null;
   for (let i = 0; i < cells.length; i++) {
     // Yield every 3 cells to keep UI responsive
     if (i > 0 && i % 3 === 0) {
@@ -280,6 +300,9 @@ export async function generateZentangleCells(doc, opts) {
     const distToCenter = Math.sqrt(Math.pow(cx - (baseRect.x0 + baseRect.x1) / 2, 2) + Math.pow(cy - (baseRect.y0 + baseRect.y1) / 2, 2));
     const maxDist = Math.sqrt(Math.pow(baseRect.x1 - baseRect.x0, 2) + Math.pow(baseRect.y1 - baseRect.y0, 2)) / 2;
     const centerFactor = 1 - Math.min(1, distToCenter / maxDist); // 1 en el centro, 0 lejos
+    // Punto focal: el centro respira menos (más patrón) y los bordes más aire.
+    // focalBias < 1 en el centro, > 1 en el borde. focalStrength=0 => 1 (uniforme).
+    const focalBias = 1 + focalStrength * (0.5 - centerFactor);
 
     const simpleCellProb = (opts.focusMode ? 0.15 : 0.05); // Much lower prob of being 'simple'
     const isSimpleCell = rng() < simpleCellProb;
@@ -299,12 +322,11 @@ export async function generateZentangleCells(doc, opts) {
     }
     layers = Math.min(layers, Math.max(1, Number(maxPatternPassesPerCell)));
 
-    let lastFn = null;
-
     const patternsGroup = [];
     for (let L = 0; L < layers; L++) {
-      // Skip probabilístico
-      if (rng() < Math.max(0, patternSkipProb) && minDim < 35) continue;
+      // Skip probabilístico modulado por densidad de página y punto focal
+      const effSkip = Math.min(0.65, Math.max(0, patternSkipProb * airBias * focalBias));
+      if (rng() < effSkip && minDim < 35) continue;
 
       // Smart Selection Strategy + Anti-Repetition
       const allPatterns = [...patterns];
@@ -318,13 +340,17 @@ export async function generateZentangleCells(doc, opts) {
       
       if (available.length === 0) available = allPatterns;
 
-      const fn = pick(rng, available);
+      const fn = patternWeights
+        ? _weightedPick(rng, available, (p) => patternWeights[p.name] ?? 1)
+        : pick(rng, available);
       lastFn = fn;
 
       // Escalado dinámico: las celdas grandes ensanchan el espaciado para no
       // acumular cientos de repeticiones (que leen como un campo oscuro).
       // Celdas pequeñas ~1.0; celdas grandes hasta ~1.8x de aire.
-      const stepScale = Math.max(0.95, Math.min(1.8, minDim / 28));
+      let stepScale = Math.max(0.95, Math.min(1.8, minDim / 28));
+      // Densidad por página (airBias) + punto focal (centro más denso, borde más aire)
+      stepScale = Math.max(0.7, Math.min(2.0, stepScale * airBias * focalBias));
       
       let strokeScale = 1.0;
       if (opts.focusMode || familyKey === "dense") {
@@ -355,7 +381,10 @@ export async function generateZentangleCells(doc, opts) {
       const doCover = canCover && (rng() < (L === 1 ? coverP1 : coverP2));
       const fill = doCover ? "#fff" : "none";
 
-      const jitter = (rng() - 0.5) * 0.15;
+      // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
+      // Consumimos el rng siempre para no descuadrar la secuencia determinista.
+      const jr = (rng() - 0.5) * 2 * rotationJitterDeg;
+      const jitter = rotatePatterns ? jr : 0;
 
       patternsGroup.push(
         `<path d="${d}"
@@ -696,6 +725,21 @@ function _makeTriCells(baseRect, side) {
 /* =========================
    Helpers: geometry & organic
    ========================= */
+
+// Selección ponderada: respeta pesos por nombre de función (patternWeights).
+// Si los pesos suman 0, cae a una selección uniforme.
+function _weightedPick(rng, arr, weightFn) {
+  if (!arr || arr.length === 0) return null;
+  let total = 0;
+  for (const a of arr) total += Math.max(0, weightFn(a) || 0);
+  if (total <= 0) return pick(rng, arr);
+  let v = rng() * total;
+  for (const a of arr) {
+    v -= Math.max(0, weightFn(a) || 0);
+    if (v <= 0) return a;
+  }
+  return arr[arr.length - 1];
+}
 
 function _pickRotation(rng, rotatePatterns, rotationSet) {
   if (!rotatePatterns) return 0;
