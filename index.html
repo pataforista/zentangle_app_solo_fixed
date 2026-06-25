@@ -284,6 +284,51 @@
       display: block;
     }
 
+    /* Galería de variaciones */
+    .preview-panel.gallery-active {
+      align-items: flex-start;
+      justify-content: center;
+      overflow: auto;
+    }
+    .preview-panel.gallery-active #preview {
+      width: 100%;
+      max-width: 1040px;
+      background: transparent;
+      box-shadow: none;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      width: 100%;
+    }
+    @media (max-width: 720px) { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
+    .gallery-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      background: #fff;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    }
+    .gallery-item:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md, 0 4px 12px rgb(0 0 0 / 0.12));
+    }
+    .gallery-thumb { width: 100%; line-height: 0; background: #fff; }
+    .gallery-thumb svg {
+      width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      display: block;
+    }
+    .gallery-label { font-size: 11px; color: var(--text-muted); }
+
     /* Status Bar */
     .status-bar {
       position: absolute;
@@ -423,7 +468,11 @@
               <input id="seed" type="number" min="0" step="1" value="1" />
             </div>
             <div>
-              <label for="zPreset">Estilo</label>
+              <label for="zPreset" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Estilo</span>
+                <button id="btnResetPreset" type="button" title="Volver a los valores originales del preset"
+                  style="font-size:11px; padding:1px 6px; cursor:pointer; background:none; border:1px solid var(--border, #ccc); border-radius:4px; color:var(--text-muted);">↺ Reset</button>
+              </label>
               <select id="zPreset">
                 <optgroup label="📚 KDP Profesionales">
                   <option value="kdp_balanced" selected>🎨 KDP Balanceado (Intermedio)</option>
@@ -497,7 +546,7 @@
             </div>
             <div>
               <label for="minGapMm">Espaciado int.</label>
-              <input id="minGapMm" type="range" min="0.6" max="2.6" step="0.1" value="1.4" />
+              <input id="minGapMm" type="range" min="0.6" max="5.0" step="0.1" value="1.4" />
             </div>
           </div>
         </div>
@@ -534,7 +583,7 @@
               </div>
               <div>
                 <label for="patternSkipProb">Prob. Saltar</label>
-                <input id="patternSkipProb" type="range" min="0" max="0.55" step="0.01" value="0.18" />
+                <input id="patternSkipProb" type="range" min="0" max="0.65" step="0.01" value="0.18" />
               </div>
             </div>
 
@@ -559,7 +608,7 @@
             <div class="form-row">
               <div style="grid-column: span 2">
                 <label for="whiteSpaceMm">Aire Extra (mm)</label>
-                <input id="whiteSpaceMm" type="range" min="0" max="2.5" step="0.1" value="1.0" />
+                <input id="whiteSpaceMm" type="range" min="0" max="4.0" step="0.1" value="1.0" />
               </div>
             </div>
 
@@ -588,6 +637,34 @@
               </div>
             </div>
 
+            <span class="control-group-title" style="margin-top:10px">Composición & Variación</span>
+            <div class="form-row">
+              <div style="grid-column: span 2">
+                <label for="patternFamily">Familia de Patrón</label>
+                <select id="patternFamily">
+                  <option value="">Auto (según preset)</option>
+                  <option value="geometric">Geométrico</option>
+                  <option value="organic">Orgánico</option>
+                  <option value="tangles">Tangles clásicos</option>
+                  <option value="dense">Denso</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="focalStrength">Punto Focal</label>
+                <input id="focalStrength" type="range" min="0" max="0.6" step="0.05" value="0.3" />
+              </div>
+              <div>
+                <label for="rotationJitterDeg">Jitter Rotación (°)</label>
+                <input id="rotationJitterDeg" type="range" min="0" max="6" step="0.5" value="2.5" />
+              </div>
+            </div>
+            <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0;">
+              Punto focal: concentra detalle al centro, deja aire en los bordes (0 = uniforme).
+              Jitter: leve giro "hecho a mano" (solo si rotas patrones).
+            </p>
+
           </div>
         </details>
 
@@ -598,6 +675,7 @@
           <button id="btnRandomSeed" class="btn btn-secondary">🎲 Random Seed</button>
           <button id="btnRender" class="btn btn-primary">⚡ Renderizar</button>
         </div>
+        <button id="btnGallery" class="btn btn-secondary">🖼️ Generar 8 variaciones</button>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           <button id="btnDownloadSVG" class="btn btn-secondary">
             <i class="fas fa-file-code"></i> Descargar SVG

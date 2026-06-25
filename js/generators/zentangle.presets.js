@@ -109,20 +109,22 @@ export const ZENTANGLE_PRESETS = {
   },
 
   hex_editorial: {
-    // Hexágonos que rellenan la página (bordes limpios + borde interno orgánico)
+    // Hexágonos grandes con aire (bordes limpios + borde interno orgánico).
+    // Radio amplio + whiteSpace alto: los hexágonos teselan sin huecos, así que
+    // necesitan celdas grandes y patrones salteados para no entintar la página.
     cellLayout: "hex",
-    hexRadiusMm: 12, // tamaño base del hex (radio)
+    hexRadiusMm: 22, // tamaño base del hex (radio)
     cellCount: 0,    // se ignora en hex/tri
     minCellSizeMm: 0,
 
     cellBorderWidthMm: 0.75,
     patternStrokeMm: 0.35,
     minStrokeMm: 0.28,
-    minGapMm: 1.5,
+    minGapMm: 1.6,
 
-    maxPatternPassesPerCell: 2,
-    patternSkipProb: 0.20,
-    whiteSpaceMm: 0.9,
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.45,
+    whiteSpaceMm: 2.8,
 
     rotatePatterns: false, // en grids regulares, suele verse más limpio sin rotar
     rotationSet: "ergonomic",
@@ -536,14 +538,14 @@ export const ZENTANGLE_PRESETS = {
 
   kdp_relaxed: {
     cellLayout: "hex",
-    hexRadiusMm: 14,
+    hexRadiusMm: 24,
     cellBorderWidthMm: 0.80,
     patternStrokeMm: 0.37,
     minStrokeMm: 0.30,
-    minGapMm: 1.7,
-    maxPatternPassesPerCell: 2,
-    patternSkipProb: 0.28,
-    whiteSpaceMm: 1.5,
+    minGapMm: 1.8,
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.50,
+    whiteSpaceMm: 3.0,
     rotatePatterns: false,
     rotationSet: "ergonomic",
     innerOrganicBorderEnabled: true,
@@ -586,14 +588,14 @@ export const ZENTANGLE_PRESETS = {
 
   kdp_geometric_art: {
     cellLayout: "hex",
-    hexRadiusMm: 13,
+    hexRadiusMm: 21,
     cellBorderWidthMm: 0.82,
     patternStrokeMm: 0.38,
     minStrokeMm: 0.31,
     minGapMm: 1.6,
-    maxPatternPassesPerCell: 2,
-    patternSkipProb: 0.15,
-    whiteSpaceMm: 1.1,
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.42,
+    whiteSpaceMm: 2.6,
     rotatePatterns: false,
     rotationSet: "ergonomic",
     innerOrganicBorderEnabled: false,

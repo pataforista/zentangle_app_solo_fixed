@@ -41,6 +41,11 @@ const ui = {
   innerOrganicJitterMm: $("innerOrganicJitterMm"),
   innerOrganicRoundMm: $("innerOrganicRoundMm"),
 
+  // Composición & variación
+  patternFamily: $("patternFamily"),
+  focalStrength: $("focalStrength"),
+  rotationJitterDeg: $("rotationJitterDeg"),
+
   // Image processing controls
   imageUpload: $("imageUpload"),
   imageFileName: $("imageFileName"),
@@ -56,8 +61,11 @@ const ui = {
   imageOffsetX: $("imageOffsetX"),
   imageOffsetY: $("imageOffsetY"),
 
+  btnResetPreset: $("btnResetPreset"),
   btnRandomSeed: $("btnRandomSeed"),
+  btnGallery: $("btnGallery"),
   btnRender: $("btnRender"),
+  previewPanel: document.querySelector(".preview-panel"),
   btnDownloadSVG: $("btnDownloadSVG"),
   btnDownloadPNG: $("btnDownloadPNG"),
   btnDownloadPDF: $("btnDownloadPDF"),
@@ -127,16 +135,116 @@ function buildOptsFromUI() {
     innerOrganicJitterMm: num(ui.innerOrganicJitterMm.value, 0.55),
     innerOrganicRoundMm: num(ui.innerOrganicRoundMm.value, 1.0),
 
+    // Composición & variación
+    focalStrength: num(ui.focalStrength.value, 0.3),
+    rotationJitterDeg: num(ui.rotationJitterDeg.value, 2.5),
+
     // KDP Professional Standards
     kdpBleedMm: num(ui.kdpBleedMm.value, 0),
     showSafeZone: ui.showSafeZone.checked,
   };
 
+  // Familia de patrón: solo sobreescribe el preset si el usuario eligió una.
+  const famVal = String(ui.patternFamily.value || "");
+  if (famVal) opts.patternFamily = famVal;
+
   return { opts, zPresetKey };
+}
+
+// Controles que el usuario ha ajustado a mano. Al cambiar de preset se
+// conservan (para iterar diseños rápido sin re-tunear); el resto se sincroniza
+// con el preset. El botón "Reset" reaplica el preset completo (force).
+const touched = new Set();
+
+// Sincroniza los sliders/selectores con los valores del preset elegido, de modo
+// que el preset funcione como base de estilo real (antes los sliders pisaban
+// silenciosamente al preset). Respeta los controles tocados salvo force=true.
+function applyPresetToUI(presetKey, { force = false } = {}) {
+  const p = ZENTANGLE_PRESETS[presetKey];
+  if (!p) return;
+  const keep = (el) => !force && el && touched.has(el.id);
+  const set = (el, v) => { if (el && v !== undefined && v !== null && !keep(el)) el.value = String(v); };
+  const setBool = (el, v) => { if (el && v !== undefined && !keep(el)) el.value = v ? "1" : "0"; };
+
+  if (p.cellCount) set(ui.cellCount, p.cellCount);
+  if (p.minCellSizeMm) set(ui.minCellSizeMm, p.minCellSizeMm);
+  set(ui.cellBorderWidthMm, p.cellBorderWidthMm);
+  set(ui.patternStrokeMm, p.patternStrokeMm);
+  set(ui.minGapMm, p.minGapMm);
+  set(ui.whiteSpaceMm, p.whiteSpaceMm);
+  set(ui.maxPatternPassesPerCell, p.maxPatternPassesPerCell);
+  set(ui.patternSkipProb, p.patternSkipProb);
+  setBool(ui.rotatePatterns, p.rotatePatterns);
+  set(ui.rotationSet, p.rotationSet);
+  setBool(ui.innerOrganicBorderEnabled, p.innerOrganicBorderEnabled);
+  set(ui.innerOrganicBorderInsetMm, p.innerOrganicBorderInsetMm);
+  set(ui.innerOrganicJitterMm, p.innerOrganicJitterMm);
+  set(ui.innerOrganicRoundMm, p.innerOrganicRoundMm);
+
+  set(ui.patternFamily, p.patternFamily || "");
+  set(ui.focalStrength, p.focalStrength != null ? p.focalStrength : 0.3);
+  set(ui.rotationJitterDeg, p.rotationJitterDeg != null ? p.rotationJitterDeg : 2.5);
+}
+
+// Genera N variaciones (misma configuración, distintas semillas) como galería
+// clicable, para elegir el diseño que más guste e iterar rápido.
+async function renderGallery(count = 8) {
+  if (ui.useImageMode.checked && appState.processedImageCanvas) {
+    // En modo imagen no aplica la galería de semillas; render normal.
+    return render();
+  }
+  ui.status.textContent = "Generando variaciones...";
+
+  const paperKey = String(ui.paper.value || "A4");
+  const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
+  let marginMm = Math.max(0, num(ui.marginMm.value, 8));
+  const { opts, zPresetKey } = buildOptsFromUI();
+  if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") {
+    marginMm = Math.max(marginMm, 12.5);
+  }
+  const inner = { x: marginMm, y: marginMm, w: presetPaper.w - marginMm * 2, h: presetPaper.h - marginMm * 2 };
+
+  // La semilla actual primero, luego aleatorias para comparar.
+  const seeds = [opts.seed >>> 0];
+  while (seeds.length < count) {
+    const s = randomSeed32();
+    if (!seeds.includes(s)) seeds.push(s);
+  }
+
+  if (ui.previewPanel) ui.previewPanel.classList.add("gallery-active");
+  const grid = document.createElement("div");
+  grid.className = "gallery-grid";
+  ui.previewInner.innerHTML = "";
+  ui.previewInner.appendChild(grid);
+
+  for (let i = 0; i < seeds.length; i++) {
+    const seed = seeds[i];
+    const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "zentangle" } });
+    await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner });
+    const innerSvg = renderSvgToString(doc);
+
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "gallery-item";
+    item.title = `Usar semilla ${seed}`;
+    item.innerHTML =
+      `<div class="gallery-thumb"><div style="background:#fff">${innerSvg}</div></div>` +
+      `<span class="gallery-label">seed ${seed}</span>`;
+    item.addEventListener("click", () => {
+      ui.seed.value = String(seed);
+      render();
+    });
+    grid.appendChild(item);
+    await new Promise((r) => setTimeout(r, 0)); // mantener la UI responsiva
+    ui.status.textContent = `Generando variaciones… ${i + 1}/${seeds.length}`;
+  }
+
+  ui.status.textContent = `✓ ${seeds.length} variaciones · haz clic en una para usarla`;
 }
 
 async function render() {
   ui.status.textContent = "Renderizando...";
+  if (ui.previewPanel) ui.previewPanel.classList.remove("gallery-active");
   const paperKey = String(ui.paper.value || "A4");
   const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
 
@@ -307,6 +415,8 @@ function bind() {
   ui.paper.value = st.preset;
   ui.seed.value = String(st.seed >>> 0);
   ui.zPreset.value = st.zPreset;
+  // Aplica el preset inicial a los controles (base de estilo real).
+  applyPresetToUI(st.zPreset);
 
   // Image upload handler
   ui.imageUpload.addEventListener("change", async (e) => {
@@ -437,22 +547,44 @@ function bind() {
 
   ui.btnRender.addEventListener("click", () => render());
 
-  [
-    ui.paper, ui.marginMm, ui.seed, ui.zPreset,
+  if (ui.btnGallery) ui.btnGallery.addEventListener("click", () => renderGallery(8));
+
+  // El preset sincroniza los controles NO tocados antes de renderizar; tus
+  // ajustes manuales se conservan para iterar rápido entre presets.
+  ui.zPreset.addEventListener("change", () => {
+    applyPresetToUI(ui.zPreset.value);
+    debouncedRender();
+  });
+
+  // Reset: reaplica el preset completo (descarta tus ajustes) y vuelve al estilo limpio.
+  if (ui.btnResetPreset) {
+    ui.btnResetPreset.addEventListener("click", () => {
+      touched.clear();
+      applyPresetToUI(ui.zPreset.value, { force: true });
+      debouncedRender();
+    });
+  }
+
+  // Controles de estilo: marcan "tocado" (para conservarse al cambiar de preset).
+  const styleControls = [
     ui.cellCount, ui.minCellSizeMm,
     ui.cellBorderWidthMm, ui.patternStrokeMm, ui.minGapMm, ui.whiteSpaceMm, ui.sketchy,
     ui.maxPatternPassesPerCell, ui.patternSkipProb,
     ui.rotatePatterns, ui.rotationSet,
     ui.innerOrganicBorderEnabled, ui.innerOrganicBorderInsetMm, ui.innerOrganicJitterMm, ui.innerOrganicRoundMm,
-    ui.kdpBleedMm, ui.showSafeZone
-  ].forEach((el) => {
-    if (el) {
-      if (el.type === "checkbox") {
-        el.addEventListener("change", debouncedRender);
-      } else {
-        el.addEventListener("input", debouncedRender);
-      }
-    }
+    ui.patternFamily, ui.focalStrength, ui.rotationJitterDeg,
+  ];
+  styleControls.forEach((el) => {
+    if (!el) return;
+    const evt = el.type === "checkbox" ? "change" : "input";
+    el.addEventListener(evt, () => { touched.add(el.id); debouncedRender(); });
+  });
+
+  // Controles no ligados al estilo del preset: solo re-renderizan.
+  [ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone].forEach((el) => {
+    if (!el) return;
+    const evt = el.type === "checkbox" ? "change" : "input";
+    el.addEventListener(evt, debouncedRender);
   });
 
   ui.btnDownloadSVG.addEventListener("click", async () => {
