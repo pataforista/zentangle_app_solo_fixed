@@ -113,6 +113,12 @@ export async function generateZentangleCells(doc, opts) {
     x1: areaMm.x + areaMm.w + kdpBleedMm, y1: areaMm.y + areaMm.h + kdpBleedMm,
   };
 
+  // Defs bucket (seguro). Debe declararse ANTES de cualquier pushDef (la zona
+  // muerta temporal de const haría fallar usos previos, p.ej. la Safe Zone).
+  const useDocDefs = Array.isArray(doc.defs);
+  const localDefs = [];
+  const pushDef = (s) => { if (useDocDefs) doc.defs.push(s); else localDefs.push(s); };
+
   // Safe Zone Guide Overlay (9.5mm from trim)
   if (showSafeZone) {
     const safeRect = {
@@ -162,6 +168,30 @@ export async function generateZentangleCells(doc, opts) {
   // tiñe de gris toda la página y ensucia el coloreado / la impresión KDP.
   // Útil solo para imágenes de marketing, no para el interior coloreable.
   if (opts.paperTextureEnabled === true) {
+    // El filtro de textura es idéntico para toda la página; se define UNA vez
+    // (antes estaba dentro del bucle de celdas, generando N <filter> con el
+    // mismo id => SVG inválido e inflado).
+    const displacement = (sketchy > 0.5) ? `
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="${Math.min(1.2, sketchy * 0.8)}" xChannelSelector="R" yChannelSelector="G" />
+    ` : "";
+    pushDef(`
+      <filter id="${renderPrefix}paperTexture" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.03 0.04" numOctaves="5" result="noise" />
+        <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="1.5" result="light">
+          <feDistantLight azimuth="45" elevation="65" />
+        </feDiffuseLighting>
+        ${displacement}
+
+        <!-- Subtle tooth for the paper -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="1" result="tooth" />
+        <feComponentTransfer in="tooth" result="toothAlpha">
+          <feFuncA type="linear" slope="0.1" />
+        </feComponentTransfer>
+        <feComposite in="light" in2="toothAlpha" operator="arithmetic" k1="0" k2="1" k3="0.1" k4="0" result="finalPaper" />
+
+        <feComposite in="SourceGraphic" in2="finalPaper" operator="arithmetic" k1="0" k2="1" k3="0.15" k4="0" />
+      </filter>
+    `);
     doc.body.push(`<rect x="${baseRect.x0}" y="${baseRect.y0}" width="${areaMm.w}" height="${areaMm.h}"
       fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
   }
@@ -181,11 +211,6 @@ export async function generateZentangleCells(doc, opts) {
   // Jerarquía de línea: Bordes/Strings claramente más gruesos
   const borderMultiplier = opts.borderStrokeMultiplier || 1.45;
   const borderStroke = cellStroke * borderMultiplier;
-
-  // 5) Defs bucket (seguro)
-  const useDocDefs = Array.isArray(doc.defs);
-  const localDefs = [];
-  const pushDef = (s) => { if (useDocDefs) doc.defs.push(s); else localDefs.push(s); };
 
   // 2) Dibujar cada celda
   // Anti-repetición GLOBAL: se conserva entre celdas (no solo entre capas) para
@@ -230,31 +255,6 @@ export async function generateZentangleCells(doc, opts) {
         </filter>
       `);
     }
-
-    // --- Textura de Papel (Premium) ---
-    // If sketchy > 0.5, we add a displacement map to simulate paper fiber interaction
-    const displacement = (sketchy > 0.5) ? `
-      <feDisplacementMap in="SourceGraphic" in2="noise" scale="${Math.min(1.2, sketchy * 0.8)}" xChannelSelector="R" yChannelSelector="G" />
-    ` : "";
-
-    pushDef(`
-      <filter id="${renderPrefix}paperTexture" x="0" y="0" width="100%" height="100%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.03 0.04" numOctaves="5" result="noise" />
-        <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="1.5" result="light">
-          <feDistantLight azimuth="45" elevation="65" />
-        </feDiffuseLighting>
-        ${displacement}
-        
-        <!-- Subtle tooth for the paper -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="1" result="tooth" />
-        <feComponentTransfer in="tooth" result="toothAlpha">
-          <feFuncA type="linear" slope="0.1" />
-        </feComponentTransfer>
-        <feComposite in="light" in2="toothAlpha" operator="arithmetic" k1="0" k2="1" k3="0.1" k4="0" result="finalPaper" />
-
-        <feComposite in="SourceGraphic" in2="finalPaper" operator="arithmetic" k1="0" k2="1" k3="0.15" k4="0" />
-      </filter>
-    `);
 
     if (cell.kind === "rect") {
       if (organicBorder) {
