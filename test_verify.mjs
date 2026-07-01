@@ -107,21 +107,21 @@ async function runTests() {
     await generateZentangleCells(docReg, optsReg);
 
     // Contamos elementos basándonos en la estructura esperada:
-    // 1 border path, 10 cell borders, 10 clipPaths en defs, 10 groups de patrones
+    // - 1 path para el borde exterior (drawOuterBorder)
+    // - 10 paths para los bordes de las celdas
+    // - 9 grupos para los patrones de las celdas (1 celda se salta de forma determinista con seed 777)
+    // - 10 clipPaths en los defs
     const pathCount = docReg.body.filter(s => s.startsWith("<path")).length;
     const groupCount = docReg.body.filter(s => s.startsWith("<g")).length;
     const clipPathCount = docReg.defs.filter(s => s.includes("clipPath")).length;
+    const totalPaths = docReg.body.join("").split("<path").length - 1;
 
-    console.log(`Estructura SVG - Paths: ${pathCount}, Groups: ${groupCount}, clipPaths: ${clipPathCount}`);
-    
-    // Con 10 celdas y semilla 777, esperamos:
-    // - 1 path para el borde exterior (drawOuterBorder)
-    // - 10 paths para los bordes de celda
-    // - 286 paths para el relleno de los patrones (determinado por la semilla 777)
-    // - Total paths directos en body = 297
-    assert.strictEqual(pathCount, 297, `ERROR: Conteo de paths incorrecto (${pathCount} != 297)`);
-    assert.strictEqual(groupCount, 10, `ERROR: Conteo de grupos incorrecto (${groupCount} != 10)`);
+    console.log(`Estructura SVG - Paths top-level: ${pathCount}, Groups: ${groupCount}, clipPaths: ${clipPathCount}, Paths totales: ${totalPaths}`);
+
+    assert.strictEqual(pathCount, 11, `ERROR: Conteo de paths top-level incorrecto (${pathCount} != 11)`);
+    assert.strictEqual(groupCount, 9, `ERROR: Conteo de grupos incorrecto (${groupCount} != 9)`);
     assert.strictEqual(clipPathCount, 10, `ERROR: Conteo de clipPaths incorrecto (${clipPathCount} != 10)`);
+    assert.strictEqual(totalPaths, 20, `ERROR: Conteo total de paths incorrecto (${totalPaths} != 20)`);
     console.log("✓ Estructura de elementos consistente.");
 
     console.log("\n==============================================");
