@@ -6,7 +6,8 @@
   "scripts": {
     "preview": "node _samples/contact.mjs",
     "ink": "node _samples/ink.mjs",
-    "verify": "node test_verify.mjs"
+    "verify": "node test_verify.mjs",
+    "test": "node test_verify.mjs"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2"

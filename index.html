@@ -441,6 +441,11 @@
               <input type="range" id="imageOffsetX" min="-500" max="500" value="0" />
               <input type="range" id="imageOffsetY" min="-500" max="500" value="0" />
             </div>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px; font-size: 13px; color: var(--text-main);">
+              <span>X: <strong id="imageOffsetXVal">0</strong>px</span>
+              <span>Y: <strong id="imageOffsetYVal">0</strong>px</span>
+              <button id="btnResetOffset" class="btn btn-secondary" style="margin-left: auto; padding: 4px 8px; font-size: 11px; border-radius: var(--radius-sm);">Restablecer</button>
+            </div>
             <p style="font-size: 12px; color: var(--text-muted); margin: 0;">👆 Arrastra la imagen en el preview para mover</p>
           </div>
         </div>
@@ -636,6 +641,23 @@
                 <input id="innerOrganicRoundMm" type="range" min="0" max="2.0" step="0.1" value="1.0" />
               </div>
             </div>
+            <span class="control-group-title" style="margin-top:10px">Efectos Especiales (No KDP)</span>
+            <div class="form-row">
+              <div>
+                <label for="paperTextureEnabled">Textura Papel</label>
+                <select id="paperTextureEnabled">
+                  <option value="0" selected>No</option>
+                  <option value="1">Sí (Premium)</option>
+                </select>
+              </div>
+              <div>
+                <label for="cellShadowEnabled">Sombreado Celda</label>
+                <select id="cellShadowEnabled">
+                  <option value="0" selected>No</option>
+                  <option value="1">Sí (Grafitado)</option>
+                </select>
+              </div>
+            </div>
 
             <span class="control-group-title" style="margin-top:10px">Composición & Variación</span>
             <div class="form-row">
@@ -705,8 +727,8 @@
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6.0.4/dist/d3-delaunay.min.js" integrity="sha256-n6p+dJj86D+q2d861D3O7K7929k1u701v+N76y8N+j0=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script type="module" src="./js/app.js"></script>
 </body>
 

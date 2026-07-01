@@ -11,6 +11,22 @@ import { fillParadox, fillHollibaugh, fillFlux } from "./patterns/complex.js";
 import { fillStippling, fillPokerChips } from "./patterns/dense.js";
 import { fillCadent, fillTipple, fillPrintemps, fillCrescentMoon, fillFlorz } from "./patterns/tangles.js";
 
+function safeClamp(val, min, max, fallback = min) {
+  const num = Number(val);
+  if (isNaN(num)) return fallback;
+  return Math.max(min, Math.min(max, num));
+}
+
+const yieldToBrowser = () => {
+  if (typeof requestAnimationFrame !== "undefined") {
+    return new Promise(r => requestAnimationFrame(r));
+  } else if (typeof setImmediate !== "undefined") {
+    return new Promise(r => setImmediate(r));
+  } else {
+    return new Promise(r => setTimeout(r, 0));
+  }
+};
+
 /**
  * Zentangle Cells — v5 (integrated)
  * - Soporta: rect_bsp (antes), hex, tri
@@ -21,64 +37,55 @@ import { fillCadent, fillTipple, fillPrintemps, fillCrescentMoon, fillFlorz } fr
  * Requisito: doc = { body: [], defs?: [] }
  */
 export async function generateZentangleCells(doc, opts) {
-  const {
-    seed,
-    areaMm,
+  const seed = opts.seed;
+  const areaMm = opts.areaMm;
 
-    // Layout
-    cellLayout = "rect_bsp",     // "rect_bsp" | "hex" | "tri"
-    cellCount = 30,             // solo rect_bsp
-    minCellSizeMm = 14,         // solo rect_bsp
-    hexRadiusMm = 12,           // solo hex
-    triSideMm = 22,             // solo tri
+  // Layout params with safeClamp
+  const cellLayout = opts.cellLayout || "rect_bsp";
+  const cellCount = safeClamp(opts.cellCount, 4, 100, 30);
+  const minCellSizeMm = safeClamp(opts.minCellSizeMm, 4, 100, 14);
+  const hexRadiusMm = safeClamp(opts.hexRadiusMm, 4, 100, 12);
+  const triSideMm = safeClamp(opts.triSideMm, 5, 200, 22);
 
-    // Jerarquía de línea (mm)
-    cellBorderWidthMm = 0.75,
-    patternStrokeMm = 0.35,
-    minStrokeMm = 0.28,
+  // Line weight params with safeClamp
+  const cellBorderWidthMm = safeClamp(opts.cellBorderWidthMm, 0.1, 5.0, 0.75);
+  const patternStrokeMm = safeClamp(opts.patternStrokeMm, 0.1, 3.0, 0.35);
+  const minStrokeMm = safeClamp(opts.minStrokeMm, 0.1, 2.0, 0.28);
+  const minGapMm = safeClamp(opts.minGapMm, 0.5, 10.0, 1.4);
 
-    // Coloreabilidad
-    minGapMm = 1.4,
+  // Composition and rotation params
+  const drawOuterBorder = opts.drawOuterBorder !== false;
+  const layersPerCell = opts.layersPerCell || "auto";
+  const rotatePatterns = opts.rotatePatterns !== false;
+  const rotationSet = opts.rotationSet || "ergonomic";
+  const innerMarginMm = safeClamp(opts.innerMarginMm, 0, 10.0, 0.7);
+  const extraMarginWhenRotatedMm = safeClamp(opts.extraMarginWhenRotatedMm, 0, 10.0, 0.35);
 
-    // Composición
-    drawOuterBorder = true,
-    layersPerCell = "auto",
+  // Anti-saturation params
+  const whiteSpaceMm = safeClamp(opts.whiteSpaceMm, 0, 20.0, 1.0);
+  const maxPatternPassesPerCell = safeClamp(opts.maxPatternPassesPerCell, 1, 5, 2);
+  const patternSkipProb = safeClamp(opts.patternSkipProb, 0, 1.0, 0.18);
 
-    // Rotación
-    rotatePatterns = true,
-    rotationSet = "ergonomic",
-    innerMarginMm = 0.7,
-    extraMarginWhenRotatedMm = 0.35,
+  // Draw-behind params
+  const enableDrawBehind = opts.enableDrawBehind !== false;
+  const drawBehindProbability = safeClamp(opts.drawBehindProbability, 0, 1.0, 0.55);
+  const allowDrawBehindOnLayer2 = !!opts.allowDrawBehindOnLayer2;
 
-    // Anti-saturación
-    whiteSpaceMm = 1.0,
-    maxPatternPassesPerCell = 2,
-    patternSkipProb = 0.18,
+  // Organic borders params
+  const innerOrganicBorderEnabled = opts.innerOrganicBorderEnabled !== false;
+  const innerOrganicBorderInsetMm = safeClamp(opts.innerOrganicBorderInsetMm, 0.1, 5.0, 0.8);
+  const innerOrganicJitterMm = safeClamp(opts.innerOrganicJitterMm, 0, 5.0, 0.55);
+  const innerOrganicRoundMm = safeClamp(opts.innerOrganicRoundMm, 0, 5.0, 1.0);
 
-    // Draw-behind
-    enableDrawBehind = true,
-    drawBehindProbability = 0.55,
-    allowDrawBehindOnLayer2 = false,
+  const organicBorder = !!opts.organicBorder;
+  const sketchy = safeClamp(opts.sketchy, 0, 2.0, 0);
 
-    // Bordes orgánicos internos
-    innerOrganicBorderEnabled = true,
-    innerOrganicBorderInsetMm = 0.8,
-    innerOrganicJitterMm = 0.55,
-    innerOrganicRoundMm = 1.0,
-
-    // Clip orgánico real (solo rect): más riesgo de micro-espacios; por defecto false
-    organicBorder = false,
-
-    // New: Styles
-    sketchy = 0,
-
-    // KDP Standards
-    kdpBleedMm = 0,         // Extension beyond cut (e.g. 3.175)
-    showSafeZone = false,   // Show 9.5mm safety guides
-  } = opts;
+  // KDP Standards
+  const kdpBleedMm = safeClamp(opts.kdpBleedMm, 0, 20.0, 0);
+  const showSafeZone = !!opts.showSafeZone;
 
   const rng = createRNG(seed >>> 0);
-  const renderPrefix = `z_${Math.floor(Math.random() * 1000000).toString(16)}_`;
+  const renderPrefix = `z_${Math.floor(rng() * 1000000).toString(16)}_`;
 
   // --- Variabilidad por página ---
   // Derivada del seed con hash() (NO consume el rng principal, así el layout
@@ -216,10 +223,11 @@ export async function generateZentangleCells(doc, opts) {
   // Anti-repetición GLOBAL: se conserva entre celdas (no solo entre capas) para
   // que celdas vecinas no caigan en el mismo tangle => páginas más variadas.
   let lastFn = null;
+  let processedCells = 0;
   for (let i = 0; i < cells.length; i++) {
     // Yield every 3 cells to keep UI responsive
-    if (i > 0 && i % 3 === 0) {
-      await new Promise(r => setTimeout(r, 0));
+    if (i > 0 && ++processedCells % 3 === 0) {
+      await yieldToBrowser();
     }
     const cell = cells[i];
 
@@ -480,12 +488,75 @@ function _makeVoronoiCells(rng, rect, count) {
       }
       return cells;
     } catch (e) {
-      console.warn("Voronoi error, falling back to simple scatter:", e);
+      console.warn("Voronoi error, falling back to native simple Voronoi:", e);
     }
   }
 
-  // Fallback: Partition-based scatter (simpler but stable)
-  return _makeStringCells(rng, rect, count);
+  // Fallback: Native simple Voronoi (deterministic half-plane clipping)
+  return _simpleVoronoi(points, rect);
+}
+
+function _clipPolyHalfPlane(poly, p, q) {
+  const mx = (p.x + q.x) / 2;
+  const my = (p.y + q.y) / 2;
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+
+  const isInside = (pt) => (pt.x - mx) * dx + (pt.y - my) * dy < 0;
+
+  const intersect = (a, b) => {
+    const num = (mx - a.x) * dx + (my - a.y) * dy;
+    const den = (b.x - a.x) * dx + (b.y - a.y) * dy;
+    if (Math.abs(den) < 1e-9) return a;
+    const t = num / den;
+    return {
+      x: a.x + t * (b.x - a.x),
+      y: a.y + t * (b.y - a.y)
+    };
+  };
+
+  const outputList = [];
+  if (poly.length === 0) return outputList;
+
+  let s = poly[poly.length - 1];
+  for (let i = 0; i < poly.length; i++) {
+    const e = poly[i];
+    if (isInside(e)) {
+      if (!isInside(s)) {
+        outputList.push(intersect(s, e));
+      }
+      outputList.push(e);
+    } else if (isInside(s)) {
+      outputList.push(intersect(s, e));
+    }
+    s = e;
+  }
+  return outputList;
+}
+
+function _simpleVoronoi(points, rect) {
+  const cells = [];
+  const basePoly = [
+    { x: rect.x0, y: rect.y0 },
+    { x: rect.x1, y: rect.y0 },
+    { x: rect.x1, y: rect.y1 },
+    { x: rect.x0, y: rect.y1 }
+  ];
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    let poly = [...basePoly];
+    for (let j = 0; j < points.length; j++) {
+      if (i === j) continue;
+      const q = points[j];
+      poly = _clipPolyHalfPlane(poly, p, q);
+      if (poly.length < 3) break;
+    }
+    if (poly.length >= 3) {
+      cells.push({ kind: "poly", bbox: _bboxOfPoly(poly), poly });
+    }
+  }
+  return cells;
 }
 
 function _makeStringCells(rng, rect, count) {

@@ -101,6 +101,9 @@ export async function downloadPng(filename, svgString, widthMm, heightMm) {
  * Descarga el contenido SVG como PDF de alta resolución (KDP ready).
  */
 export async function downloadPdf(filename, svgString, widthMm, heightMm) {
+  if (typeof window === "undefined" || !window.jspdf || !window.jspdf.jsPDF) {
+    throw new Error("La librería jsPDF no está cargada. Por favor, verifica tu conexión a internet.");
+  }
   const { jsPDF } = window.jspdf;
   const orientation = widthMm > heightMm ? "l" : "p";
   const doc = new jsPDF(orientation, "mm", [widthMm, heightMm]);

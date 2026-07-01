@@ -77,6 +77,11 @@ const ui = {
   // KDP Controls
   kdpBleedMm: $("kdpBleedMm"),
   showSafeZone: $("showSafeZone"),
+  paperTextureEnabled: $("paperTextureEnabled"),
+  cellShadowEnabled: $("cellShadowEnabled"),
+  imageOffsetXVal: $("imageOffsetXVal"),
+  imageOffsetYVal: $("imageOffsetYVal"),
+  btnResetOffset: $("btnResetOffset"),
 };
 
 // State for image processing
@@ -142,6 +147,10 @@ function buildOptsFromUI() {
     // KDP Professional Standards
     kdpBleedMm: num(ui.kdpBleedMm.value, 0),
     showSafeZone: ui.showSafeZone.checked,
+
+    // Advanced look options
+    paperTextureEnabled: bool01(ui.paperTextureEnabled.value),
+    cellShadowEnabled: bool01(ui.cellShadowEnabled.value),
   };
 
   // Familia de patrón: solo sobreescribe el preset si el usuario eligió una.
@@ -298,6 +307,8 @@ async function render() {
     complexity: 110,
     seed: opts.seed,
     zPreset: zPresetKey,
+    paperTextureEnabled: ui.paperTextureEnabled.value,
+    cellShadowEnabled: ui.cellShadowEnabled.value,
   });
 
   const presetLabel = {
@@ -339,6 +350,14 @@ async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
 
   const imgDataUrl = resultCanvas.toDataURL("image/png");
 
+  // Cleanup canvases to release GPU memory
+  tempCanvas.width = 0;
+  tempCanvas.height = 0;
+  tempCanvas.remove?.();
+  resultCanvas.width = 0;
+  resultCanvas.height = 0;
+  resultCanvas.remove?.();
+
   // --- 2) Build SVG with image as background layer ---
   const doc = createSvgDoc({
     wMm: presetPaper.w,
@@ -376,6 +395,8 @@ async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
     mode: "image",
     seed: opts.seed,
     zPreset: zPresetKey,
+    paperTextureEnabled: ui.paperTextureEnabled.value,
+    cellShadowEnabled: ui.cellShadowEnabled.value,
   });
 
   ui.status.textContent = `✓ Imagen + Zentangle | Seed: ${opts.seed} | ${slices} simetrías | ${paperKey}`;
@@ -384,10 +405,23 @@ async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
 
 const debouncedRender = debounce(render, 100);
 
+function cleanupCanvas(canvas) {
+  if (canvas) {
+    canvas.width = 0;
+    canvas.height = 0;
+    canvas.remove?.();
+  }
+  return null;
+}
+
 async function processImage(threshold) {
   if (!appState.currentImage) return;
 
   ui.status.textContent = "Procesando imagen...";
+
+  // Clear previous canvases to release GPU memory
+  appState.processedImageCanvas = cleanupCanvas(appState.processedImageCanvas);
+  appState.densityMapCanvas = cleanupCanvas(appState.densityMapCanvas);
 
   // Get image statistics
   appState.imageStats = getImageStats(appState.currentImage);
@@ -417,6 +451,27 @@ function bind() {
   ui.zPreset.value = st.zPreset;
   // Aplica el preset inicial a los controles (base de estilo real).
   applyPresetToUI(st.zPreset);
+
+  ui.paperTextureEnabled.value = st.paperTextureEnabled || "0";
+  ui.cellShadowEnabled.value = st.cellShadowEnabled || "0";
+
+  const updateOffsetReadout = () => {
+    if (ui.imageOffsetXVal) ui.imageOffsetXVal.textContent = String(Math.round(ui.imageOffsetX.value || 0));
+    if (ui.imageOffsetYVal) ui.imageOffsetYVal.textContent = String(Math.round(ui.imageOffsetY.value || 0));
+  };
+  updateOffsetReadout();
+
+  if (ui.btnResetOffset) {
+    ui.btnResetOffset.addEventListener("click", (e) => {
+      e.preventDefault();
+      ui.imageOffsetX.value = 0;
+      ui.imageOffsetY.value = 0;
+      updateOffsetReadout();
+      if (ui.useImageMode.checked && appState.processedImageCanvas) {
+        render();
+      }
+    });
+  }
 
   // Image upload handler
   ui.imageUpload.addEventListener("change", async (e) => {
@@ -482,12 +537,14 @@ function bind() {
   });
 
   ui.imageOffsetX.addEventListener("input", () => {
+    updateOffsetReadout();
     if (ui.useImageMode.checked && appState.processedImageCanvas) {
       requestAnimationFrame(render);
     }
   });
 
   ui.imageOffsetY.addEventListener("input", () => {
+    updateOffsetReadout();
     if (ui.useImageMode.checked && appState.processedImageCanvas) {
       requestAnimationFrame(render);
     }
@@ -525,6 +582,7 @@ function bind() {
 
       appState.dragStartX = pos.x;
       appState.dragStartY = pos.y;
+      updateOffsetReadout();
       requestAnimationFrame(render);
     };
 
@@ -581,39 +639,66 @@ function bind() {
   });
 
   // Controles no ligados al estilo del preset: solo re-renderizan.
-  [ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone].forEach((el) => {
+  [
+    ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone,
+    ui.paperTextureEnabled, ui.cellShadowEnabled
+  ].forEach((el) => {
     if (!el) return;
     const evt = el.type === "checkbox" ? "change" : "input";
     el.addEventListener(evt, debouncedRender);
   });
 
   ui.btnDownloadSVG.addEventListener("click", async () => {
-    const { svg, paperKey, zPresetKey } = await render();
-    downloadTextFile(`zentangle_${paperKey}_${zPresetKey}.svg`, svg);
+    try {
+      ui.status.innerText = "Preparando SVG...";
+      const { svg, paperKey, zPresetKey } = await render();
+      downloadTextFile(`zentangle_${paperKey}_${zPresetKey}.svg`, svg);
+      ui.status.innerText = "✓ Descargado SVG";
+    } catch (err) {
+      ui.status.innerText = `✗ Error al descargar SVG: ${err.message}`;
+      console.error("Error al descargar SVG:", err);
+    }
   });
 
   ui.btnDownloadPNG.addEventListener("click", async () => {
-    const { svg, paperKey, zPresetKey } = await render();
-    const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
-    ui.status.innerText = "Preparando PNG...";
-    await downloadPng(`zentangle_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
-    ui.status.innerText = "Descargado PNG";
+    try {
+      const { svg, paperKey, zPresetKey } = await render();
+      const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
+      ui.status.innerText = "Preparando PNG...";
+      await downloadPng(`zentangle_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
+      ui.status.innerText = "✓ Descargado PNG";
+    } catch (err) {
+      ui.status.innerText = `✗ Error al descargar PNG: ${err.message}`;
+      console.error("Error al descargar PNG:", err);
+    }
   });
 
   ui.btnDownloadPDF.addEventListener("click", async () => {
-    const { svg, paperKey, zPresetKey } = await render();
-    const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
-    ui.status.innerText = "Generando PDF (KDP)...";
-    await downloadPdf(`zentangle_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);
-    ui.status.innerText = "Descargado PDF";
+    try {
+      const { svg, paperKey, zPresetKey } = await render();
+      const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
+      ui.status.innerText = "Generando PDF (KDP)...";
+      await downloadPdf(`zentangle_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);
+      ui.status.innerText = "✓ Descargado PDF";
+    } catch (err) {
+      ui.status.innerText = `✗ Error al descargar PDF: ${err.message}`;
+      console.error("Error al descargar PDF:", err);
+    }
   });
 
   ui.btnDownloadJSON.addEventListener("click", async () => {
-    const { opts, paperKey, zPresetKey } = await render();
-    downloadTextFile(
-      `zentangle_${paperKey}_${zPresetKey}_opts.json`,
-      JSON.stringify(opts, null, 2)
-    );
+    try {
+      ui.status.innerText = "Preparando JSON...";
+      const { opts, paperKey, zPresetKey } = await render();
+      downloadTextFile(
+        `zentangle_${paperKey}_${zPresetKey}_opts.json`,
+        JSON.stringify(opts, null, 2)
+      );
+      ui.status.innerText = "✓ Descargado JSON";
+    } catch (err) {
+      ui.status.innerText = `✗ Error al descargar JSON: ${err.message}`;
+      console.error("Error al descargar JSON:", err);
+    }
   });
 
   render();

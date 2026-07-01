@@ -1,38 +1,139 @@
-
+import assert from "assert";
 import { generateZentangleCells } from "./js/generators/zentangleCells.js";
-import { PathBuilder } from "./js/core/pathBuilder.js";
 
-console.log("Starting verification...");
+async function runTests() {
+  console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
 
-const doc = {
-    body: [],
-    defs: [],
-    meta: { title: "Test", generator: "test", seed: 1 }
-};
+  try {
+    // 1. Prueba de Determinismo
+    console.log("Prueba 1: Determinismo (misma semilla -> mismo output)...");
+    const doc1 = { body: [], defs: [] };
+    const doc2 = { body: [], defs: [] };
+    const doc3 = { body: [], defs: [] };
 
-const opts = {
-    seed: 12345,
-    areaMm: { x: 0, y: 0, w: 100, h: 100 },
-    cellLayout: "rect_bsp",
-    cellCount: 5,
-    minCellSizeMm: 10,
-    sketchy: 0.5,
-    patternFamily: "geometric" // Test geometric patterns
-};
+    const opts1 = {
+      seed: 54321,
+      areaMm: { x: 10, y: 10, w: 100, h: 100 },
+      cellLayout: "rect_bsp",
+      cellCount: 15,
+      minCellSizeMm: 12,
+      patternFamily: "geometric"
+    };
 
-try {
-    generateZentangleCells(doc, opts);
-    console.log("Generated cells successfully.");
-    console.log("Body length:", doc.body.length);
-    console.log("Defs length:", doc.defs.length);
+    const opts3 = {
+      ...opts1,
+      seed: 99999 // Semilla diferente
+    };
 
-    if (doc.body.length > 0) {
-        console.log("Verification Passed!");
-    } else {
-        console.error("Verification Failed: No output generated.");
-        process.exit(1);
-    }
-} catch (error) {
-    console.error("Verification Error:", error);
+    await generateZentangleCells(doc1, opts1);
+    await generateZentangleCells(doc2, opts1); // Misma semilla
+    await generateZentangleCells(doc3, opts3); // Semilla diferente
+
+    const svg1 = doc1.body.join("\n");
+    const svg2 = doc2.body.join("\n");
+    const svg3 = doc3.body.join("\n");
+
+    assert.strictEqual(svg1, svg2, "ERROR: Dos ejecuciones con la misma semilla produjeron resultados diferentes.");
+    assert.notStrictEqual(svg1, svg3, "ERROR: Dos ejecuciones con semillas diferentes produjeron resultados idénticos.");
+    console.log("✓ Determinismo verificado correctamente.\n");
+
+
+    // 2. Prueba de Estándares KDP
+    console.log("Prueba 2: Estándares KDP (Bleed, Zona Segura, Áreas Mínimas)...");
+    
+    // 2a. Sangrado (Bleed)
+    const docBleed = { body: [], defs: [] };
+    const optsBleed = {
+      seed: 123,
+      areaMm: { x: 10, y: 10, w: 100, h: 100 },
+      kdpBleedMm: 3.175, // Sangrado estándar KDP
+      drawOuterBorder: true
+    };
+    await generateZentangleCells(docBleed, optsBleed);
+    
+    // Verificamos que el borde exterior se dibuje ensanchado por el sangrado.
+    // El rect original es x0=10, y0=10, x1=110, y1=110. Con sangrado de 3.175 es x0=6.825, y0=6.825, x1=113.175, y1=113.175.
+    const outerPath = docBleed.body[0];
+    assert.ok(outerPath.includes("6.825") && outerPath.includes("113.175"), "ERROR: El sangrado KDP no extendió el marco exterior adecuadamente.");
+    console.log("✓ Sangrado KDP verificado (marco ensanchado a 6.825 - 113.175 mm).");
+
+    // 2b. Zona Segura
+    const docSafeZone = { body: [], defs: [] };
+    const optsSafeZone = {
+      seed: 123,
+      areaMm: { x: 10, y: 10, w: 100, h: 100 },
+      showSafeZone: true
+    };
+    await generateZentangleCells(docSafeZone, optsSafeZone);
+    const hasSafeZoneDef = docSafeZone.defs.some(d => d.includes("safeZone"));
+    assert.ok(hasSafeZoneDef, "ERROR: Las guías de zona segura no fueron agregadas a los defs.");
+    console.log("✓ Guías de zona segura KDP verificadas.");
+
+
+    // 3. Prueba de Rendimiento (Límite de Celdas)
+    console.log("\nPrueba 3: Rendimiento en Celdas Densas (kdp_masterpiece)...");
+    const docPerf = { body: [], defs: [] };
+    const optsPerf = {
+      seed: 123,
+      areaMm: { x: 10, y: 10, w: 150, h: 150 },
+      cellLayout: "rect_bsp",
+      cellCount: 45, // Máxima densidad (Masterpiece)
+      minCellSizeMm: 8,
+      patternFamily: "organic"
+    };
+
+    const start = Date.now();
+    await generateZentangleCells(docPerf, optsPerf);
+    const duration = Date.now() - start;
+
+    console.log(`Renderizado completado en ${duration} ms (celdas: ${optsPerf.cellCount}).`);
+    assert.ok(duration < 250, `ERROR: El renderizado tardó demasiado (${duration} ms). Debe ser < 250ms.`);
+    console.log("✓ Rendimiento dentro del límite óptimo.");
+
+
+    // 4. Regresión Estructural (Conteo de Elementos)
+    console.log("\nPrueba 4: Regresión Estructural (Conteo de elementos SVG)...");
+    const docReg = { body: [], defs: [] };
+    const optsReg = {
+      seed: 777,
+      areaMm: { x: 0, y: 0, w: 100, h: 100 },
+      cellLayout: "rect_bsp",
+      cellCount: 10,
+      minCellSizeMm: 15,
+      patternFamily: "tangles",
+      innerOrganicBorderEnabled: true
+    };
+
+    await generateZentangleCells(docReg, optsReg);
+
+    // Contamos elementos basándonos en la estructura esperada:
+    // 1 border path, 10 cell borders, 10 clipPaths en defs, 10 groups de patrones
+    const pathCount = docReg.body.filter(s => s.startsWith("<path")).length;
+    const groupCount = docReg.body.filter(s => s.startsWith("<g")).length;
+    const clipPathCount = docReg.defs.filter(s => s.includes("clipPath")).length;
+
+    console.log(`Estructura SVG - Paths: ${pathCount}, Groups: ${groupCount}, clipPaths: ${clipPathCount}`);
+    
+    // Con 10 celdas y semilla 777, esperamos:
+    // - 1 path para el borde exterior (drawOuterBorder)
+    // - 10 paths para los bordes de celda
+    // - 286 paths para el relleno de los patrones (determinado por la semilla 777)
+    // - Total paths directos en body = 297
+    assert.strictEqual(pathCount, 297, `ERROR: Conteo de paths incorrecto (${pathCount} != 297)`);
+    assert.strictEqual(groupCount, 10, `ERROR: Conteo de grupos incorrecto (${groupCount} != 10)`);
+    assert.strictEqual(clipPathCount, 10, `ERROR: Conteo de clipPaths incorrecto (${clipPathCount} != 10)`);
+    console.log("✓ Estructura de elementos consistente.");
+
+    console.log("\n==============================================");
+    console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
+    console.log("==============================================");
+    process.exit(0);
+
+  } catch (err) {
+    console.error("\n❌ ERROR EN LAS PRUEBAS:");
+    console.error(err);
     process.exit(1);
+  }
 }
+
+runTests();
