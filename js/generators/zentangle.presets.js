@@ -37,6 +37,10 @@ export const ZENTANGLE_PRESETS = {
     patternFamily: "geometric",
     focusMode: true,
     borderStrokeMultiplier: 1.4,
+    
+    // New dynamic modifiers
+    focalStrength: 0.35,
+    rotationJitterDeg: 2.5,
   },
 
   commercial_print: {
@@ -263,6 +267,10 @@ export const ZENTANGLE_PRESETS = {
     patternFamily: "organic",
     focusMode: false,
     borderStrokeMultiplier: 1.3,
+    
+    // New dynamic modifiers
+    focalStrength: 0.6,
+    rotationJitterDeg: 4.0,
   },
 
   bold_easy: {

@@ -40,6 +40,17 @@ export async function generateZentangleCells(doc, opts) {
   const seed = opts.seed;
   const areaMm = opts.areaMm;
 
+  // Dynamic load d3-delaunay if missing and voronoi is requested
+  if (opts.cellLayout === "voronoi" && (typeof d3 === "undefined" || !d3.Delaunay)) {
+    try {
+      const module = await import("https://cdn.skypack.dev/d3-delaunay@6");
+      globalThis.d3 = globalThis.d3 || {};
+      globalThis.d3.Delaunay = module.Delaunay;
+    } catch (e) {
+      console.warn("Could not load d3-delaunay dynamically", e);
+    }
+  }
+
   // Layout params with safeClamp
   const cellLayout = opts.cellLayout || "rect_bsp";
   const cellCount = safeClamp(opts.cellCount, 4, 100, 30);
@@ -280,7 +291,11 @@ export async function generateZentangleCells(doc, opts) {
       doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
     } else {
       // Polígono
-      const poly = _clipPolyToRect(cell.poly, box);
+      // Recorte previo al área de la página para que el borde interior no desborde (y el centroide sea correcto)
+      const clippedPoly = _clipPolyToRect(cell.poly, baseRect);
+      if (!clippedPoly || clippedPoly.length < 3) continue;
+
+      const poly = _clipPolyToRect(clippedPoly, box);
       if (!poly || poly.length < 3) continue;
 
       clipD = _polyPathD(poly, true);
@@ -288,9 +303,11 @@ export async function generateZentangleCells(doc, opts) {
       // Borde visible: orgánico interno + Sombra
       if (innerOrganicBorderEnabled) {
         const dynInset = Math.max(0.3, Math.min(innerOrganicBorderInsetMm, minDim * 0.06));
-        const innerPoly = _polyInsetToCentroid(poly, dynInset);
-        if (innerPoly && innerPoly.length >= 3) {
-          const innerD = _organicPolyStrokeD(rng, innerPoly, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
+        const innerPoly = _polyInsetToCentroid(clippedPoly, dynInset);
+        // Validar que el inset no colapsó
+        if (innerPoly && innerPoly.length >= 3 && Math.abs(_polyArea(innerPoly)) > 4) {
+          const finalInner = _clipPolyToRect(innerPoly, box) || innerPoly; // Clip final al margen
+          const innerD = _organicPolyStrokeD(rng, finalInner, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
           doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
         }
       } else {
@@ -328,9 +345,15 @@ export async function generateZentangleCells(doc, opts) {
     } else {
       layers = Math.max(1, Math.min(3, Number(layersPerCell)));
     }
-    layers = Math.min(layers, Math.max(1, Number(maxPatternPassesPerCell)));
+    // Only cap if not explicitly requested by preset
+    if (opts.layersPerCell === undefined || opts.layersPerCell === "auto") {
+      layers = Math.min(layers, Math.max(1, Number(maxPatternPassesPerCell)));
+    }
 
     const patternsGroup = [];
+    // Track last 3 patterns for better anti-repetition
+    const last3Fns = lastFn ? (Array.isArray(lastFn) ? lastFn : [lastFn]) : [];
+
     for (let L = 0; L < layers; L++) {
       // Skip probabilístico modulado por densidad de página y punto focal
       const effSkip = Math.min(0.65, Math.max(0, patternSkipProb * airBias * focalBias));
@@ -339,11 +362,11 @@ export async function generateZentangleCells(doc, opts) {
       // Smart Selection Strategy + Anti-Repetition
       const allPatterns = [...patterns];
       
-      let available = allPatterns.filter(p => p !== lastFn);
+      let available = allPatterns.filter(p => !last3Fns.includes(p));
       if (available.length === 0) available = allPatterns;
 
       if (minDim < 13) {
-        available = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox].filter(p => p !== lastFn);
+        available = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox].filter(p => !last3Fns.includes(p));
       } 
       
       if (available.length === 0) available = allPatterns;
@@ -351,7 +374,10 @@ export async function generateZentangleCells(doc, opts) {
       const fn = patternWeights
         ? _weightedPick(rng, available, (p) => patternWeights[p.name] ?? 1)
         : pick(rng, available);
-      lastFn = fn;
+      
+      last3Fns.push(fn);
+      if (last3Fns.length > 3) last3Fns.shift();
+      lastFn = last3Fns; // Store back in outer scope for next cell
 
       // Escalado dinámico: las celdas grandes ensanchan el espaciado para no
       // acumular cientos de repeticiones (que leen como un campo oscuro).
@@ -565,10 +591,11 @@ function _makeStringCells(rng, rect, count) {
   let polygons;
 
   if (useRadial) {
-    polygons = _radialSplit(rng, rect, Math.max(3, Math.floor(count / 4)));
+    // Escalar radial directamente con count para cumplir la solicitud
+    polygons = _radialSplit(rng, rect, Math.max(3, count));
   } else {
-    // Increased depth for more cells if count is high
-    const depth = count > 30 ? 4 : (count > 12 ? 3 : 2);
+    // Dynamic depth based on count
+    const depth = Math.max(1, Math.ceil(Math.log2(count)));
     polygons = _recursiveBezierSplit(rng, rect, depth);
   }
 
@@ -1093,4 +1120,14 @@ function _splitRectangles(rng, base, targetCount, minSizeMm) {
     }
   }
   return rects;
+}
+
+function _polyArea(poly) {
+  let area = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const p1 = poly[i];
+    const p2 = poly[(i + 1) % poly.length];
+    area += (p1.x * p2.y - p2.x * p1.y);
+  }
+  return area / 2;
 }
