@@ -109,7 +109,7 @@ async function runTests() {
     // Contamos elementos basándonos en la estructura esperada:
     // - 1 path para el borde exterior (drawOuterBorder)
     // - 10 paths para los bordes de las celdas
-    // - 9 grupos para los patrones de las celdas (1 celda se salta de forma determinista con seed 777)
+    // - 10 grupos para los patrones de las celdas (con seed 777 ninguna celda se salta)
     // - 10 clipPaths en los defs
     const pathCount = docReg.body.filter(s => s.startsWith("<path")).length;
     const groupCount = docReg.body.filter(s => s.startsWith("<g")).length;
@@ -119,9 +119,9 @@ async function runTests() {
     console.log(`Estructura SVG - Paths top-level: ${pathCount}, Groups: ${groupCount}, clipPaths: ${clipPathCount}, Paths totales: ${totalPaths}`);
 
     assert.strictEqual(pathCount, 11, `ERROR: Conteo de paths top-level incorrecto (${pathCount} != 11)`);
-    assert.strictEqual(groupCount, 9, `ERROR: Conteo de grupos incorrecto (${groupCount} != 9)`);
+    assert.strictEqual(groupCount, 10, `ERROR: Conteo de grupos incorrecto (${groupCount} != 10)`);
     assert.strictEqual(clipPathCount, 10, `ERROR: Conteo de clipPaths incorrecto (${clipPathCount} != 10)`);
-    assert.strictEqual(totalPaths, 20, `ERROR: Conteo total de paths incorrecto (${totalPaths} != 20)`);
+    assert.strictEqual(totalPaths, 21, `ERROR: Conteo total de paths incorrecto (${totalPaths} != 21)`);
     console.log("✓ Estructura de elementos consistente.");
 
     console.log("\n==============================================");

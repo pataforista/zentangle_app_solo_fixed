@@ -399,11 +399,30 @@ export async function generateZentangleCells(doc, opts) {
         patternStrokeMm: Math.max(0.25, cfg.patternStrokeMm * strokeStep * strokeScale)
       };
 
-      let d = fn(rng, box, cellCfg);
+      // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
+      // Consumimos el rng siempre para no descuadrar la secuencia determinista.
+      const jr = (rng() - 0.5) * 2 * rotationJitterDeg;
+      const jitter = rotatePatterns ? jr : 0;
+      const totalRot = rot + jitter;
+
+      // El patrón se genera sobre el bbox que, tras aplicar la rotación, cubre
+      // la celda completa (el clip recorta el sobrante). Sin esta expansión,
+      // las celdas alargadas rotadas quedaban con las esquinas en blanco.
+      let genBox = box;
+      if (totalRot !== 0) {
+        const rad = (totalRot * Math.PI) / 180;
+        const cA = Math.abs(Math.cos(rad));
+        const sA = Math.abs(Math.sin(rad));
+        const hw = (cA * w + sA * h) / 2;
+        const hh = (sA * w + cA * h) / 2;
+        genBox = { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh };
+      }
+
+      let d = fn(rng, genBox, cellCfg);
 
       // Meta-Patterns: Círculos invocan stippling en los huecos (ocasional, para no entintar)
       if (fn === fillCircles && rng() < 0.30 && minDim > 20) {
-        const stipD = fillStippling(rng, box, cellCfg, true);
+        const stipD = fillStippling(rng, genBox, cellCfg, true);
         if (stipD) d += " " + stipD;
       }
 
@@ -415,17 +434,12 @@ export async function generateZentangleCells(doc, opts) {
       const doCover = canCover && (rng() < (L === 1 ? coverP1 : coverP2));
       const fill = doCover ? "#fff" : "none";
 
-      // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
-      // Consumimos el rng siempre para no descuadrar la secuencia determinista.
-      const jr = (rng() - 0.5) * 2 * rotationJitterDeg;
-      const jitter = rotatePatterns ? jr : 0;
-
       patternsGroup.push(
         `<path d="${d}"
           fill="${fill}"
           stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}"
           stroke-linecap="round" stroke-linejoin="round"
-          transform="rotate(${_fmt(rot + jitter)} ${_fmt(cx)} ${_fmt(cy)})"
+          transform="rotate(${_fmt(totalRot)} ${_fmt(cx)} ${_fmt(cy)})"
         />`
       );
     }
