@@ -91,11 +91,13 @@ export function fillFlux(rng, r, cfg) {
     const cx = (r.x0 + r.x1) / 2;
     const cy = (r.y0 + r.y1) / 2;
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    const count = Math.floor(rInt(rng, 14, 24) * (minDim / 15 + 0.5));
+    // El conteo crece suave con el tamaño y se acota: demasiados pétalos se
+    // solapan en el centro y leen como una mancha negra imposible de colorear.
+    const count = Math.min(44, Math.floor(rInt(rng, 14, 24) * Math.min(2.0, minDim / 30 + 0.55)));
     const maxLen = minDim * 0.48;
 
     // To prevent a solid black blob in the center, offset the origin of each petal slightly
-    const centerOffset = maxLen * 0.15; 
+    const centerOffset = maxLen * 0.22;
 
     for (let i = 0; i < count; i++) {
         const angle = (i / count) * Math.PI * 2 + rFloat(rng, -0.2, 0.2);

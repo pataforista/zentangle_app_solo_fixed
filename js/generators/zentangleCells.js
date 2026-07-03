@@ -224,7 +224,35 @@ export async function generateZentangleCells(doc, opts) {
   };
 
   const familyKey = opts.patternFamily || pick(rng, ["geometric", "organic", "tangles"]);
-  const patterns = families[familyKey] || [...families.geometric, ...families.organic];
+
+  // --- Paleta de patrones por página ---
+  // Un libro entero con la misma familia se vuelve monótono: cada página
+  // deriva de su seed una paleta propia. Con familia fija se añaden algunos
+  // patrones "invitados" de las otras familias; con patternFamily: "mixed"
+  // la paleta completa se sortea de toda la biblioteca. Se usa un RNG
+  // separado (hash del seed) para no alterar el layout ya generado.
+  const allPatterns = [...new Set(Object.values(families).flat())];
+  const paletteRng = createRNG(hash(seed >>> 0, 13));
+  let patterns;
+  if (familyKey === "mixed") {
+    const size = safeClamp(opts.paletteSize, 4, allPatterns.length, 10);
+    patterns = _sampleUnique(paletteRng, allPatterns, size);
+  } else {
+    const base = families[familyKey] || [...families.geometric, ...families.organic];
+    const guestCount = safeClamp(opts.guestPatternCount, 0, 8, 2);
+    const guests = _sampleUnique(paletteRng, allPatterns.filter(p => !base.includes(p)), guestCount);
+    patterns = [...base, ...guests];
+  }
+
+  // Penalización por reutilización dentro de la página: cada uso divide el
+  // peso del patrón, forzando a recorrer toda la paleta antes de repetir.
+  const repetitionPenalty = safeClamp(opts.repetitionPenalty, 0, 10, 2.2);
+  const patternUseCount = new Map();
+
+  // Celda "escaparate": la celda más grande de la página recibe siempre un
+  // patrón vistoso (nunca se salta) => punto focal que ancla la composición.
+  const showcaseEnabled = opts.showcaseEnabled !== false;
+  const showcasePool = [fillPrintemps, fillParadox, fillSpiralBands, fillConcentricSquares, fillFlux];
 
   // Jerarquía de línea: Bordes/Strings claramente más gruesos
   const borderMultiplier = opts.borderStrokeMultiplier || 1.45;
@@ -235,6 +263,17 @@ export async function generateZentangleCells(doc, opts) {
   // que celdas vecinas no caigan en el mismo tangle => páginas más variadas.
   let lastFn = null;
   let processedCells = 0;
+
+  // Índice de la celda más grande (candidata a escaparate)
+  let showcaseIdx = -1;
+  if (showcaseEnabled && cells.length >= 6) {
+    let bestArea = 0;
+    for (let i = 0; i < cells.length; i++) {
+      const bb = cells[i].bbox;
+      const a = (bb.x1 - bb.x0) * (bb.y1 - bb.y0);
+      if (a > bestArea) { bestArea = a; showcaseIdx = i; }
+    }
+  }
   for (let i = 0; i < cells.length; i++) {
     // Yield every 3 cells to keep UI responsive
     if (i > 0 && ++processedCells % 3 === 0) {
@@ -354,27 +393,42 @@ export async function generateZentangleCells(doc, opts) {
     // Track last 3 patterns for better anti-repetition
     const last3Fns = lastFn ? (Array.isArray(lastFn) ? lastFn : [lastFn]) : [];
 
+    const isShowcaseCell = (i === showcaseIdx) && minDim >= 22;
+
     for (let L = 0; L < layers; L++) {
-      // Skip probabilístico modulado por densidad de página y punto focal
+      // Skip probabilístico modulado por densidad de página y punto focal.
+      // La celda escaparate nunca se salta: es el ancla visual de la página.
       const effSkip = Math.min(0.65, Math.max(0, patternSkipProb * airBias * focalBias));
-      if (rng() < effSkip && minDim < 35) continue;
+      if (rng() < effSkip && minDim < 35 && !(isShowcaseCell && L === 0)) continue;
 
       // Smart Selection Strategy + Anti-Repetition
-      const allPatterns = [...patterns];
-      
-      let available = allPatterns.filter(p => !last3Fns.includes(p));
-      if (available.length === 0) available = allPatterns;
+      let available = patterns.filter(p => !last3Fns.includes(p));
+      if (available.length === 0) available = [...patterns];
 
-      if (minDim < 13) {
-        available = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox].filter(p => !last3Fns.includes(p));
-      } 
-      
-      if (available.length === 0) available = allPatterns;
+      if (isShowcaseCell && L === 0) {
+        // Patrón vistoso para la celda dominante de la página. En celdas muy
+        // alargadas se evitan los motivos radiales (flor/espirales): quedarían
+        // como un medallón pequeño perdido en el centro de la banda.
+        const aspect = Math.max(w, h) / Math.max(1e-6, minDim);
+        const pool = (aspect > 1.7)
+          ? showcasePool.filter(p => p !== fillFlux && p !== fillPrintemps)
+          : showcasePool;
+        const fresh = pool.filter(p => !(patternUseCount.get(p) > 0));
+        available = fresh.length ? fresh : pool;
+      } else if (minDim < 13) {
+        const smallSafe = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox, fillTipple, fillWaves];
+        const smallAvail = smallSafe.filter(p => !last3Fns.includes(p));
+        available = smallAvail.length ? smallAvail : smallSafe;
+      }
 
-      const fn = patternWeights
-        ? _weightedPick(rng, available, (p) => patternWeights[p.name] ?? 1)
-        : pick(rng, available);
-      
+      // Peso base (patternWeights del preset) dividido por los usos previos en
+      // esta página: recorre toda la paleta antes de volver a repetir un tangle.
+      const fn = _weightedPick(rng, available, (p) => {
+        const w = patternWeights ? (patternWeights[p.name] ?? 1) : 1;
+        return w / (1 + (patternUseCount.get(p) || 0) * repetitionPenalty);
+      });
+      patternUseCount.set(fn, (patternUseCount.get(fn) || 0) + 1);
+
       last3Fns.push(fn);
       if (last3Fns.length > 3) last3Fns.shift();
       lastFn = last3Fns; // Store back in outer scope for next cell
@@ -399,11 +453,30 @@ export async function generateZentangleCells(doc, opts) {
         patternStrokeMm: Math.max(0.25, cfg.patternStrokeMm * strokeStep * strokeScale)
       };
 
-      let d = fn(rng, box, cellCfg);
+      // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
+      // Consumimos el rng siempre para no descuadrar la secuencia determinista.
+      const jr = (rng() - 0.5) * 2 * rotationJitterDeg;
+      const jitter = rotatePatterns ? jr : 0;
+      const totalRot = rot + jitter;
+
+      // El patrón se genera sobre el bbox que, tras aplicar la rotación, cubre
+      // la celda completa (el clip recorta el sobrante). Sin esta expansión,
+      // las celdas alargadas rotadas quedaban con las esquinas en blanco.
+      let genBox = box;
+      if (totalRot !== 0) {
+        const rad = (totalRot * Math.PI) / 180;
+        const cA = Math.abs(Math.cos(rad));
+        const sA = Math.abs(Math.sin(rad));
+        const hw = (cA * w + sA * h) / 2;
+        const hh = (sA * w + cA * h) / 2;
+        genBox = { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh };
+      }
+
+      let d = fn(rng, genBox, cellCfg);
 
       // Meta-Patterns: Círculos invocan stippling en los huecos (ocasional, para no entintar)
       if (fn === fillCircles && rng() < 0.30 && minDim > 20) {
-        const stipD = fillStippling(rng, box, cellCfg, true);
+        const stipD = fillStippling(rng, genBox, cellCfg, true);
         if (stipD) d += " " + stipD;
       }
 
@@ -415,17 +488,12 @@ export async function generateZentangleCells(doc, opts) {
       const doCover = canCover && (rng() < (L === 1 ? coverP1 : coverP2));
       const fill = doCover ? "#fff" : "none";
 
-      // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
-      // Consumimos el rng siempre para no descuadrar la secuencia determinista.
-      const jr = (rng() - 0.5) * 2 * rotationJitterDeg;
-      const jitter = rotatePatterns ? jr : 0;
-
       patternsGroup.push(
         `<path d="${d}"
           fill="${fill}"
           stroke="#000" stroke-width="${_fmt(cellCfg.patternStrokeMm)}"
           stroke-linecap="round" stroke-linejoin="round"
-          transform="rotate(${_fmt(rot + jitter)} ${_fmt(cx)} ${_fmt(cy)})"
+          transform="rotate(${_fmt(totalRot)} ${_fmt(cx)} ${_fmt(cy)})"
         />`
       );
     }
@@ -826,6 +894,17 @@ function _makeTriCells(baseRect, side) {
 
 // Selección ponderada: respeta pesos por nombre de función (patternWeights).
 // Si los pesos suman 0, cae a una selección uniforme.
+// Muestreo sin reemplazo (Fisher-Yates parcial): n elementos únicos de arr.
+function _sampleUnique(rng, arr, n) {
+  const pool = [...arr];
+  const count = Math.min(Math.max(0, n), pool.length);
+  for (let i = 0; i < count; i++) {
+    const j = i + Math.floor(rng() * (pool.length - i));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
+}
+
 function _weightedPick(rng, arr, weightFn) {
   if (!arr || arr.length === 0) return null;
   let total = 0;
