@@ -69,6 +69,34 @@
 - **Complejidad:** Experto
 - **Mercado:** Coleccionistas, artistas avanzados
 
+### 8. **KDP Variety Mix** ⭐ (Recomendado para libros completos)
+- **Uso:** Libros de muchas páginas donde la monotonía mata las reseñas
+- **Característica:** Cada página sortea su propia paleta de patrones de
+  TODA la biblioteca (`patternFamily: "mixed"`), así dos páginas nunca
+  usan el mismo repertorio. La celda más grande recibe un patrón vistoso
+  ("escaparate") que ancla la composición.
+- **Complejidad:** Moderada
+- **Ideal para:** Volúmenes de 30-100 páginas
+
+---
+
+## 🎲 Controles de Variedad del Motor
+
+El motor incluye mecanismos anti-repetición aplicables a CUALQUIER preset:
+
+- **Penalización por reuso** (`repetitionPenalty`, default 2.2): cada vez que
+  un patrón se usa en la página, su probabilidad de volver a salir se divide.
+  La página recorre toda la paleta antes de repetir. `0` = comportamiento libre.
+- **Patrones invitados** (`guestPatternCount`, default 2): con familia fija,
+  cada seed añade N patrones de las otras familias a la paleta de la página —
+  las páginas de un libro comparten estilo pero no repertorio exacto.
+- **Paleta mixta** (`patternFamily: "mixed"` + `paletteSize`, default 10):
+  la paleta completa se sortea de toda la biblioteca por página.
+- **Celda escaparate** (`showcaseEnabled`, default activo): la celda más
+  grande recibe siempre un patrón protagonista (flor, paradox, espirales…)
+  y nunca queda vacía. En celdas muy alargadas se eligen motivos que
+  rellenan toda la banda (no radiales).
+
 ---
 
 ## 🖥️ Cómo Usar la App

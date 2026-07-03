@@ -640,4 +640,35 @@ export const ZENTANGLE_PRESETS = {
     focusMode: false,
     borderStrokeMultiplier: 1.38,
   },
+
+  kdp_variety_mix: {
+    // Máxima variedad página a página: cada seed sortea su propia paleta de
+    // patrones de TODA la biblioteca (patternFamily: "mixed"), así un libro
+    // de 50 páginas no repite el mismo repertorio. La celda más grande recibe
+    // siempre un patrón vistoso (escaparate) que ancla la composición.
+    cellLayout: "rect_bsp",
+    cellCount: 22,
+    minCellSizeMm: 18,
+    cellBorderWidthMm: 0.78,
+    patternStrokeMm: 0.36,
+    minStrokeMm: 0.30,
+    minGapMm: 1.5,
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.12,
+    whiteSpaceMm: 1.3,
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+    innerOrganicBorderEnabled: true,
+    innerOrganicBorderInsetMm: 0.82,
+    innerOrganicJitterMm: 0.50,
+    innerOrganicRoundMm: 1.0,
+    enableDrawBehind: true,
+    drawBehindProbability: 0.45,
+    allowDrawBehindOnLayer2: false,
+    organicBorder: false,
+    patternFamily: "mixed",
+    paletteSize: 10,
+    focusMode: false,
+    borderStrokeMultiplier: 1.42,
+  },
 };
