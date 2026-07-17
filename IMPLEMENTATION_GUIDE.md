@@ -48,7 +48,6 @@ zentangle-app-electron/
 │
 ├── src/
 │   ├── core/                      # COPIAR EXISTENTE (sin cambios)
-│   │   ├── geometryCore.js
 │   │   ├── pathBuilder.js
 │   │   ├── prng.js
 │   │   ├── svgDoc.js
