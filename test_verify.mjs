@@ -124,6 +124,36 @@ async function runTests() {
     assert.strictEqual(totalPaths, 21, `ERROR: Conteo total de paths incorrecto (${totalPaths} != 21)`);
     console.log("✓ Estructura de elementos consistente.");
 
+
+    // 5. Modo Sketchy (trazo a mano en curvas y círculos)
+    console.log("\nPrueba 5: Modo Sketchy (determinismo y curvas rugosas)...");
+    const optsSketchy = {
+      seed: 4242,
+      areaMm: { x: 10, y: 10, w: 100, h: 100 },
+      cellLayout: "rect_bsp",
+      cellCount: 12,
+      minCellSizeMm: 12,
+      patternFamily: "organic",
+      sketchy: 0.9
+    };
+    const docSk1 = { body: [], defs: [] };
+    const docSk2 = { body: [], defs: [] };
+    const docSk0 = { body: [], defs: [] };
+    await generateZentangleCells(docSk1, optsSketchy);
+    await generateZentangleCells(docSk2, optsSketchy);
+    await generateZentangleCells(docSk0, { ...optsSketchy, sketchy: 0 });
+
+    const skSvg = docSk1.body.join("");
+    assert.strictEqual(skSvg, docSk2.body.join(""), "ERROR: El modo sketchy no es determinista.");
+    assert.ok(!/NaN|Infinity/.test(skSvg + docSk1.defs.join("")), "ERROR: El modo sketchy produce coordenadas inválidas.");
+    assert.notStrictEqual(skSvg, docSk0.body.join(""), "ERROR: sketchy > 0 no altera el trazo.");
+    // La familia organic dibuja curvas: con sketchy deben quedar subdivididas en
+    // cadenas de cuadráticas (más comandos Q que la versión limpia)
+    const qRough = (skSvg.match(/Q /g) || []).length;
+    const qClean = (docSk0.body.join("").match(/Q /g) || []).length;
+    assert.ok(qRough > qClean, `ERROR: Las curvas no se subdividen en modo sketchy (Q rough=${qRough} <= Q clean=${qClean}).`);
+    console.log(`✓ Sketchy determinista y con curvas rugosas (Q: ${qClean} limpio -> ${qRough} rugoso).`);
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");
