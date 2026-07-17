@@ -31,12 +31,17 @@ export class PathBuilder {
   }
 
   quadTo(cx, cy, x, y) {
-    // TODO: Rough quadratic? For now keep smooth or implement simplifiction
     if (this.sketchy > 0) {
-      // Approximation via lines? Or just minimal jitter? 
-      // Let's keep smooth logic for curves but maybe add a duplicate stroke if very sketchy?
-      // For simplicity in this iteration, we keep curves clean or add simple jitter.
-      this._chunks.push(`Q ${fmt(cx)} ${fmt(cy)} ${fmt(x)} ${fmt(y)}`);
+      const x0 = this._currX, y0 = this._currY;
+      const approxLen = Math.hypot(cx - x0, cy - y0) + Math.hypot(x - cx, y - cy);
+      const pts = this._sampleCurve(approxLen, (t) => {
+        const mt = 1 - t;
+        return {
+          x: mt * mt * x0 + 2 * mt * t * cx + t * t * x,
+          y: mt * mt * y0 + 2 * mt * t * cy + t * t * y,
+        };
+      });
+      this._emitRoughCurve(pts, approxLen);
     } else {
       this._chunks.push(`Q ${fmt(cx)} ${fmt(cy)} ${fmt(x)} ${fmt(y)}`);
     }
@@ -46,7 +51,20 @@ export class PathBuilder {
   }
 
   cubicTo(cx1, cy1, cx2, cy2, x, y) {
-    this._chunks.push(`C ${fmt(cx1)} ${fmt(cy1)} ${fmt(cx2)} ${fmt(cy2)} ${fmt(x)} ${fmt(y)}`);
+    if (this.sketchy > 0) {
+      const x0 = this._currX, y0 = this._currY;
+      const approxLen = Math.hypot(cx1 - x0, cy1 - y0) + Math.hypot(cx2 - cx1, cy2 - cy1) + Math.hypot(x - cx2, y - cy2);
+      const pts = this._sampleCurve(approxLen, (t) => {
+        const mt = 1 - t;
+        return {
+          x: mt * mt * mt * x0 + 3 * mt * mt * t * cx1 + 3 * mt * t * t * cx2 + t * t * t * x,
+          y: mt * mt * mt * y0 + 3 * mt * mt * t * cy1 + 3 * mt * t * t * cy2 + t * t * t * y,
+        };
+      });
+      this._emitRoughCurve(pts, approxLen);
+    } else {
+      this._chunks.push(`C ${fmt(cx1)} ${fmt(cy1)} ${fmt(cx2)} ${fmt(cy2)} ${fmt(x)} ${fmt(y)}`);
+    }
     this._currX = x;
     this._currY = y;
     return this;
@@ -68,28 +86,23 @@ export class PathBuilder {
   circle(cx, cy, r) {
     if (r <= 0) return this;
     if (this.sketchy > 0) {
-      // Rough circle: approximated by ellipses/blob
-      const steps = 8;
-      const angleStep = (Math.PI * 2) / steps;
+      // Rough circle: anillo cerrado y suave con radio tembloroso
+      const steps = Math.max(10, Math.min(22, Math.round((Math.PI * 2 * r) / 2.2)));
       const j = this.sketchy * r * 0.1;
-
-      let xStart, yStart;
-      for (let i = 0; i <= steps; i++) {
-        const theta = i * angleStep;
-        // Jitter radius
+      const p = [];
+      for (let i = 0; i < steps; i++) {
+        const theta = (i / steps) * Math.PI * 2;
         const rad = r + (this.rng() - 0.5) * j;
-        const x = cx + Math.cos(theta) * rad;
-        const y = cy + Math.sin(theta) * rad;
-
-        if (i === 0) {
-          this.moveTo(x, y);
-          xStart = x; yStart = y;
-        } else {
-          // straight lines for rough feel
-          this.lineTo(x, y);
-        }
+        p.push({ x: cx + Math.cos(theta) * rad, y: cy + Math.sin(theta) * rad });
       }
-      this.lineTo(xStart, yStart); // close manually
+      // Cadena de cuadráticas por puntos medios: cierra sin esquinas
+      this.moveTo((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+      for (let i = 1; i <= steps; i++) {
+        const a = p[i % steps];
+        const b = p[(i + 1) % steps];
+        this._chunks.push(`Q ${fmt(a.x)} ${fmt(a.y)} ${fmt((a.x + b.x) / 2)} ${fmt((a.y + b.y) / 2)}`);
+      }
+      this.close();
       return this;
     }
 
@@ -102,10 +115,58 @@ export class PathBuilder {
   }
 
   arcTo(rx, ry, xRot, largeArc, sweep, x, y) {
+    if (this.sketchy > 0) {
+      const sampler = _arcSampler(this._currX, this._currY, rx, ry, xRot, largeArc, sweep, x, y);
+      if (sampler) {
+        const pts = this._sampleCurve(sampler.approxLen, sampler.point);
+        this._emitRoughCurve(pts, sampler.approxLen);
+        this._currX = x;
+        this._currY = y;
+        return this;
+      }
+      // Arco degenerado (radios ~0 o puntos coincidentes): cae al trazo exacto
+    }
     this._chunks.push(`A ${fmt(rx)} ${fmt(ry)} ${fmt(xRot)} ${largeArc} ${sweep} ${fmt(x)} ${fmt(y)}`);
     this._currX = x;
     this._currY = y;
     return this;
+  }
+
+  // Muestrea una curva paramétrica (t en 0..1, extremos incluidos) con densidad según longitud
+  _sampleCurve(approxLen, pointAt) {
+    const segments = Math.max(2, Math.min(10, Math.round(approxLen / 4)));
+    const pts = [];
+    for (let s = 0; s <= segments; s++) pts.push(pointAt(s / segments));
+    return pts;
+  }
+
+  // Reemplaza una curva lisa por su versión "a mano": jitter perpendicular en los
+  // puntos interiores y re-suavizado con cuadráticas. Los extremos no se mueven,
+  // así el trazo empalma exacto con los comandos anterior y siguiente.
+  _emitRoughCurve(pts, approxLen) {
+    const n = pts.length;
+    if (n < 2) return;
+    if (this._chunks.length === 0) this.moveTo(pts[0].x, pts[0].y);
+    const amp = this.sketchy * Math.min(0.35, approxLen * 0.06);
+    const out = [pts[0]];
+    for (let i = 1; i < n - 1; i++) {
+      const dx = pts[i + 1].x - pts[i - 1].x;
+      const dy = pts[i + 1].y - pts[i - 1].y;
+      const dl = Math.hypot(dx, dy) || 1;
+      const j = (this.rng() - 0.5) * amp;
+      out.push({ x: pts[i].x - (dy / dl) * j, y: pts[i].y + (dx / dl) * j });
+    }
+    out.push(pts[n - 1]);
+    if (out.length === 2) {
+      this._chunks.push(`L ${fmt(out[1].x)} ${fmt(out[1].y)}`);
+      return;
+    }
+    for (let i = 1; i < out.length - 1; i++) {
+      const last = i === out.length - 2;
+      const ex = last ? out[i + 1].x : (out[i].x + out[i + 1].x) / 2;
+      const ey = last ? out[i + 1].y : (out[i].y + out[i + 1].y) / 2;
+      this._chunks.push(`Q ${fmt(out[i].x)} ${fmt(out[i].y)} ${fmt(ex)} ${fmt(ey)}`);
+    }
   }
 
   taperedLine(x1, y1, x2, y2, w) {
@@ -189,6 +250,61 @@ export class PathBuilder {
     const d = this.d;
     return `<path d="${esc(d)}" fill="${fill}" stroke="${stroke}" stroke-width="${fmt(strokeWidthMm)}" stroke-linecap="${linecap}" stroke-linejoin="${linejoin}" />`;
   }
+}
+
+// Conversión endpoint -> centro de un arco SVG (spec W3C) para poder muestrearlo.
+// Devuelve null en casos degenerados (radios ~0 o extremos coincidentes).
+function _arcSampler(x0, y0, rx, ry, xRotDeg, largeArc, sweep, x1, y1) {
+  rx = Math.abs(rx); ry = Math.abs(ry);
+  if (rx < 1e-6 || ry < 1e-6) return null;
+  if (Math.hypot(x1 - x0, y1 - y0) < 1e-6) return null;
+
+  const phi = (xRotDeg * Math.PI) / 180;
+  const cosPhi = Math.cos(phi), sinPhi = Math.sin(phi);
+  const dx2 = (x0 - x1) / 2, dy2 = (y0 - y1) / 2;
+  const x1p = cosPhi * dx2 + sinPhi * dy2;
+  const y1p = -sinPhi * dx2 + cosPhi * dy2;
+
+  // Radios insuficientes: la spec manda escalarlos hasta que el arco exista
+  const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+  if (lambda > 1) {
+    const s = Math.sqrt(lambda);
+    rx *= s; ry *= s;
+  }
+
+  const sign = largeArc !== sweep ? 1 : -1;
+  const num = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+  const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  const coef = sign * Math.sqrt(Math.max(0, num / den));
+  const cxp = (coef * rx * y1p) / ry;
+  const cyp = (-coef * ry * x1p) / rx;
+  const cx = cosPhi * cxp - sinPhi * cyp + (x0 + x1) / 2;
+  const cy = sinPhi * cxp + cosPhi * cyp + (y0 + y1) / 2;
+
+  const angleOf = (ux, uy, vx, vy) => {
+    const dot = ux * vx + uy * vy;
+    const len = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+    let a = Math.acos(Math.max(-1, Math.min(1, dot / len)));
+    if (ux * vy - uy * vx < 0) a = -a;
+    return a;
+  };
+  const ux = (x1p - cxp) / rx, uy = (y1p - cyp) / ry;
+  const theta1 = angleOf(1, 0, ux, uy);
+  let dTheta = angleOf(ux, uy, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+  if (!sweep && dTheta > 0) dTheta -= Math.PI * 2;
+  if (sweep && dTheta < 0) dTheta += Math.PI * 2;
+
+  return {
+    approxLen: Math.abs(dTheta) * Math.max(rx, ry),
+    point(t) {
+      const theta = theta1 + t * dTheta;
+      const ct = Math.cos(theta), st = Math.sin(theta);
+      return {
+        x: cx + rx * ct * cosPhi - ry * st * sinPhi,
+        y: cy + rx * ct * sinPhi + ry * st * cosPhi,
+      };
+    },
+  };
 }
 
 function fmt(n) {

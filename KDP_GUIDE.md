@@ -7,8 +7,11 @@
 - **Color:** Blanco & Negro (escala de grises) ✓
 - **Formato:** PNG o PDF ✓
 - **Tamaño de página:** 8.5"×11" (Letter) o A4 ✓
-- **Márgenes:** Mínimo 0.5" (12.7mm) desde el borde
-- **Sangrado:** 0.125" (3.175mm) si lo deseas
+- **Márgenes:** Mínimo 0.5" (12.7mm) desde el borde (valor por defecto de la app)
+- **Sangrado:** La app exporta el PDF a tamaño trim exacto. Al subirlo a KDP
+  selecciona **"Sin sangrado" (No Bleed)**. El control "Sangrado (Bleed mm)"
+  extiende el marco artístico hacia el borde dentro de la misma página; úsalo
+  solo si margen − sangrado ≥ 6.35mm (la app avisa si lo incumples).
 
 ### Linaje y Claridad:
 - ✓ Líneas limpias, sin antialiasing borroso

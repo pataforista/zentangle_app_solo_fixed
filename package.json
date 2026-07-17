@@ -6,6 +6,7 @@
   "scripts": {
     "preview": "node _samples/contact.mjs",
     "ink": "node _samples/ink.mjs",
+    "trueprint": "node _samples/trueprint.mjs",
     "verify": "node test_verify.mjs",
     "test": "node test_verify.mjs"
   },

@@ -1,3 +1,4 @@
 node_modules/
 _samples/*.png
 _samples/*.svg
+test_out.txt

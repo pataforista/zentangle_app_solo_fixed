@@ -206,7 +206,7 @@ async function renderGallery(count = 8) {
 
   const paperKey = String(ui.paper.value || "A4");
   const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
-  let marginMm = Math.max(0, num(ui.marginMm.value, 8));
+  let marginMm = Math.max(0, num(ui.marginMm.value, 12.7));
   const { opts, zPresetKey } = buildOptsFromUI();
   if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") {
     marginMm = Math.max(marginMm, 12.5);
@@ -257,7 +257,7 @@ async function render() {
   const paperKey = String(ui.paper.value || "A4");
   const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
 
-  let marginMm = Math.max(0, num(ui.marginMm.value, 8));
+  let marginMm = Math.max(0, num(ui.marginMm.value, 12.7));
 
   const { opts, zPresetKey } = buildOptsFromUI();
 
@@ -321,7 +321,13 @@ async function render() {
     kdp_masterpiece: "KDP Masterpiece",
   }[zPresetKey] || zPresetKey;
 
-  ui.status.textContent = `✓ ${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready`;
+  // Conformidad KDP: el PDF exportado es tamaño trim (subir como "sin sangrado").
+  // El arte debe quedar a >= 6.35 mm del borde y el margen cubrir el gutter (9.5 mm para < 150 págs).
+  const artEdgeMm = marginMm - (opts.kdpBleedMm || 0);
+  let kdpWarn = "";
+  if (artEdgeMm < 6.35) kdpWarn = " | ⚠ Arte a menos de 6.35 mm del borde: KDP lo rechazaría (sube el margen o quita el sangrado)";
+  else if (marginMm < 9.5) kdpWarn = " | ⚠ Margen menor a 9.5 mm: insuficiente como gutter KDP";
+  ui.status.textContent = `✓ ${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready${kdpWarn}`;
   return { svg, opts, paperKey, zPresetKey };
 }
 
