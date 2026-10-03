@@ -7,6 +7,7 @@
     "preview": "node _samples/contact.mjs",
     "ink": "node _samples/ink.mjs",
     "trueprint": "node _samples/trueprint.mjs",
+    "colorability": "node _samples/colorability.mjs",
     "verify": "node test_verify.mjs",
     "test": "node test_verify.mjs"
   },

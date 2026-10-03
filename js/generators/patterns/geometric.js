@@ -9,7 +9,9 @@ export function fillConcentricSquares(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
     const step = rFloat(rng, Math.max(cfg.minGapMm * 1.3, minDim * 0.055), Math.max(cfg.minGapMm * 1.7, minDim * 0.09));
-    let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
+    // El primer anillo empieza un paso adentro: sobre el propio borde de la celda
+    // (y con el leve giro "a mano") dejaba una cuña finísima imposible de colorear.
+    let x0 = r.x0 + step, y0 = r.y0 + step, x1 = r.x1 - step, y1 = r.y1 - step;
     while (x1 - x0 > step * 1.15 && y1 - y0 > step * 1.15) {
         b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
         x0 += step; y0 += step; x1 -= step; y1 -= step;
@@ -21,9 +23,13 @@ export function fillAuraSquares(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
     // Paso amplio: el "aura" duplica cada línea, así que necesita más separación
-    const step = rFloat(rng, Math.max(cfg.minGapMm * 1.8, minDim * 0.08), Math.max(cfg.minGapMm * 2.3, minDim * 0.12));
-    const aura = rFloat(rng, Math.max(0.3, cfg.minGapMm * 0.25), Math.min(step * 0.3, 0.9));
-    let x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
+    // Aura = franja coloreable (>= ~1 hueco); <1 mm quedaba como un hilo blanco
+    // entre dos líneas que no se puede rellenar.
+    const aura = Math.max(1.8, cfg.minGapMm * 1.1);
+    const step = Math.max(aura * 2.6, rFloat(rng, Math.max(cfg.minGapMm * 2.2, minDim * 0.09), Math.max(cfg.minGapMm * 2.8, minDim * 0.13)));
+    // El primer anillo empieza un paso adentro: sobre el propio borde de la celda
+    // (y con el leve giro "a mano") dejaba una cuña finísima imposible de colorear.
+    let x0 = r.x0 + step, y0 = r.y0 + step, x1 = r.x1 - step, y1 = r.y1 - step;
     while (x1 - x0 > step * 1.25 && y1 - y0 > step * 1.25) {
         b.moveTo(x0, y0).lineTo(x1, y0).lineTo(x1, y1).lineTo(x0, y1).close();
         b.moveTo(x0 + aura, y0 + aura).lineTo(x1 - aura, y0 + aura).lineTo(x1 - aura, y1 - aura).lineTo(x0 + aura, y1 - aura).close();
@@ -84,10 +90,12 @@ export function fillAura(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const w = r.x1 - r.x0, h = r.y1 - r.y0;
     const minDim = Math.min(w, h);
-    const steps = rInt(rng, 5, 12);
+    // Bandas de al menos ~1.3 huecos; el anillo 0 (sobre el borde) se omite
+    // porque junto al borde de la celda solo dejaba una astilla.
+    const steps = Math.max(2, Math.min(rInt(rng, 5, 12), Math.floor((minDim * 0.45) / (cfg.minGapMm * 1.3))));
     const stepSize = (minDim * 0.45) / steps;
 
-    for (let i = 0; i < steps; i++) {
+    for (let i = 1; i < steps; i++) {
         const inset = i * stepSize;
         const box = {
             x0: r.x0 + inset,

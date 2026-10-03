@@ -16,7 +16,8 @@ export function fillCadent(rng, r, cfg) {
   const cols = Math.max(2, Math.round(w / g));
   const rows = Math.max(2, Math.round(h / g));
   const dx = w / cols, dy = h / rows;
-  const rp = Math.min(dx, dy) * 0.20; // radio de la perla
+  // Perla con área real para colorear (>= ~1 hueco de radio)
+  const rp = Math.max(cfg.minGapMm * 0.95, Math.min(dx, dy) * 0.22);
   const bow = Math.min(dx, dy) * 0.28; // curvatura de la S
 
   const X = (i) => r.x0 + i * dx;
@@ -56,8 +57,9 @@ export function fillTipple(rng, r, cfg) {
   const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
   const w = r.x1 - r.x0, h = r.y1 - r.y0;
   const minDim = Math.min(w, h);
-  const rMax = Math.max(cfg.minGapMm * 1.6, minDim * 0.16);
-  const rMin = Math.max(0.7, rMax * 0.22);
+  const rMax = Math.max(cfg.minGapMm * 1.6, 2.4, minDim * 0.16);
+  // Burbuja mínima coloreable (antes 0.7 mm: un punto de tinta)
+  const rMin = Math.max(1.6, cfg.minGapMm * 0.8, rMax * 0.22);
   const gap = cfg.minGapMm * 0.55;
   const placed = [];
   const attempts = 380;
@@ -121,8 +123,9 @@ export function fillCrescentMoon(rng, r, cfg) {
   const minDim = Math.min(w, h);
   const rowH = Math.max(cfg.minGapMm * 4.0, minDim / rInt(rng, 3, 5));
   const bump = rowH * 0.42;            // radio del bulto
-  const auras = 2;
-  const auraGap = bump / (auras + 1.4);
+  // Cada aura deja una franja >= 1 hueco y el núcleo un semicírculo coloreable
+  const auraGap = Math.max(cfg.minGapMm, bump * 0.3);
+  const auras = Math.max(0, Math.min(2, Math.floor((bump - cfg.minGapMm * 1.4) / auraGap)));
 
   for (let y = r.y0 + rowH; y <= r.y1 + bump; y += rowH) {
     const baseY = Math.min(y, r.y1);
@@ -136,7 +139,7 @@ export function fillCrescentMoon(rng, r, cfg) {
       // auras internas
       for (let k = 1; k <= auras; k++) {
         const rr = bump - k * auraGap;
-        if (rr > 0.5)
+        if (rr >= cfg.minGapMm * 1.2)
           b.moveTo(cx - rr, baseY)
            .arcTo(rr, rr, 0, 0, flip > 0 ? 1 : 0, cx + rr, baseY);
       }
@@ -153,26 +156,36 @@ export function fillFlorz(rng, r, cfg) {
   const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
   const w = r.x1 - r.x0, h = r.y1 - r.y0;
   const minDim = Math.min(w, h);
-  const g = Math.max(cfg.minGapMm * 2.4, minDim / rInt(rng, 4, 7));
+  const g = Math.max(cfg.minGapMm * 3.2, 7, minDim / rInt(rng, 4, 6));
   const cols = Math.max(2, Math.round(w / g));
   const rows = Math.max(2, Math.round(h / g));
   const dx = w / cols, dy = h / rows;
-  const node = Math.min(dx, dy) * 0.16;
+  // Rombo grande y entero: es un área para colorear, no un nudo de tinta.
+  // Antes la rejilla lo atravesaba y lo partía en 4 triangulitos de <1 mm².
+  const node = Math.max(1.8, cfg.minGapMm * 1.1, Math.min(dx, dy) * 0.22);
+  const X = (i) => r.x0 + i * dx;
+  const Y = (j) => r.y0 + j * dy;
+  const isNode = (i, j) => i > 0 && i < cols && j > 0 && j < rows;
 
-  // rejilla recta
+  // Rejilla en tramos que se detienen en la punta de cada rombo
   for (let j = 0; j <= rows; j++) {
-    const y = r.y0 + j * dy;
-    b.moveTo(r.x0, y).lineTo(r.x1, y);
+    for (let i = 0; i < cols; i++) {
+      const xa = X(i) + (isNode(i, j) ? node : 0);
+      const xb = X(i + 1) - (isNode(i + 1, j) ? node : 0);
+      b.moveTo(xa, Y(j)).lineTo(xb, Y(j));
+    }
   }
   for (let i = 0; i <= cols; i++) {
-    const x = r.x0 + i * dx;
-    b.moveTo(x, r.y0).lineTo(x, r.y1);
+    for (let j = 0; j < rows; j++) {
+      const ya = Y(j) + (isNode(i, j) ? node : 0);
+      const yb = Y(j + 1) - (isNode(i, j + 1) ? node : 0);
+      b.moveTo(X(i), ya).lineTo(X(i), yb);
+    }
   }
-  // Rombo solo en nodos INTERIORES: los del borde se recortarían a la mitad
-  // por el clip de la celda y dejarían "flechas" feas.
+  // Rombo solo en nodos INTERIORES: los del borde se recortarían a la mitad.
   for (let i = 1; i < cols; i++) {
     for (let j = 1; j < rows; j++) {
-      const x = r.x0 + i * dx, y = r.y0 + j * dy;
+      const x = X(i), y = Y(j);
       b.moveTo(x, y - node).lineTo(x + node, y)
        .lineTo(x, y + node).lineTo(x - node, y).close();
     }
