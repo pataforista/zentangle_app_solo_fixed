@@ -84,49 +84,52 @@ export function fillHollibaugh(rng, r, cfg) {
 }
 
 /**
- * Patrón FLUX: Hojas orgánicas densas.
+ * Patrón FLUX: roseta de pétalos con aura interior y núcleo concéntrico.
+ * Los pétalos se reparten en sectores iguales y nunca se solapan: antes se
+ * cruzaban con ángulos aleatorios y el centro se volvía una maraña negra.
+ * Se ancla en cfg.focus (centro del círculo inscrito de la celda) si existe.
  */
 export function fillFlux(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const cx = (r.x0 + r.x1) / 2;
-    const cy = (r.y0 + r.y1) / 2;
     const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
-    // El conteo crece suave con el tamaño y se acota: demasiados pétalos se
-    // solapan en el centro y leen como una mancha negra imposible de colorear.
-    const count = Math.min(44, Math.floor(rInt(rng, 14, 24) * Math.min(2.0, minDim / 30 + 0.55)));
-    const maxLen = minDim * 0.48;
+    const f = cfg.focus || { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2, r: minDim / 2 };
+    const gap = cfg.minGapMm;
+    const R = f.r * 0.9;
+    if (R < gap * 4) return null;
 
-    // To prevent a solid black blob in the center, offset the origin of each petal slightly
-    const centerOffset = maxLen * 0.22;
+    // Núcleo: dos círculos concéntricos (o uno si no cabe el aura)
+    const core = Math.max(gap * 1.3, R * rFloat(rng, 0.18, 0.24));
+    b.circle(f.x, f.y, core);
+    if (core > gap * 2.4) b.circle(f.x, f.y, core - gap);
 
-    for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2 + rFloat(rng, -0.2, 0.2);
-        const len = rFloat(rng, maxLen * 0.4, maxLen); 
-        const bulbW = rFloat(rng, len * 0.15, len * 0.35); 
+    // Tantos pétalos como quepan con ~3 huecos de ancho a media altura
+    const mid = (core + R) / 2;
+    const n = Math.max(7, Math.min(22, Math.floor((Math.PI * 2 * mid) / (gap * 3.4))));
+    const half = Math.PI / n;
+    const a0 = rFloat(rng, 0, Math.PI * 2);
+    const tipJitter = R * 0.04;
 
-        // Start point of petal (offset from absolute center)
-        const sx = cx + Math.cos(angle) * centerOffset;
-        const sy = cy + Math.sin(angle) * centerOffset;
-
-        const ex = cx + Math.cos(angle) * len;
-        const ey = cy + Math.sin(angle) * len;
-
-        // Draw a tear-drop / petal shape
-        const c1x = cx + Math.cos(angle - 0.4) * (len * 0.6);
-        const c1y = cy + Math.sin(angle - 0.4) * (len * 0.6);
-        const c2x = cx + Math.cos(angle + 0.4) * (len * 0.6);
-        const c2y = cy + Math.sin(angle + 0.4) * (len * 0.6);
-
-        // Draw leaf
-        b.moveTo(ex, ey);
-        b.cubicTo(c1x, c1y, sx, sy, sx, sy);
-        b.cubicTo(sx, sy, c2x, c2y, ex, ey);
-
-        // Inner line
-        b.moveTo(sx, sy);
-        b.lineTo(cx + Math.cos(angle) * (len * 0.7), cy + Math.sin(angle) * (len * 0.7));
+    for (let i = 0; i < n; i++) {
+        const a = a0 + i * 2 * half;
+        const tip = R - rFloat(rng, 0, tipJitter);
+        _petal(b, f, a, half * 0.96, core, tip);
+        // Aura interior del pétalo si hay sitio para colorear entre líneas
+        const innerHalf = half * 0.5;
+        if (mid * innerHalf * 2 > gap * 2 && tip - core > gap * 4) {
+            _petal(b, f, a, innerHalf, core + gap, tip - gap * 1.6);
+        }
     }
     return b.d;
+}
+
+// Pétalo en el sector [a-half, a+half]: base sobre el círculo r0, punta en r1.
+// Los controles quedan dentro del sector, así pétalos vecinos solo se tocan.
+function _petal(b, f, a, half, r0, r1) {
+    const pt = (ang, rad) => ({ x: f.x + Math.cos(ang) * rad, y: f.y + Math.sin(ang) * rad });
+    const bl = pt(a - half, r0), br = pt(a + half, r0), tp = pt(a, r1);
+    const cr = r0 + (r1 - r0) * 0.62;
+    const cl = pt(a - half, cr), cR = pt(a + half, cr);
+    b.moveTo(bl.x, bl.y).quadTo(cl.x, cl.y, tp.x, tp.y).quadTo(cR.x, cR.y, br.x, br.y);
 }
 
 // Helper functions for clipping polygons to rectangles

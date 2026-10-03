@@ -258,6 +258,23 @@ export async function generateZentangleCells(doc, opts) {
   const borderMultiplier = opts.borderStrokeMultiplier || 1.45;
   const borderStroke = cellStroke * borderMultiplier;
 
+  // --- Strings de celdas poligonales ---
+  // Un único campo de deformación suave y continuo para toda la página: dos
+  // celdas vecinas deforman su arista común exactamente igual (sin huecos ni
+  // líneas dobles). En "strings"/"template" curva los cortes como un string
+  // trazado a mano; en hex/tri/voronoi solo añade un temblor leve.
+  const isStringLayout = cellLayout === "strings" || cellLayout === "template";
+  const pageMin = Math.min(baseRect.x1 - baseRect.x0, baseRect.y1 - baseRect.y0);
+  const warpAmpMm = isStringLayout
+    ? safeClamp(opts.stringWarpMm, 0, 20, pageMin * 0.04)
+    : (innerOrganicBorderEnabled ? innerOrganicJitterMm : 0);
+  const warpWavelengthMm = isStringLayout ? pageMin * 0.55 : 8 + innerOrganicRoundMm * 6;
+  const warp = _makeWarpField(hash(seed >>> 0, 29), baseRect, warpAmpMm, warpWavelengthMm);
+  const warpSegMm = isStringLayout ? 2 : 3;
+  const stringGapMm = Math.max(0.5, Math.min(2.4,
+    innerMarginMm * 0.5 + (innerOrganicBorderEnabled ? innerOrganicBorderInsetMm : 0.4) + whiteSpaceMm * 0.35));
+  const stringDs = [];
+
   // 2) Dibujar cada celda
   // Anti-repetición GLOBAL: se conserva entre celdas (no solo entre capas) para
   // que celdas vecinas no caigan en el mismo tangle => páginas más variadas.
@@ -284,8 +301,21 @@ export async function generateZentangleCells(doc, opts) {
     const rot = _pickRotation(rng, rotatePatterns, rotationSet);
     const margin = innerMarginMm + (rot !== 0 ? extraMarginWhenRotatedMm : 0);
 
-    // Aire editorial: shrink bbox + whiteSpace
-    const box = _shrinkRect(cell.bbox, margin + Math.max(0, whiteSpaceMm));
+    // Celdas poligonales: el contorno real (recortado a la página, densificado
+    // y deformado por el campo global) es a la vez el string visible y el clip,
+    // así el patrón nunca cruza la línea que lo encierra.
+    let cellPoly = null;
+    let cellBBox = cell.bbox;
+    if (cell.kind !== "rect") {
+      const clippedPoly = _clipPolyToRect(cell.poly, baseRect);
+      if (!clippedPoly || clippedPoly.length < 3 || Math.abs(_polyArea(clippedPoly)) < 4) continue;
+      cellPoly = warp ? _densifyPoly(clippedPoly, warpSegMm).map(warp) : clippedPoly;
+      cellBBox = _bboxOfPoly(cellPoly);
+    }
+
+    // Aire editorial: en rects el whiteSpace es el canal entre cajas; en
+    // polígonos el aire lo pone el halo blanco del string (ver más abajo).
+    const box = _shrinkRect(cellBBox, margin + (cellPoly ? 0 : Math.max(0, whiteSpaceMm)));
     if (!_isValidRect(box)) continue;
 
     const w = box.x1 - box.x0;
@@ -298,8 +328,9 @@ export async function generateZentangleCells(doc, opts) {
     const shadowId = `${renderPrefix}shadow_${i}`;
     const clipId = `${renderPrefix}clip_${i}`;
     let clipD = "";
-    const shadowAttr = (opts.cellShadowEnabled === true) ? ` filter="url(#${shadowId})"` : "";
-    if (opts.cellShadowEnabled === true) {
+    const shadowOn = opts.cellShadowEnabled === true && !cellPoly;
+    const shadowAttr = shadowOn ? ` filter="url(#${shadowId})"` : "";
+    if (shadowOn) {
       pushDef(`
         <filter id="${shadowId}" x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur" />
@@ -329,29 +360,11 @@ export async function generateZentangleCells(doc, opts) {
       const borderD = clipD;
       doc.body.push(`<path d="${borderD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
     } else {
-      // Polígono
-      // Recorte previo al área de la página para que el borde interior no desborde (y el centroide sea correcto)
-      const clippedPoly = _clipPolyToRect(cell.poly, baseRect);
-      if (!clippedPoly || clippedPoly.length < 3) continue;
-
-      const poly = _clipPolyToRect(clippedPoly, box);
-      if (!poly || poly.length < 3) continue;
-
-      clipD = _polyPathD(poly, true);
-
-      // Borde visible: orgánico interno + Sombra
-      if (innerOrganicBorderEnabled) {
-        const dynInset = Math.max(0.3, Math.min(innerOrganicBorderInsetMm, minDim * 0.06));
-        const innerPoly = _polyInsetToCentroid(clippedPoly, dynInset);
-        // Validar que el inset no colapsó
-        if (innerPoly && innerPoly.length >= 3 && Math.abs(_polyArea(innerPoly)) > 4) {
-          const finalInner = _clipPolyToRect(innerPoly, box) || innerPoly; // Clip final al margen
-          const innerD = _organicPolyStrokeD(rng, finalInner, Math.max(0, innerOrganicJitterMm), Math.max(0, innerOrganicRoundMm));
-          doc.body.push(`<path d="${innerD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
-        }
-      } else {
-        doc.body.push(`<path d="${clipD}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"${shadowAttr}/>`);
-      }
+      // Polígono: las aristas compartidas son idénticas en ambas celdas, de
+      // modo que el string se dibuja una sola vez al final (con halo), sin
+      // líneas dobles ni cuñas negras en las uniones.
+      clipD = _polyPathD(cellPoly, true);
+      stringDs.push(clipD);
     }
 
     // Clip defs
@@ -359,6 +372,13 @@ export async function generateZentangleCells(doc, opts) {
 
     const cx = (box.x0 + box.x1) / 2;
     const cy = (box.y0 + box.y1) / 2;
+
+    // Foco de la celda (centro del mayor círculo inscrito): los motivos
+    // radiales se anclan aquí y no al centro del bbox, que en triángulos o
+    // celdas irregulares cae junto a un borde.
+    const focusPage = cellPoly
+      ? _polyFocus(cellPoly, cellBBox)
+      : { x: cx, y: cy, r: minDim / 2 };
 
     // --- Capas / densidad ---
     const distToCenter = Math.sqrt(Math.pow(cx - (baseRect.x0 + baseRect.x1) / 2, 2) + Math.pow(cy - (baseRect.y0 + baseRect.y1) / 2, 2));
@@ -472,6 +492,16 @@ export async function generateZentangleCells(doc, opts) {
         genBox = { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh };
       }
 
+      // El patrón se rota alrededor de (cx, cy): el foco se lleva al espacio
+      // del patrón con la rotación inversa para que caiga en su sitio.
+      const fr = (-totalRot * Math.PI) / 180;
+      const fdx = focusPage.x - cx, fdy = focusPage.y - cy;
+      cellCfg.focus = {
+        x: cx + fdx * Math.cos(fr) - fdy * Math.sin(fr),
+        y: cy + fdx * Math.sin(fr) + fdy * Math.cos(fr),
+        r: focusPage.r,
+      };
+
       let d = fn(rng, genBox, cellCfg);
 
       // Meta-Patterns: Círculos invocan stippling en los huecos (ocasional, para no entintar)
@@ -528,6 +558,15 @@ export async function generateZentangleCells(doc, opts) {
     }
   }
 
+  // 7) Strings de las celdas poligonales: primero un halo blanco que abre el
+  // aire entre patrón y línea (como al tanglear a mano, el patrón se detiene
+  // justo antes del string), luego la línea negra encima.
+  if (stringDs.length) {
+    const all = stringDs.join(" ");
+    doc.body.push(`<path d="${all}" fill="none" stroke="#fff" stroke-width="${_fmt(borderStroke + 2 * stringGapMm)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    doc.body.push(`<path d="${all}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+  }
+
   // Fallback defs injection
   if (!useDocDefs && localDefs.length) {
     doc.body.unshift(`<defs>${localDefs.join("")}</defs>`);
@@ -549,7 +588,8 @@ function _makeCells(rng, baseRect, cfg) {
   if (cellLayout === "hex") return _makeHexCells(baseRect, Math.max(6, hexRadiusMm));
   if (cellLayout === "tri") return _makeTriCells(baseRect, Math.max(10, triSideMm));
   if (cellLayout === "voronoi") return _makeVoronoiCells(rng, baseRect, Math.max(10, cellCount));
-  if (cellLayout === "strings") return _makeStringCells(rng, baseRect, Math.max(2, Math.floor(cellCount / 8)));
+  // cellCount/8 dejaba los presets de strings (cellCount ~18) en 2 celdas.
+  if (cellLayout === "strings") return _makeStringCells(rng, baseRect, Math.max(3, Math.round(cellCount / 2.5)));
 
   if (cellLayout === "template") {
     const names = Object.keys(LAYOUT_TEMPLATES);
@@ -667,14 +707,10 @@ function _makeStringCells(rng, rect, count) {
     polygons = _recursiveBezierSplit(rng, rect, depth);
   }
 
-  return polygons.map(poly => {
-    const w = _bboxOfPoly(poly);
-    const minDim = Math.min(w.x1 - w.x0, w.y1 - w.y0);
-    // Reduced warp to prevent boundary escape
-    const warpAmt = minDim * 0.065; 
-    const warped = _warpPolyOrganic(rng, poly, warpAmt);
-    return { kind: "poly", bbox: _bboxOfPoly(warped), poly: warped };
-  });
+  // La curvatura del string la aplica después el campo de deformación global
+  // (compartido por todas las celdas): deformar cada celda por separado abría
+  // huecos entre vecinas.
+  return polygons.map(poly => ({ kind: "poly", bbox: _bboxOfPoly(poly), poly }));
 }
 
 function _radialSplit(rng, rect, rays) {
@@ -702,20 +738,6 @@ function _radialSplit(rng, rect, rays) {
     if (clipped && clipped.length >= 3) {
       res.push(_subdividePoly(clipped));
     }
-  }
-  return res;
-}
-
-function _warpPolyOrganic(rng, poly, amount) {
-  // Perturba los puntos del polígono para dar look de "curva"
-  const res = [];
-  const seed = rng() * 100;
-  for (let i = 0; i < poly.length; i++) {
-    const p = poly[i];
-    // Usamos senos/cosenos para una deformación continua (tipo ruido simple)
-    const offX = Math.sin(p.y * 0.2 + seed) * amount;
-    const offY = Math.cos(p.x * 0.2 + seed) * amount;
-    res.push({ x: p.x + offX, y: p.y + offY });
   }
   return res;
 }
@@ -873,11 +895,12 @@ function _makeTriCells(baseRect, side) {
         cells.push({ kind: "poly", bbox, poly: up });
       }
 
-      // Down triangle
+      // Down triangle: ocupa el hueco entre este "up" y el siguiente. Antes
+      // compartía base con el "up" y se solapaban (rombos en vez de teselado).
       const dn = [
-        { x: x, y: y },
-        { x: x + side, y: y },
-        { x: x + side / 2, y: y + triH },
+        { x: x + side / 2, y: y },
+        { x: x + side * 1.5, y: y },
+        { x: x + side, y: y + triH },
       ];
       bbox = _bboxOfPoly(dn);
       if (!(bbox.x1 < baseRect.x0 - side || bbox.x0 > baseRect.x1 + side || bbox.y1 < baseRect.y0 - triH || bbox.y0 > baseRect.y1 + triH)) {
@@ -1002,85 +1025,98 @@ function _intersectY(a, b, y) {
   return { x: a.x + (b.x - a.x) * t, y };
 }
 
-// Simple inset: move each vertex towards centroid by a distance (approx)
-function _polyInsetToCentroid(poly, inset) {
-  const c = _centroid(poly);
-  if (!c) return null;
+// Campo de deformación global, suave y continuo (suma de 3 ondas planas).
+// Se atenúa a cero junto al marco de la página para que los strings que
+// llegan al borde no se separen de él. Devuelve null si la amplitud es 0.
+function _makeWarpField(seed, rect, ampMm, wavelengthMm) {
+  if (!(ampMm > 0) || !(wavelengthMm > 0)) return null;
+  const r = createRNG(seed >>> 0);
+  const waves = [];
+  let wSum = 0;
+  for (let i = 0; i < 3; i++) {
+    const a = r() * Math.PI * 2;
+    const k = (Math.PI * 2) / (wavelengthMm * (0.75 + r() * 0.6));
+    const w = 0.5 + r() * 0.5;
+    wSum += w;
+    waves.push({ kx: Math.cos(a) * k, ky: Math.sin(a) * k, px: r() * Math.PI * 2, py: r() * Math.PI * 2, w });
+  }
+  for (const wv of waves) wv.w /= wSum;
+  const ramp = Math.max(3, ampMm * 3);
+  return (p) => {
+    const d = Math.min(p.x - rect.x0, rect.x1 - p.x, p.y - rect.y0, rect.y1 - p.y);
+    let t = Math.max(0, Math.min(1, d / ramp));
+    t = t * t * (3 - 2 * t);
+    if (t <= 0) return { x: p.x, y: p.y };
+    let dx = 0, dy = 0;
+    for (const wv of waves) {
+      dx += wv.w * Math.sin(wv.kx * p.x + wv.ky * p.y + wv.px);
+      dy += wv.w * Math.sin(wv.kx * p.y - wv.ky * p.x + wv.py);
+    }
+    return { x: p.x + dx * ampMm * t, y: p.y + dy * ampMm * t };
+  };
+}
+
+// Subdivide cada arista en tramos <= segMm. La subdivisión es simétrica, así
+// que la arista compartida A→B / B→A produce los mismos puntos en ambas celdas.
+function _densifyPoly(poly, segMm) {
   const out = [];
-  for (const p of poly) {
-    const vx = p.x - c.x;
-    const vy = p.y - c.y;
-    const len = Math.hypot(vx, vy) || 1;
-    const scale = Math.max(0.01, (len - inset) / len);
-    out.push({ x: c.x + vx * scale, y: c.y + vy * scale });
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / segMm));
+    for (let k = 0; k < n; k++) {
+      const t = k / n;
+      out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+    }
   }
   return out;
 }
 
-function _centroid(poly) {
-  let x = 0, y = 0;
-  for (const p of poly) { x += p.x; y += p.y; }
-  const n = poly.length || 1;
-  return { x: x / n, y: y / n };
+function _pointInPoly(p, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
 }
 
-// Organic stroke around a polygon (jitter along tangent/normal + rounded corners)
-function _organicPolyStrokeD(rng, poly, jitterMm, cornerR) {
-  // Build a polyline with jittered points
-  const pts = [];
-  const n = poly.length;
-  for (let i = 0; i < n; i++) {
-    const p0 = poly[(i - 1 + n) % n];
-    const p1 = poly[i];
-    const p2 = poly[(i + 1) % n];
-
-    const tx = p2.x - p0.x;
-    const ty = p2.y - p0.y;
-    const tlen = Math.hypot(tx, ty) || 1;
-    const ux = tx / tlen;
-    const uy = ty / tlen;
-
-    // normal
-    const nx = -uy;
-    const ny = ux;
-
-    const jt = rFloat(rng, -jitterMm, jitterMm) * 0.45;
-    const jn = rFloat(rng, -jitterMm, jitterMm);
-
-    pts.push({ x: p1.x + ux * jt + nx * jn, y: p1.y + uy * jt + ny * jn });
+function _distToPolyEdges(p, poly) {
+  let best = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[j], b = poly[i];
+    const vx = b.x - a.x, vy = b.y - a.y;
+    const l2 = vx * vx + vy * vy;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / l2)) : 0;
+    const d = Math.hypot(p.x - (a.x + vx * t), p.y - (a.y + vy * t));
+    if (d < best) best = d;
   }
+  return best;
+}
 
-  // Rounded corners via quadTo around each vertex
-  const b = new PathBuilder({ sketchy: 0, rng }); // No sketchy for border usually, or maybe yes?
-  // Let's passed 0 for border strictness
-  const rr = Math.max(0, cornerR);
-
-  for (let i = 0; i < pts.length; i++) {
-    const pPrev = pts[(i - 1 + n) % n];
-    const p = pts[i];
-    const pNext = pts[(i + 1) % n];
-
-    const v1x = p.x - pPrev.x, v1y = p.y - pPrev.y;
-    const v2x = pNext.x - p.x, v2y = pNext.y - p.y;
-
-    const l1 = Math.hypot(v1x, v1y) || 1;
-    const l2 = Math.hypot(v2x, v2y) || 1;
-
-    const r = Math.min(rr, l1 * 0.35, l2 * 0.35);
-
-    const a1x = p.x - (v1x / l1) * r;
-    const a1y = p.y - (v1y / l1) * r;
-    const a2x = p.x + (v2x / l2) * r;
-    const a2y = p.y + (v2y / l2) * r;
-
-    if (i === 0) b.moveTo(a1x, a1y);
-    else b.lineTo(a1x, a1y);
-
-    b.quadTo(p.x, p.y, a2x, a2y);
+// Aproxima el centro del mayor círculo inscrito (polo de inaccesibilidad)
+// con dos pasadas de rejilla. Determinista: no consume rng.
+function _polyFocus(poly, bbox) {
+  let best = { x: (bbox.x0 + bbox.x1) / 2, y: (bbox.y0 + bbox.y1) / 2, r: 0 };
+  let span = { x0: bbox.x0, y0: bbox.y0, x1: bbox.x1, y1: bbox.y1 };
+  for (let pass = 0; pass < 2; pass++) {
+    const N = 12;
+    const sx = (span.x1 - span.x0) / N, sy = (span.y1 - span.y0) / N;
+    for (let i = 0; i <= N; i++) {
+      for (let j = 0; j <= N; j++) {
+        const p = { x: span.x0 + sx * i, y: span.y0 + sy * j };
+        if (!_pointInPoly(p, poly)) continue;
+        const d = _distToPolyEdges(p, poly);
+        if (d > best.r) best = { x: p.x, y: p.y, r: d };
+      }
+    }
+    span = { x0: best.x - sx, y0: best.y - sy, x1: best.x + sx, y1: best.y + sy };
   }
-
-  b.close();
-  return b.d;
+  if (best.r <= 0) {
+    const w = bbox.x1 - bbox.x0, h = bbox.y1 - bbox.y0;
+    best.r = Math.min(w, h) / 2;
+  }
+  return best;
 }
 
 // Organic rect (clip orgánico real)

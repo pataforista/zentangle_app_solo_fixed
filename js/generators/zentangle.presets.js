@@ -127,7 +127,9 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 1.6,
 
     maxPatternPassesPerCell: 1,
-    patternSkipProb: 0.45,
+    // 0.45 dejaba ~2/3 de los hexágonos vacíos (el skip se multiplica por la
+    // densidad de página y el foco): la página dejaba de leerse como zentangle.
+    patternSkipProb: 0.22,
     whiteSpaceMm: 2.8,
 
     rotatePatterns: false, // en grids regulares, suele verse más limpio sin rotar
@@ -154,9 +156,9 @@ export const ZENTANGLE_PRESETS = {
     cellBorderWidthMm: 0.75,
     patternStrokeMm: 0.35,
     minStrokeMm: 0.28,
-    minGapMm: 4.5, // Espacio entre líneas extremo
+    minGapMm: 2.2, // 4.5 dejaba patrones de 3-4 trazos sueltos: no se leían como tangle
     maxPatternPassesPerCell: 1, 
-    patternSkipProb: 0.50, // 50% de las celdas vacías para un look minimalista y aireado
+    patternSkipProb: 0.25, // aire sin vaciar la página (0.50 dejaba ~60% de celdas en blanco)
     whiteSpaceMm: 2.5, // Margen interno generoso
 
     rotatePatterns: false,

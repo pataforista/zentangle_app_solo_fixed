@@ -93,32 +93,35 @@ export function fillScallops(rng, r, cfg) {
     return b.d;
 }
 
+// Espiral de bandas: dos brazos de Arquímedes entrelazados (desfasados π)
+// que nacen juntos en el foco y cubren toda la celda con bandas de ancho
+// constante, listas para colorear. Antes eran 2-4 espirales sueltas que se
+// cortaban a medio giro y dejaban la celda con aspecto inacabado.
 export function fillSpiralBands(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
-    const cx = (r.x0 + r.x1) / 2;
-    const cy = (r.y0 + r.y1) / 2;
-    const maxR = Math.min(r.x1 - r.x0, r.y1 - r.y0) * 0.45;
-    if (maxR < cfg.minGapMm * 2.2) return null;
+    const minDim = Math.min(r.x1 - r.x0, r.y1 - r.y0);
+    const f = cfg.focus || { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2, r: minDim / 2 };
+    if (f.r < cfg.minGapMm * 2.5) return null;
 
-    const bands = rInt(rng, 2, 4);
+    // pitch = separación entre vueltas del mismo brazo; banda = pitch / 2
+    const pitch = Math.max(cfg.minGapMm * 3.6, f.r / rInt(rng, 3, 5));
+    const reach = Math.max(
+        Math.hypot(f.x - r.x0, f.y - r.y0), Math.hypot(f.x - r.x1, f.y - r.y0),
+        Math.hypot(f.x - r.x0, f.y - r.y1), Math.hypot(f.x - r.x1, f.y - r.y1));
+    const thetaMax = Math.min(16, reach / pitch) * Math.PI * 2;
+    const dir = rng() < 0.5 ? 1 : -1;
+    const a0 = rFloat(rng, 0, Math.PI * 2);
     const maxSegLenMm = 1.2;
 
-    for (let k = 0; k < bands; k++) {
-        let a = rFloat(rng, 0, Math.PI * 2);
-        let rad = maxR * (0.98 - k * 0.18);
-        const totalAngle = rFloat(rng, 2.3, 3.4) * Math.PI * 2;
-        const approxLen = Math.max(1, (rad * 0.55) * totalAngle);
-        const steps = Math.max(24, Math.min(100, Math.round(approxLen / maxSegLenMm)));
-        const stepAngle = totalAngle / steps;
-        const decay = Math.pow(0.20, 1 / steps);
-
-        b.moveTo(cx + rad * Math.cos(a), cy + rad * Math.sin(a));
-        for (let i = 0; i < steps; i++) {
-            a += stepAngle;
-            rad *= (0.985 + rFloat(rng, -0.003, 0.002));
-            rad *= decay;
-            if (rad < maxR * 0.10) break;
-            b.lineTo(cx + rad * Math.cos(a), cy + rad * Math.sin(a));
+    for (const arm of [0, Math.PI]) {
+        let th = 0;
+        b.moveTo(f.x, f.y);
+        while (th < thetaMax) {
+            const rad = (pitch * th) / (Math.PI * 2);
+            th += Math.min(0.35, maxSegLenMm / Math.max(rad, 0.5));
+            const rr = (pitch * th) / (Math.PI * 2);
+            const a = a0 + arm + dir * th;
+            b.lineTo(f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr);
         }
     }
     return b.d;
