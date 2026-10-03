@@ -2,3 +2,4 @@ node_modules/
 _samples/*.png
 _samples/*.svg
 test_out.txt
+_samples/dbg_*.png

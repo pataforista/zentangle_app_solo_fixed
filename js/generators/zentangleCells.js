@@ -218,7 +218,9 @@ export async function generateZentangleCells(doc, opts) {
   const families = {
     geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit, fillFlorz, fillCadent],
     organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves, fillCrescentMoon, fillTipple, fillPrintemps],
-    dense: [fillStippling, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
+    // Sin fillStippling: los puntos no delimitan nada que colorear y en
+    // imprenta se leen como suciedad.
+    dense: [fillTipple, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
     // Familia dedicada a tangles auténticos reconocibles (look Zentangle clásico)
     tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
   };
@@ -271,8 +273,11 @@ export async function generateZentangleCells(doc, opts) {
   const warpWavelengthMm = isStringLayout ? pageMin * 0.55 : 8 + innerOrganicRoundMm * 6;
   const warp = _makeWarpField(hash(seed >>> 0, 29), baseRect, warpAmpMm, warpWavelengthMm);
   const warpSegMm = isStringLayout ? 2 : 3;
-  const stringGapMm = Math.max(0.5, Math.min(2.4,
-    innerMarginMm * 0.5 + (innerOrganicBorderEnabled ? innerOrganicBorderInsetMm : 0.4) + whiteSpaceMm * 0.35));
+  // Halo blanco opcional entre patrón y string (look Zentangle "a mano").
+  // Desactivado por defecto: en un libro para colorear el canal blanco une
+  // todas las bandas de la celda en una sola región abierta; sin halo cada
+  // banda termina en el string y queda cerrada, lista para rellenar.
+  const stringGapMm = safeClamp(opts.stringHaloMm, 0, 3, 0);
   const stringDs = [];
 
   // 2) Dibujar cada celda
@@ -504,8 +509,11 @@ export async function generateZentangleCells(doc, opts) {
 
       let d = fn(rng, genBox, cellCfg);
 
-      // Meta-Patterns: Círculos invocan stippling en los huecos (ocasional, para no entintar)
-      if (fn === fillCircles && rng() < 0.30 && minDim > 20) {
+      // Meta-Patterns: Círculos invocan stippling en los huecos. Solo si se pide
+      // (stipplingEnabled): en un libro para colorear los puntos estorban.
+      // El rng se consume igual para no alterar la secuencia determinista.
+      const wantStipple = rng() < 0.30;
+      if (opts.stipplingEnabled === true && fn === fillCircles && wantStipple && minDim > 20) {
         const stipD = fillStippling(rng, genBox, cellCfg, true);
         if (stipD) d += " " + stipD;
       }
@@ -558,12 +566,13 @@ export async function generateZentangleCells(doc, opts) {
     }
   }
 
-  // 7) Strings de las celdas poligonales: primero un halo blanco que abre el
-  // aire entre patrón y línea (como al tanglear a mano, el patrón se detiene
-  // justo antes del string), luego la línea negra encima.
+  // 7) Strings de las celdas poligonales, una sola vez y encima de los
+  // patrones (con halo blanco debajo solo si se pidió stringHaloMm).
   if (stringDs.length) {
     const all = stringDs.join(" ");
-    doc.body.push(`<path d="${all}" fill="none" stroke="#fff" stroke-width="${_fmt(borderStroke + 2 * stringGapMm)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    if (stringGapMm > 0) {
+      doc.body.push(`<path d="${all}" fill="none" stroke="#fff" stroke-width="${_fmt(borderStroke + 2 * stringGapMm)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    }
     doc.body.push(`<path d="${all}" fill="none" stroke="#000" stroke-width="${_fmt(borderStroke)}" stroke-linecap="round" stroke-linejoin="round"/>`);
   }
 

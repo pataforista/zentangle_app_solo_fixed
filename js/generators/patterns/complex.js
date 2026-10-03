@@ -19,14 +19,14 @@ export function fillParadox(rng, r, cfg) {
     const steps = Math.min(9, Math.floor(minDim / 5));
     const ratio = rFloat(rng, 0.12, 0.18);
 
-    _drawParadoxTriangle(b, [poly[0], poly[1], poly[2]], steps, ratio);
-    _drawParadoxTriangle(b, [poly[0], poly[3], poly[2]], steps, ratio);
+    _drawParadoxTriangle(b, [poly[0], poly[1], poly[2]], steps, ratio, cfg.minGapMm * 1.2);
+    _drawParadoxTriangle(b, [poly[0], poly[3], poly[2]], steps, ratio, cfg.minGapMm * 1.2);
     
     return b.d;
 }
 
 // Updated _drawParadoxTriangle to accept ratio and use sw for stroke width if needed (not directly in this function)
-function _drawParadoxTriangle(b, pts, steps, ratio) {
+function _drawParadoxTriangle(b, pts, steps, ratio, minGap = 0) {
     let current = [...pts];
     const shift = ratio; // Use the new ratio for displacement
 
@@ -35,6 +35,11 @@ function _drawParadoxTriangle(b, pts, steps, ratio) {
         // Check for degenerate triangle to prevent infinite loops or scribbles
         const area = 0.5 * Math.abs(p0.x * (p1.y - p2.y) + p1.x * (p2.y - p0.y) + p2.x * (p0.y - p1.y));
         if (area < 0.5) break; // Stop if triangle is too small to avoid black blobs
+        // Para colorear: si el siguiente giro desplaza los vértices menos de un
+        // hueco, las franjas nuevas serían hilos imposibles de rellenar.
+        const minSide = Math.min(Math.hypot(p1.x - p0.x, p1.y - p0.y),
+            Math.hypot(p2.x - p1.x, p2.y - p1.y), Math.hypot(p0.x - p2.x, p0.y - p2.y));
+        if (i > 0 && minSide * shift < minGap) break;
 
         b.moveTo(p0.x, p0.y)
          .lineTo(p1.x, p1.y)
@@ -58,22 +63,27 @@ export function fillHollibaugh(rng, r, cfg) {
     // Wide ribbons read better for KDP coloring than hairline strokes
     const width = rFloat(rng, minDim * 0.10, minDim * 0.18);
     const count = rInt(rng, 3, 6);
+    // Cintas de la misma orientación separadas al menos un ancho: al solaparse
+    // casi paralelas dejaban astillas de <1 mm imposibles de colorear.
+    const placed = { v: [], h: [] };
+    const clear = (list, p) => list.every(q => Math.abs(q - p) > width * 2 + cfg.minGapMm);
 
-    // Cada cinta se dibuja como banda cerrada; el renderer la rellena de blanco
-    // para tapar lo de abajo y dar sensación de entrelazado.
     for (let i = 0; i < count; i++) {
         const isVertical = rng() > 0.5;
-        // Introduce slight angles instead of pure orthogonal for better weaving
-        const angleOffset = rFloat(rng, -0.1, 0.1); 
-        
+        const angleOffset = rFloat(rng, -0.04, 0.04);
+
         if (isVertical) {
             const x = rFloat(rng, r.x0 + width, r.x1 - width * 2);
+            if (!clear(placed.v, x)) continue;
+            placed.v.push(x);
             // Draw a slightly angled ribbon
             b.moveTo(x, r.y0).lineTo(x + width, r.y0)
              .lineTo(x + width + angleOffset * (r.y1 - r.y0), r.y1)
              .lineTo(x + angleOffset * (r.y1 - r.y0), r.y1).close();
         } else {
             const y = rFloat(rng, r.y0 + width, r.y1 - width * 2);
+            if (!clear(placed.h, y)) continue;
+            placed.h.push(y);
             // Draw a slightly angled ribbon
             b.moveTo(r.x0, y).lineTo(r.x0, y + width)
              .lineTo(r.x1, y + width + angleOffset * (r.x1 - r.x0))
