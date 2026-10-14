@@ -134,7 +134,8 @@ export class PathBuilder {
 
   // Muestrea una curva paramétrica (t en 0..1, extremos incluidos) con densidad según longitud
   _sampleCurve(approxLen, pointAt) {
-    const segments = Math.max(2, Math.min(10, Math.round(approxLen / 4)));
+    // Mínimo 4 tramos: con 2 las curvas cortas (corazones, hojas) salían angulosas.
+    const segments = Math.max(4, Math.min(10, Math.round(approxLen / 3)));
     const pts = [];
     for (let s = 0; s <= segments; s++) pts.push(pointAt(s / segments));
     return pts;

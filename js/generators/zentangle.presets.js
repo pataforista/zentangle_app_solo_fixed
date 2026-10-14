@@ -673,4 +673,85 @@ export const ZENTANGLE_PRESETS = {
     focusMode: false,
     borderStrokeMultiplier: 1.42,
   },
+  // ========== MUESTRARIOS (una unidad = un motivo) ==========
+  // cellCount = número aproximado de unidades; samplerSolids rellena las masas
+  // negras (muestrario de tinta) o las deja en contorno (para colorear).
+
+  sampler_circles: {
+    cellLayout: "sampler",
+    cellCount: 20,
+    samplerShape: "circle",
+    samplerSet: "all",
+    samplerSolids: true,
+    cellBorderWidthMm: 0.8,
+    patternStrokeMm: 0.5,
+    minGapMm: 1.8,
+    sketchy: 0.3,
+  },
+
+  sampler_coloring: {
+    cellLayout: "sampler",
+    cellCount: 20,
+    samplerShape: "circle",
+    samplerSet: "all",
+    samplerSolids: false,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.55,
+    minGapMm: 2.0,
+    sketchy: 0.25,
+  },
+
+  sampler_squares: {
+    cellLayout: "sampler",
+    cellCount: 20,
+    samplerShape: "rounded",
+    samplerSet: "all",
+    samplerSolids: true,
+    samplerGapMm: 4,
+    cellBorderWidthMm: 0.8,
+    patternStrokeMm: 0.5,
+    minGapMm: 1.8,
+    sketchy: 0.3,
+  },
+
+  sampler_mini: {
+    cellLayout: "sampler",
+    cellCount: 48,
+    samplerShape: "circle",
+    samplerSet: "all",
+    samplerSolids: true,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.6,
+    patternStrokeMm: 0.38,
+    minGapMm: 1.3,
+    sketchy: 0.2,
+  },
+  // Imágenes reconocibles (estrellas, luna, sol, mariposa, peces, hongos, paraguas,
+  // loto, gato...). Pocas unidades grandes: cada icono tiene áreas coloreables
+  // amplias. samplerSet "iconic" mezcla iconos con texturas suaves.
+  sampler_icons: {
+    cellLayout: "sampler",
+    cellCount: 12,
+    samplerShape: "circle",
+    samplerSet: "iconic",
+    samplerSolids: false,
+    samplerGapMm: 6,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.6,
+    minGapMm: 2.2,
+    sketchy: 0.2,
+  },
+
+  sampler_icons_ink: {
+    cellLayout: "sampler",
+    cellCount: 12,
+    samplerShape: "circle",
+    samplerSet: "iconic",
+    samplerSolids: true,
+    samplerGapMm: 6,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.6,
+    minGapMm: 2.2,
+    sketchy: 0.2,
+  },
 };

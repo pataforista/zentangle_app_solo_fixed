@@ -1,5 +1,10 @@
 import assert from "assert";
 import { generateZentangleCells } from "./js/generators/zentangleCells.js";
+import { generateZentangle } from "./js/generators/zentangle.generator.js";
+import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
+import { MOTIFS } from "./js/generators/patterns/motifs.js";
+import { ICONS } from "./js/generators/patterns/icons.js";
+import { createRNG } from "./js/core/prng.js";
 
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
@@ -153,6 +158,58 @@ async function runTests() {
     const qClean = (docSk0.body.join("").match(/Q /g) || []).length;
     assert.ok(qRough > qClean, `ERROR: Las curvas no se subdividen en modo sketchy (Q rough=${qRough} <= Q clean=${qClean}).`);
     console.log(`✓ Sketchy determinista y con curvas rugosas (Q: ${qClean} limpio -> ${qRough} rugoso).`);
+
+    // 6. Modo muestrario (sampler)
+    console.log("\nPrueba 6: Modo muestrario (determinismo, motivos válidos, solids)...");
+    const area = { x: 12, y: 12, w: 186, h: 273 };
+    const samplerNames = Object.keys(ZENTANGLE_PRESETS).filter((n) => ZENTANGLE_PRESETS[n].cellLayout === "sampler");
+    assert.ok(samplerNames.length >= 6, "ERROR: faltan presets de muestrario.");
+    for (const name of samplerNames) {
+      const a = { body: [], defs: [] }, b = { body: [], defs: [] };
+      await generateZentangle(a, { seed: 99, presetName: name, areaMm: area });
+      await generateZentangle(b, { seed: 99, presetName: name, areaMm: area });
+      const out = a.body.join("") + a.defs.join("");
+      assert.strictEqual(out, b.body.join("") + b.defs.join(""), `ERROR: ${name} no es determinista.`);
+      assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: ${name} produce coordenadas inválidas.`);
+      const tiles = (a.body.join("").match(/data-motif=/g) || []).length;
+      const want = ZENTANGLE_PRESETS[name].cellCount;
+      assert.ok(Math.abs(tiles - want) <= Math.max(3, want * 0.25), `ERROR: ${name} generó ${tiles} unidades (pedidas ~${want}).`);
+    }
+    // Cada motivo debe devolver capas con trazo, sin NaN, con y sin rellenos negros.
+    const R = 21;
+    for (const m of [...MOTIFS, ...ICONS]) {
+      for (const solids of [true, false]) {
+        const cfg = { minGapMm: 1.8, patternStrokeMm: 0.5, sketchy: 0.3, solids, inside: (x, y, o) => Math.hypot(x - R, y - R) <= R + o };
+        const layers = m.fn(createRNG(5), { x0: 0, y0: 0, x1: 42, y1: 42 }, cfg).filter((l) => l.d);
+        const d = layers.map((l) => l.d).join(" ");
+        assert.ok(d.length > 20, `ERROR: el motivo ${m.id} no dibujó nada (solids=${solids}).`);
+        assert.ok(!/NaN|Infinity/.test(d), `ERROR: el motivo ${m.id} produce coordenadas inválidas.`);
+        if (!solids) assert.ok(layers.every((l) => l.fill !== "#000"), `ERROR: ${m.id} rellena de negro con solids=false.`);
+        // Determinista aunque se llame varias veces seguidas (sin estado compartido).
+        const again = m.fn(createRNG(5), { x0: 0, y0: 0, x1: 42, y1: 42 }, cfg).filter((l) => l.d);
+        assert.strictEqual(JSON.stringify(again), JSON.stringify(layers), `ERROR: ${m.id} no es determinista entre llamadas.`);
+        // Los rellenos recortados deben traer un contorno válido.
+        for (const l of layers) if (l.clipD) assert.ok(l.clipD.length > 10 && !/NaN/.test(l.clipD), `ERROR: ${m.id} tiene un recorte inválido.`);
+      }
+    }
+    // Para colorear (solids=false) no debe haber rellenos negros en toda la página.
+    for (const name of ["sampler_coloring", "sampler_icons"]) {
+      for (const seed of [3, 8, 21]) {
+        const docCol = { body: [], defs: [] };
+        await generateZentangle(docCol, { seed, presetName: name, areaMm: area });
+        assert.ok(!/fill="#000"/.test(docCol.body.join("")), `ERROR: ${name} contiene rellenos negros (seed ${seed}).`);
+      }
+    }
+    // Cobertura: con semillas consecutivas deben salir TODOS los iconos (un PRNG
+    // sin mezclar dejaba fuera al cactus para siempre).
+    const seenIcons = new Set();
+    for (let seed = 1; seed <= 120; seed++) {
+      const d = { body: [], defs: [] };
+      await generateZentangle(d, { seed, presetName: "sampler_icons", areaMm: area });
+      for (const m of d.body.join("").matchAll(/data-motif="(\w+)"/g)) seenIcons.add(m[1]);
+    }
+    for (const ic of ICONS) assert.ok(seenIcons.has(ic.id), `ERROR: el icono ${ic.id} nunca sale en sampler_icons (120 semillas).`);
+    console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length + ICONS.length} motivos).`);
 
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");

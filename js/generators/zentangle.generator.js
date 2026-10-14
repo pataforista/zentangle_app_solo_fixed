@@ -1,6 +1,7 @@
 // zentangle.generator.js
 import { ZENTANGLE_PRESETS } from "./zentangle.presets.js";
 import { generateZentangleCells } from "./zentangleCells.js";
+import { generateSampler } from "./sampler.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   if (!areaMm || typeof areaMm !== "object") {
@@ -32,6 +33,12 @@ export async function generateZentangle(doc, {
     seed,
     areaMm: area,
   };
+
+  // Muestrario: retícula de círculos/cuadros con un motivo por unidad.
+  if (finalOpts.cellLayout === "sampler") {
+    await generateSampler(doc, finalOpts);
+    return;
+  }
 
   await generateZentangleCells(doc, finalOpts);
 }
