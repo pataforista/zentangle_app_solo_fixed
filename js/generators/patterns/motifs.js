@@ -29,6 +29,9 @@ function pitch(rng, r, cfg, nMin, nMax, minFactor = 3.8) {
 // Retícula centrada en el contenedor (simétrica), opcionalmente alternada y con
 // jitter. Descarta puntos cuyo centro queda más allá de `over` del borde.
 function lattice(rng, r, cfg, px, py, { stagger = false, jitter = 0, over = 0.3 } = {}) {
+  // Para colorear los elementos cortados por el borde dejan astillas sin
+  // espacio para un marcador: se exige que el centro quede bien adentro.
+  const slack = cfg.solids ? 0 : 0.32;
   const { x: cx, y: cy } = centerOf(r);
   const nx = Math.ceil((r.x1 - r.x0) / px / 2) + 1;
   const ny = Math.ceil((r.y1 - r.y0) / py / 2) + 1;
@@ -37,20 +40,20 @@ function lattice(rng, r, cfg, px, py, { stagger = false, jitter = 0, over = 0.3 
     for (let i = -nx; i <= nx; i++) {
       const x = cx + (i + (stagger && (j & 1) ? 0.5 : 0)) * px + (rng() - 0.5) * 2 * jitter * px;
       const y = cy + j * py + (rng() - 0.5) * 2 * jitter * py;
-      if (cfg.inside(x, y, over * Math.min(px, py))) pts.push({ x, y, i, j });
+      if (cfg.inside(x, y, (over - slack) * Math.min(px, py))) pts.push({ x, y, i, j });
     }
   }
   return pts;
 }
 
 // Formas unitarias ([-1,1]) como comandos; emit() las escala, rota y coloca.
-const HEART = [["M", 0, 0.95], ["C", -0.2, 0.75, -1, 0.25, -1, -0.3], ["C", -1, -0.75, -0.6, -0.95, -0.3, -0.95],
-  ["C", -0.12, -0.95, 0, -0.68, 0, -0.42], ["C", 0, -0.68, 0.12, -0.95, 0.3, -0.95], ["C", 0.6, -0.95, 1, -0.75, 1, -0.3],
-  ["C", 1, 0.25, 0.2, 0.75, 0, 0.95], ["Z"]];
+const HEART = [["M", 0, 0.92], ["C", -0.15, 0.78, -1, 0.22, -1, -0.35], ["C", -1, -0.8, -0.66, -1, -0.4, -1],
+  ["C", -0.2, -1, -0.05, -0.88, 0, -0.68], ["C", 0.05, -0.88, 0.2, -1, 0.4, -1], ["C", 0.66, -1, 1, -0.8, 1, -0.35],
+  ["C", 1, 0.22, 0.15, 0.78, 0, 0.92], ["Z"]];
 const DROP = [["M", 0, -1], ["C", 0.15, -0.55, 0.78, -0.05, 0.78, 0.42], ["C", 0.78, 0.8, 0.42, 1, 0, 1],
   ["C", -0.42, 1, -0.78, 0.8, -0.78, 0.42], ["C", -0.78, -0.05, -0.15, -0.55, 0, -1], ["Z"]];
-const LEAF = [["M", 0, -1], ["C", 0.75, -0.5, 0.75, 0.5, 0, 1], ["C", -0.75, 0.5, -0.75, -0.5, 0, -1], ["Z"],
-  ["M", 0, -0.7], ["L", 0, 0.95]];
+const LEAF = [["M", 0, -1], ["C", 0.75, -0.5, 0.75, 0.5, 0, 1], ["C", -0.75, 0.5, -0.75, -0.5, 0, -1], ["Z"]];
+const LEAF_RIB = [...LEAF, ["M", 0, -0.7], ["L", 0, 0.95]];
 const PETAL = [["M", 0, 0], ["Q", 0.85, -0.45, 0, -1], ["Q", -0.85, -0.45, 0, 0], ["Z"]];
 const RSQ = [["M", -0.55, -1], ["L", 0.55, -1], ["Q", 1, -1, 1, -0.55], ["L", 1, 0.55], ["Q", 1, 1, 0.55, 1],
   ["L", -0.55, 1], ["Q", -1, 1, -1, 0.55], ["L", -1, -0.55], ["Q", -1, -1, -0.55, -1], ["Z"]];
@@ -94,16 +97,20 @@ function hearts(rng, r, cfg) {
 }
 
 function flowers(rng, r, cfg) {
-  const p = pitch(rng, r, cfg, 2, 4, 4.4);
-  const petals = rInt(rng, 5, 6);
+  // Trío de flores grandes (5 pétalos sin solapar): cada pétalo es una zona que
+  // cabe un marcador, y tres flores se recuerdan mejor que un campo de ocho.
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, p = R * 0.95, a1 = rFloat(rng, 0, TAU);
   const b = mk(rng, cfg), core = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.92, { stagger: true, jitter: 0.03 })) {
-    const a0 = rFloat(rng, 0, TAU), r0 = p * 0.1, L = p * 0.32;
-    for (let k = 0; k < petals; k++) {
-      const a = a0 + (k / petals) * TAU;
-      emit(b, PETAL, q.x + Math.sin(a) * r0 * 0.75, q.y - Math.cos(a) * r0 * 0.75, L * 0.85, L, a);
+  for (let i = 0; i < 3; i++) {
+    const ang = a1 + (i * TAU) / 3;
+    const fx = cx + Math.cos(ang) * R * 0.5, fy = cy + Math.sin(ang) * R * 0.5;
+    const a0 = rFloat(rng, 0, TAU), r0 = p * 0.11, L = p * 0.33;
+    for (let k = 0; k < 5; k++) {
+      const a = a0 + (k / 5) * TAU;
+      emit(b, PETAL, fx + Math.sin(a) * r0, fy - Math.cos(a) * r0, L * 0.68, L, a);
     }
-    core.circle(q.x, q.y, r0);
+    core.circle(fx, fy, r0);
   }
   return [{ d: b.d, fill: "none" }, { d: core.d, fill: ink(cfg) }];
 }
@@ -208,7 +215,8 @@ function zigzag(wide) {
 
 // Escamas solapadas (seigaiha): cada fila tapa el borde de la anterior.
 function scales(rng, r, cfg) {
-  const n = rInt(rng, 4, 6);
+  const n = cfg.solids ? rInt(rng, 4, 6) : rInt(rng, 3, 5);
+  const rings = cfg.solids ? [1, 0.66, 0.33] : [1, 0.6];
   const Rs = Math.max(sideOf(r) / (2 * n), cfg.minGapMm * 1.9);
   const layers = [];
   for (let j = -1, y = r.y0 - Rs; y <= r.y1 + Rs * 1.5; j++, y += Rs * 0.5) {
@@ -216,7 +224,7 @@ function scales(rng, r, cfg) {
     const off = (j & 1) * Rs;
     for (let x = r.x0 - 2 * Rs + off; x <= r.x1 + 2 * Rs; x += 2 * Rs) {
       fillB.moveTo(x - Rs, y).arcTo(Rs, Rs, 0, 0, 1, x + Rs, y).close();
-      for (const f of [1, 0.66, 0.33]) {
+      for (const f of rings) {
         line.moveTo(x - Rs * f, y).arcTo(Rs * f, Rs * f, 0, 0, 1, x + Rs * f, y);
       }
     }
@@ -308,7 +316,7 @@ function leaves(rng, r, cfg) {
   const rot = rFloat(rng, -0.5, 0.5);
   const b = mk(rng, cfg);
   for (const q of lattice(rng, r, cfg, p, p * 0.8, { stagger: true, jitter: 0.03 })) {
-    emit(b, LEAF, q.x, q.y, p * 0.27, p * 0.42, rot + (rng() - 0.5) * 0.12);
+    emit(b, cfg.solids ? LEAF_RIB : LEAF, q.x, q.y, p * 0.27, p * 0.42, rot + (rng() - 0.5) * 0.12);
   }
   return [{ d: b.d, fill: "none" }];
 }
@@ -334,15 +342,17 @@ function honeycomb(rng, r, cfg) {
 function mandala(rng, r, cfg) {
   const { x: cx, y: cy } = centerOf(r);
   const R = sideOf(r) / 2;
-  const n = rInt(rng, 8, 12);
+  const n = cfg.solids ? rInt(rng, 8, 12) : rInt(rng, 7, 9);
   const a0 = rFloat(rng, 0, TAU);
   const b = mk(rng, cfg), core = mk(rng, cfg);
-  core.circle(cx, cy, R * 0.13);
+  // Con tinta: núcleo, anillo de puntos y borde doble. Para colorear se
+  // omiten (dejaban coronas y círculos de ~1 mm imposibles de rellenar).
+  if (cfg.solids) core.circle(cx, cy, R * 0.13);
   b.circle(cx, cy, R * 0.2);
   for (let k = 0; k < n; k++) {
     const a = a0 + (k / n) * TAU;
-    emit(b, PETAL, cx + Math.sin(a) * R * 0.22, cy - Math.cos(a) * R * 0.22, R * 0.2, R * 0.34, a);
-    b.circle(cx + Math.sin(a) * R * 0.64, cy - Math.cos(a) * R * 0.64, R * 0.045);
+    emit(b, PETAL, cx + Math.sin(a) * R * 0.22, cy - Math.cos(a) * R * 0.22, R * 0.22, R * 0.36, a);
+    if (cfg.solids) b.circle(cx + Math.sin(a) * R * 0.64, cy - Math.cos(a) * R * 0.64, R * 0.045);
   }
   const m = n * 2;
   for (let k = 0; k < m; k++) {
@@ -353,7 +363,7 @@ function mandala(rng, r, cfg) {
     b.moveTo(p1[0], p1[1]);
     b.arcTo(rr, rr, 0, 0, 1, p2[0], p2[1]);
   }
-  b.circle(cx, cy, R * 0.9);
+  if (cfg.solids) b.circle(cx, cy, R * 0.9);
   return [{ d: b.d, fill: "none" }, { d: core.d, fill: ink(cfg) }];
 }
 
@@ -369,7 +379,7 @@ function wavesDots(rng, r, cfg) {
     }
     if (pts.length > 2) smoothThrough(waves, pts);
     if (row % 2 === 0) {
-      for (let x = r.x0 + lam / 4; x <= r.x1; x += lam / 2) dots.circle(x, y + p * 0.5, Math.max(p * 0.09, 0.7));
+      for (let x = r.x0 + lam / 4; x <= r.x1; x += lam / 2) dots.circle(x, y + p * 0.5, Math.max(p * 0.14, 1.2));
     }
   }
   return [{ d: waves.d, fill: "none" }, { d: dots.d, fill: ink(cfg) }];
@@ -459,3 +469,6 @@ export const MOTIFS = [
   { id: "polka", fn: polka, heavy: true },
   { id: "bricks", fn: bricks },
 ];
+
+// Helpers compartidos con icons.js
+export { mk, ink, sideOf, centerOf, pitch, lattice, emit, smoothThrough, TAU, K, W, HEART, DROP, PETAL };

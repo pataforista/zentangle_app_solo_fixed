@@ -6,6 +6,7 @@
 // tablero...) y la hoja mezcla negros sólidos, rayado y blancos.
 import { createRNG, hash, rFloat } from "../core/prng.js";
 import { MOTIFS } from "./patterns/motifs.js";
+import { ICONS } from "./patterns/icons.js";
 import { fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon } from "./patterns/tangles.js";
 import { fillConcentricSquares } from "./patterns/geometric.js";
 import { fillScallops, fillSpiralBands } from "./patterns/organic.js";
@@ -26,8 +27,13 @@ const CLASSIC = [
   classic("spiralBands", fillSpiralBands), classic("paradox", fillParadox), classic("flux", fillFlux),
 ];
 
+// "iconic": imágenes reconocibles + texturas suaves (mezcla más memorable).
+const SOFT = ["bubbles", "scales", "rainbows", "clouds", "flowers", "leaves", "mandala", "honeycomb", "polka", "hearts"];
+
 const POOLS = {
-  all: [...MOTIFS, ...CLASSIC],
+  all: [...MOTIFS, ...ICONS, ...CLASSIC],
+  iconic: [...ICONS, ...MOTIFS.filter((m) => SOFT.includes(m.id))],
+  icons: ICONS,
   modern: MOTIFS,
   classic: CLASSIC,
 };

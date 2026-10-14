@@ -3,6 +3,7 @@ import { generateZentangleCells } from "./js/generators/zentangleCells.js";
 import { generateZentangle } from "./js/generators/zentangle.generator.js";
 import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
 import { MOTIFS } from "./js/generators/patterns/motifs.js";
+import { ICONS } from "./js/generators/patterns/icons.js";
 import { createRNG } from "./js/core/prng.js";
 
 async function runTests() {
@@ -162,7 +163,7 @@ async function runTests() {
     console.log("\nPrueba 6: Modo muestrario (determinismo, motivos válidos, solids)...");
     const area = { x: 12, y: 12, w: 186, h: 273 };
     const samplerNames = Object.keys(ZENTANGLE_PRESETS).filter((n) => ZENTANGLE_PRESETS[n].cellLayout === "sampler");
-    assert.ok(samplerNames.length >= 4, "ERROR: faltan presets de muestrario.");
+    assert.ok(samplerNames.length >= 6, "ERROR: faltan presets de muestrario.");
     for (const name of samplerNames) {
       const a = { body: [], defs: [] }, b = { body: [], defs: [] };
       await generateZentangle(a, { seed: 99, presetName: name, areaMm: area });
@@ -176,7 +177,7 @@ async function runTests() {
     }
     // Cada motivo debe devolver capas con trazo, sin NaN, con y sin rellenos negros.
     const R = 21;
-    for (const m of MOTIFS) {
+    for (const m of [...MOTIFS, ...ICONS]) {
       for (const solids of [true, false]) {
         const cfg = { minGapMm: 1.8, patternStrokeMm: 0.5, sketchy: 0.3, solids, inside: (x, y, o) => Math.hypot(x - R, y - R) <= R + o };
         const layers = m.fn(createRNG(5), { x0: 0, y0: 0, x1: 42, y1: 42 }, cfg).filter((l) => l.d);
@@ -187,10 +188,14 @@ async function runTests() {
       }
     }
     // Para colorear (solids=false) no debe haber rellenos negros en toda la página.
-    const docCol = { body: [], defs: [] };
-    await generateZentangle(docCol, { seed: 3, presetName: "sampler_coloring", areaMm: area });
-    assert.ok(!/fill="#000"/.test(docCol.body.join("")), "ERROR: sampler_coloring contiene rellenos negros.");
-    console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length} motivos).`);
+    for (const name of ["sampler_coloring", "sampler_icons"]) {
+      for (const seed of [3, 8, 21]) {
+        const docCol = { body: [], defs: [] };
+        await generateZentangle(docCol, { seed, presetName: name, areaMm: area });
+        assert.ok(!/fill="#000"/.test(docCol.body.join("")), `ERROR: ${name} contiene rellenos negros (seed ${seed}).`);
+      }
+    }
+    console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length + ICONS.length} motivos).`);
 
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");

@@ -251,3 +251,24 @@ Checklista antes de subir a KDP:
 **¡Éxito! Tus libros para colorear profesionales están listos para el mercado.** 🎨📚
 
 Generado para zentangle_app_solo_fixed - 300 DPI optimizado para impresión
+
+---
+
+## 🔵 Muestrarios (un motivo por unidad)
+
+Retícula de círculos o cuadros iguales; cada unidad lleva un motivo distinto.
+Elige el estilo en **Muestrarios** y usa **Celdas** para el número de unidades.
+
+| Preset | Para qué sirve |
+|---|---|
+| **Iconos para colorear** (`sampler_icons`) | El más memorable y coloreable: luna, sol, mariposa, peces, gato, loto, paraguas, hongos, estrellas, pluma. Unidades grandes (12), sin rellenos negros. ~5 regiones no coloreables por página. |
+| Iconos (tinta) (`sampler_icons_ink`) | Mismos iconos con detalles en negro (ojos, manchas, luna llena). Para muestrarios o portada. |
+| Círculos (tinta) / cuadros (tinta) | Texturas y motivos variados con masas negras repartidas. |
+| Círculos (para colorear) | Texturas sin rellenos negros. |
+| Mini (48 unidades) | Hoja de muestras densa; **no** pensada para colorear. |
+
+Notas:
+- En modo para colorear los motivos repetidos que el borde cortaría se omiten
+  (dejaban astillas imposibles de rellenar).
+- `npm run colorability -- sampler_icons` mide las regiones no coloreables.
+- Ajusta el slider **Sketchy** para más (o menos) trazo a mano.

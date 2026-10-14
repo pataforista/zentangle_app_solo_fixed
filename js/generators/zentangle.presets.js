@@ -726,4 +726,32 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 1.3,
     sketchy: 0.2,
   },
+  // Imágenes reconocibles (estrellas, luna, sol, mariposa, peces, hongos, paraguas,
+  // loto, gato...). Pocas unidades grandes: cada icono tiene áreas coloreables
+  // amplias. samplerSet "iconic" mezcla iconos con texturas suaves.
+  sampler_icons: {
+    cellLayout: "sampler",
+    cellCount: 12,
+    samplerShape: "circle",
+    samplerSet: "iconic",
+    samplerSolids: false,
+    samplerGapMm: 6,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.6,
+    minGapMm: 2.2,
+    sketchy: 0.2,
+  },
+
+  sampler_icons_ink: {
+    cellLayout: "sampler",
+    cellCount: 12,
+    samplerShape: "circle",
+    samplerSet: "iconic",
+    samplerSolids: true,
+    samplerGapMm: 6,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.6,
+    minGapMm: 2.2,
+    sketchy: 0.2,
+  },
 };
