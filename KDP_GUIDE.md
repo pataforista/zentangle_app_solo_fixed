@@ -157,16 +157,21 @@ Checklista antes de subir a KDP:
 - [ ] No hay artefactos ni antialiasing
 - [ ] Márgenes son de al menos 12.7mm desde el borde
 
-### Fase 3: Preparar para Impresión
-- Copia los PDFs/PNGs a una carpeta `/coloring_book_pages/`
-- Genera 25-50 páginas (diferentes seeds, diferentes presets)
-- Crea portada (fuera del scope de esta app)
-- Arma PDF con todas las páginas usando tu herramienta favorita
+### Fase 3: Crear el libro (un clic)
+1. Elige **Papel** (8.5×11 in es el estándar), **Estilo** y una **Seed**
+2. En **📖 Tu libro** indica el nº de diseños (30 es un buen punto de partida)
+   y deja **Hojas en blanco: Entre diseños** (evita que la tinta traspase
+   al diseño siguiente; es lo habitual en libros de una cara)
+3. Mira el resumen verde: confirma páginas totales (KDP exige mínimo 24)
+4. Pulsa **📖 Crear libro (PDF para KDP)**. Cada diseño usa una semilla distinta
+   derivada de la Seed; con los mismos ajustes obtienes el mismo libro
+5. Se descarga un único PDF listo para subir como interior. La portada se
+   crea aparte (KDP Cover Creator)
 
 ### Fase 4: Subir a KDP
 1. Ingresa a Amazon KDP
 2. Crea nuevo libro
-3. Sube PDF con todas las páginas
+3. Sube el PDF del libro (interior) con la opción **Sin sangrado**
 4. Selecciona opciones de impresión (color, blanco&negro, etc.)
 5. Revisa preview
 6. Publica
