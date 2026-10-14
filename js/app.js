@@ -1,6 +1,6 @@
-import { createSvgDoc, PAPER_SIZES_MM } from "./core/svgDoc.js";
+import { createSvgDoc, PAPER_SIZES_MM, PAPER_LABELS } from "./core/svgDoc.js";
 import { renderSvgToString } from "./core/svgRender.js";
-import { downloadTextFile, downloadPng, downloadPdf } from "./core/export.js";
+import { downloadTextFile, downloadPng, downloadPdf, buildBookPdf } from "./core/export.js";
 import { getStateFromURL, setStateToURL, randomSeed32 } from "./core/urlState.js";
 import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry, generateDensityMap, getImageStats } from "./core/imageProcessor.js";
 
@@ -10,7 +10,7 @@ import { generateZentangle } from "./generators/zentangle.generator.js";
 const $ = (id) => document.getElementById(id);
 
 const DEFAULT_STATE = {
-  preset: "A4",
+  preset: "LETTER", // 8.5×11 in: el tamaño más habitual en KDP
   mode: "zentangle",
   seed: 42,
   zPreset: "kdp_balanced",
@@ -60,6 +60,13 @@ const ui = {
   imageBlendVal: $("imageBlendVal"),
   imageOffsetX: $("imageOffsetX"),
   imageOffsetY: $("imageOffsetY"),
+
+  // Libro completo
+  bookPages: $("bookPages"),
+  bookBlank: $("bookBlank"),
+  bookSummary: $("bookSummary"),
+  bookBar: $("bookBar"),
+  btnBook: $("btnBook"),
 
   btnResetPreset: $("btnResetPreset"),
   btnRandomSeed: $("btnRandomSeed"),
@@ -251,6 +258,113 @@ async function renderGallery(count = 8) {
   ui.status.textContent = `✓ ${seeds.length} variaciones · haz clic en una para usarla`;
 }
 
+
+// Conformidad KDP: el PDF exportado es tamaño trim (subir como "sin sangrado").
+// El arte debe quedar a >= 6.35 mm del borde y el margen cubrir el gutter (9.5 mm para < 150 págs).
+function kdpWarning(marginMm, bleedMm = 0) {
+  const artEdgeMm = marginMm - (bleedMm || 0);
+  if (artEdgeMm < 6.35) return " | ⚠ Arte a menos de 6.35 mm del borde: KDP lo rechazaría (sube el margen o quita el sangrado)";
+  if (marginMm < 9.5) return " | ⚠ Margen menor a 9.5 mm: insuficiente como gutter KDP";
+  return "";
+}
+
+// ---------- Libro completo ----------
+const KDP_MIN_PAGES = 24;
+let bookJob = null; // { cancelled: boolean } mientras se genera un libro
+
+function pageGeometry() {
+  const paperKey = String(ui.paper.value || "LETTER");
+  const paper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.LETTER;
+  let marginMm = Math.max(0, num(ui.marginMm.value, 12.7));
+  const { opts, zPresetKey } = buildOptsFromUI();
+  if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") marginMm = Math.max(marginMm, 12.5);
+  const inner = { x: marginMm, y: marginMm, w: paper.w - marginMm * 2, h: paper.h - marginMm * 2 };
+  return { paperKey, paper, marginMm, inner, opts, zPresetKey };
+}
+
+function bookPlan() {
+  const n = Math.min(150, Math.max(1, int(ui.bookPages.value, 30)));
+  const blank = ui.bookBlank.value === "1";
+  return { n, blank, total: blank ? n * 2 : n };
+}
+
+// Semillas reproducibles: la seed del usuario + el índice de página.
+const bookSeed = (base, i) => ((base >>> 0) + Math.imul(i, 0x9e3779b1)) >>> 0;
+
+function updateBookSummary() {
+  if (!ui.bookSummary) return;
+  const { n, blank, total } = bookPlan();
+  const g = pageGeometry();
+  const parts = [`${n} diseños${blank ? ` + ${n} hojas en blanco` : ""} = <strong>${total} páginas</strong> · ${PAPER_LABELS[g.paperKey] || g.paperKey} · margen ${g.marginMm} mm`];
+  let cls = "hint ok";
+  if (total < KDP_MIN_PAGES) { parts.push(`⚠ KDP pide mínimo ${KDP_MIN_PAGES} páginas: sube a ${blank ? KDP_MIN_PAGES / 2 : KDP_MIN_PAGES} diseños.`); cls = "hint warn"; }
+  const w = kdpWarning(g.marginMm, g.opts.kdpBleedMm).replace(/^ \| /, "");
+  if (w) { parts.push(w); cls = "hint warn"; }
+  else if (total >= KDP_MIN_PAGES) parts.push("✓ Cumple lo mínimo de KDP");
+  ui.bookSummary.className = cls;
+  ui.bookSummary.innerHTML = parts.join("<br>");
+}
+
+async function createBook() {
+  if (bookJob) { bookJob.cancelled = true; ui.status.textContent = "Cancelando…"; return; }
+  const { n, blank, total } = bookPlan();
+  const g = pageGeometry();
+  const baseSeed = g.opts.seed >>> 0;
+  const job = (bookJob = { cancelled: false });
+  const others = busyButtons().filter((b) => b && b !== ui.btnBook);
+  others.forEach((b) => (b.disabled = true));
+  ui.previewPanel?.classList.remove("gallery-active");
+  ui.btnBook.textContent = "✖ Cancelar";
+  ui.bookBar.hidden = false; ui.bookBar.value = 0;
+  try {
+    const title = `Libro para colorear (${n} diseños)`;
+    const doc = await buildBookPdf({
+      widthMm: g.paper.w, heightMm: g.paper.h, count: n, blankBetween: blank, title,
+      isCancelled: () => job.cancelled,
+      onProgress: (i, count) => {
+        ui.bookBar.value = i / count;
+        ui.btnBook.textContent = `✖ Cancelar (${i}/${count})`;
+        ui.status.textContent = `Creando libro… página ${i} de ${count}`;
+      },
+      getSvg: async (i) => {
+        const seed = bookSeed(baseSeed, i);
+        const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "zentangle" } });
+        await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides: { ...g.opts, seed }, areaMm: g.inner });
+        const svg = renderSvgToString(d);
+        ui.previewInner.innerHTML = svg; // muestra la página en curso
+        return svg;
+      },
+    });
+    if (!doc) { ui.status.textContent = "Libro cancelado"; return; }
+    const name = `libro_${n}disenos_${g.paperKey}_${g.zPresetKey}_seed${baseSeed}.pdf`;
+    doc.save(name);
+    ui.status.textContent = `✓ Libro listo: ${total} páginas · ${name}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
+  } catch (err) {
+    ui.status.textContent = `✗ No se pudo crear el libro: ${err.message}`;
+    console.error("Error al crear libro:", err);
+  } finally {
+    bookJob = null;
+    ui.btnBook.textContent = "📖 Crear libro (PDF para KDP)";
+    ui.bookBar.hidden = true;
+    others.forEach((b) => (b.disabled = false));
+  }
+}
+
+// ---------- Recordar ajustes entre sesiones (uso personal) ----------
+const SETTINGS_KEY = "zentangle.settings.v1";
+const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "kdpBleedMm", "showSafeZone"];
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || {}; } catch { return {}; }
+}
+function saveSettings() {
+  try {
+    const data = { touched: {} };
+    PERSIST_IDS.forEach((id) => { const el = $(id); if (el) data[id] = el.type === "checkbox" ? el.checked : el.value; });
+    touched.forEach((id) => { const el = $(id); if (el) data.touched[id] = el.value; });
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+  } catch { /* modo privado o sin permiso: no pasa nada */ }
+}
+
 async function render() {
   ui.status.textContent = "Renderizando...";
   if (ui.previewPanel) ui.previewPanel.classList.remove("gallery-active");
@@ -321,12 +435,7 @@ async function render() {
     kdp_masterpiece: "KDP Masterpiece",
   }[zPresetKey] || zPresetKey;
 
-  // Conformidad KDP: el PDF exportado es tamaño trim (subir como "sin sangrado").
-  // El arte debe quedar a >= 6.35 mm del borde y el margen cubrir el gutter (9.5 mm para < 150 págs).
-  const artEdgeMm = marginMm - (opts.kdpBleedMm || 0);
-  let kdpWarn = "";
-  if (artEdgeMm < 6.35) kdpWarn = " | ⚠ Arte a menos de 6.35 mm del borde: KDP lo rechazaría (sube el margen o quita el sangrado)";
-  else if (marginMm < 9.5) kdpWarn = " | ⚠ Margen menor a 9.5 mm: insuficiente como gutter KDP";
+  const kdpWarn = kdpWarning(marginMm, opts.kdpBleedMm);
   ui.status.textContent = `✓ ${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready${kdpWarn}`;
   return { svg, opts, paperKey, zPresetKey };
 }
@@ -409,7 +518,7 @@ async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
   return { svg, opts, paperKey, zPresetKey };
 }
 
-const debouncedRender = debounce(render, 100);
+const debouncedRender = debounce(async () => { await render(); saveSettings(); }, 100);
 
 function cleanupCanvas(canvas) {
   if (canvas) {
@@ -480,6 +589,18 @@ function bind() {
   const st = getStateFromURL(DEFAULT_STATE);
   attachRangeReadouts();
 
+  // Ajustes recordados (solo si la URL no trae estilo/papel explícitos).
+  const saved = loadSettings();
+  const urlHas = (k) => new URL(location.href).searchParams.has(k);
+  PERSIST_IDS.forEach((id) => {
+    const el = $(id);
+    if (!el || saved[id] === undefined) return;
+    if ((id === "paper" && urlHas("preset")) || (id === "zPreset" && urlHas("zPreset"))) return;
+    if (el.type === "checkbox") el.checked = !!saved[id]; else el.value = String(saved[id]);
+  });
+  if (!urlHas("preset") && saved.paper && ui.paper.selectedIndex >= 0) st.preset = ui.paper.value;
+  if (!urlHas("zPreset") && saved.zPreset && ui.zPreset.selectedIndex >= 0) st.zPreset = ui.zPreset.value;
+
   // Si la URL trae un valor desconocido, el <select> quedaría en blanco: usar el de respaldo.
   ui.paper.value = st.preset;
   if (ui.paper.selectedIndex < 0) ui.paper.value = DEFAULT_STATE.preset;
@@ -488,6 +609,12 @@ function bind() {
   if (ui.zPreset.selectedIndex < 0) ui.zPreset.value = DEFAULT_STATE.zPreset;
   // Aplica el preset inicial a los controles (base de estilo real).
   applyPresetToUI(ui.zPreset.value);
+
+  // Re-aplica los ajustes finos que el usuario había tocado.
+  Object.entries(saved.touched || {}).forEach(([id, v]) => {
+    const el = $(id);
+    if (el) { el.value = v; touched.add(id); }
+  });
 
   ui.paperTextureEnabled.value = st.paperTextureEnabled || "0";
   ui.cellShadowEnabled.value = st.cellShadowEnabled || "0";
@@ -643,6 +770,14 @@ function bind() {
   });
 
   ui.btnRender.addEventListener("click", () => withBusy(render));
+  ui.btnBook.addEventListener("click", createBook);
+
+  // Resumen del libro en vivo (páginas totales, tamaño, avisos KDP).
+  [ui.bookPages, ui.bookBlank, ui.paper, ui.marginMm, ui.kdpBleedMm, ui.zPreset].forEach((el) => {
+    if (el) { el.addEventListener("input", updateBookSummary); el.addEventListener("change", updateBookSummary); }
+  });
+  [ui.bookPages, ui.bookBlank].forEach((el) => el && el.addEventListener("change", saveSettings));
+  updateBookSummary();
 
   if (ui.btnGallery) ui.btnGallery.addEventListener("click", () => withBusy(() => renderGallery(8)));
 
