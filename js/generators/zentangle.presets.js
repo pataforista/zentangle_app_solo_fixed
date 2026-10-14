@@ -673,4 +673,57 @@ export const ZENTANGLE_PRESETS = {
     focusMode: false,
     borderStrokeMultiplier: 1.42,
   },
+  // ========== MUESTRARIOS (una unidad = un motivo) ==========
+  // cellCount = número aproximado de unidades; samplerSolids rellena las masas
+  // negras (muestrario de tinta) o las deja en contorno (para colorear).
+
+  sampler_circles: {
+    cellLayout: "sampler",
+    cellCount: 20,
+    samplerShape: "circle",
+    samplerSet: "all",
+    samplerSolids: true,
+    cellBorderWidthMm: 0.8,
+    patternStrokeMm: 0.5,
+    minGapMm: 1.8,
+    sketchy: 0.3,
+  },
+
+  sampler_coloring: {
+    cellLayout: "sampler",
+    cellCount: 20,
+    samplerShape: "circle",
+    samplerSet: "all",
+    samplerSolids: false,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.55,
+    minGapMm: 2.0,
+    sketchy: 0.25,
+  },
+
+  sampler_squares: {
+    cellLayout: "sampler",
+    cellCount: 20,
+    samplerShape: "rounded",
+    samplerSet: "all",
+    samplerSolids: true,
+    samplerGapMm: 4,
+    cellBorderWidthMm: 0.8,
+    patternStrokeMm: 0.5,
+    minGapMm: 1.8,
+    sketchy: 0.3,
+  },
+
+  sampler_mini: {
+    cellLayout: "sampler",
+    cellCount: 48,
+    samplerShape: "circle",
+    samplerSet: "all",
+    samplerSolids: true,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.6,
+    patternStrokeMm: 0.38,
+    minGapMm: 1.3,
+    sketchy: 0.2,
+  },
 };

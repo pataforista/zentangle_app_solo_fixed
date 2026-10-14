@@ -1,5 +1,9 @@
 import assert from "assert";
 import { generateZentangleCells } from "./js/generators/zentangleCells.js";
+import { generateZentangle } from "./js/generators/zentangle.generator.js";
+import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
+import { MOTIFS } from "./js/generators/patterns/motifs.js";
+import { createRNG } from "./js/core/prng.js";
 
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
@@ -153,6 +157,40 @@ async function runTests() {
     const qClean = (docSk0.body.join("").match(/Q /g) || []).length;
     assert.ok(qRough > qClean, `ERROR: Las curvas no se subdividen en modo sketchy (Q rough=${qRough} <= Q clean=${qClean}).`);
     console.log(`✓ Sketchy determinista y con curvas rugosas (Q: ${qClean} limpio -> ${qRough} rugoso).`);
+
+    // 6. Modo muestrario (sampler)
+    console.log("\nPrueba 6: Modo muestrario (determinismo, motivos válidos, solids)...");
+    const area = { x: 12, y: 12, w: 186, h: 273 };
+    const samplerNames = Object.keys(ZENTANGLE_PRESETS).filter((n) => ZENTANGLE_PRESETS[n].cellLayout === "sampler");
+    assert.ok(samplerNames.length >= 4, "ERROR: faltan presets de muestrario.");
+    for (const name of samplerNames) {
+      const a = { body: [], defs: [] }, b = { body: [], defs: [] };
+      await generateZentangle(a, { seed: 99, presetName: name, areaMm: area });
+      await generateZentangle(b, { seed: 99, presetName: name, areaMm: area });
+      const out = a.body.join("") + a.defs.join("");
+      assert.strictEqual(out, b.body.join("") + b.defs.join(""), `ERROR: ${name} no es determinista.`);
+      assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: ${name} produce coordenadas inválidas.`);
+      const tiles = (a.body.join("").match(/data-motif=/g) || []).length;
+      const want = ZENTANGLE_PRESETS[name].cellCount;
+      assert.ok(Math.abs(tiles - want) <= Math.max(3, want * 0.25), `ERROR: ${name} generó ${tiles} unidades (pedidas ~${want}).`);
+    }
+    // Cada motivo debe devolver capas con trazo, sin NaN, con y sin rellenos negros.
+    const R = 21;
+    for (const m of MOTIFS) {
+      for (const solids of [true, false]) {
+        const cfg = { minGapMm: 1.8, patternStrokeMm: 0.5, sketchy: 0.3, solids, inside: (x, y, o) => Math.hypot(x - R, y - R) <= R + o };
+        const layers = m.fn(createRNG(5), { x0: 0, y0: 0, x1: 42, y1: 42 }, cfg).filter((l) => l.d);
+        const d = layers.map((l) => l.d).join(" ");
+        assert.ok(d.length > 20, `ERROR: el motivo ${m.id} no dibujó nada (solids=${solids}).`);
+        assert.ok(!/NaN|Infinity/.test(d), `ERROR: el motivo ${m.id} produce coordenadas inválidas.`);
+        if (!solids) assert.ok(layers.every((l) => l.fill !== "#000"), `ERROR: ${m.id} rellena de negro con solids=false.`);
+      }
+    }
+    // Para colorear (solids=false) no debe haber rellenos negros en toda la página.
+    const docCol = { body: [], defs: [] };
+    await generateZentangle(docCol, { seed: 3, presetName: "sampler_coloring", areaMm: area });
+    assert.ok(!/fill="#000"/.test(docCol.body.join("")), "ERROR: sampler_coloring contiene rellenos negros.");
+    console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length} motivos).`);
 
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");

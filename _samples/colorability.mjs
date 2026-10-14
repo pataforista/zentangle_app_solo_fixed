@@ -7,7 +7,7 @@
 // Uso: npm run colorability [-- preset1,preset2]   (DBG=1 guarda dbg_<preset>.png
 // con las regiones problemáticas en rojo)
 const ROOT = new URL("..", import.meta.url).href.replace(/\/$/, "");
-const { generateZentangleCells } = await import(ROOT + "/js/generators/zentangleCells.js");
+const { generateZentangle } = await import(ROOT + "/js/generators/zentangle.generator.js");
 const { ZENTANGLE_PRESETS } = await import(ROOT + "/js/generators/zentangle.presets.js");
 import { Resvg } from "@resvg/resvg-js";
 console.warn = () => {};
@@ -44,7 +44,7 @@ for (const name of names) {
   const acc = { ink: 0, bad: 0, micro: 0, regions: 0 }; const seeds = [1, 7, 23];
   for (const seed of seeds) {
     const doc = { body: [], defs: [] };
-    await generateZentangleCells(doc, { ...ZENTANGLE_PRESETS[name], seed, areaMm: { x: 12, y: 12, w: 186, h: 273 } });
+    await generateZentangle(doc, { seed, presetName: name, areaMm: { x: 12, y: 12, w: 186, h: 273 } });
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs>${doc.defs.join("")}</defs><rect width="${W}" height="${H}" fill="#fff"/>${doc.body.join("")}</svg>`;
     const m = analyze(svg, process.env.DBG && seed === 1);
     if (process.env.DBG && seed === 1) { const { w, h, out } = globalThis.__dbg; const { writeFileSync } = await import('node:fs'); const zlib = await import('node:zlib'); writeFileSync(`_samples/dbg_${name}.png`, png(w, h, out, zlib)); } for (const k in acc) acc[k] += m[k] / seeds.length;
