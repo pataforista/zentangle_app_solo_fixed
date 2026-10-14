@@ -223,8 +223,10 @@ function zigzag(wide) {
 
 // Escamas solapadas (seigaiha): cada fila tapa el borde de la anterior.
 function scales(rng, r, cfg) {
-  const n = cfg.solids ? rInt(rng, 4, 6) : rInt(rng, 3, 5);
-  const rings = cfg.solids ? [1, 0.66, 0.33] : [1, 0.6];
+  // Pocas escamas grandes con 2 anillos: con 3 anillos y escamas de 4 mm quedaban
+  // cientos de regiones de ~1 mm (231 por unidad con tinta).
+  const n = rInt(rng, 3, 4);
+  const rings = [1, 0.58];
   const Rs = Math.max(sideOf(r) / (2 * n), cfg.minGapMm * 1.9);
   const layers = [];
   for (let j = -1, y = r.y0 - Rs; y <= r.y1 + Rs * 1.5; j++, y += Rs * 0.5) {
@@ -298,13 +300,15 @@ function spiralsGrid(rng, r, cfg) {
 }
 
 function asterisks(rng, r, cfg) {
-  const p = pitch(rng, r, cfg, 4, 6, 3.4);
+  // Seis rayos con hueco en el centro: al cruzarse, las 3 líneas cerraban seis
+  // cuñas diminutas por asterisco.
+  const p = pitch(rng, r, cfg, 3, 5, 4.2);
   const b = mk(rng, cfg);
   for (const q of lattice(rng, r, cfg, p, p * 0.9, { stagger: true, jitter: 0.05 })) {
-    const a0 = rFloat(rng, 0, Math.PI / 3), arm = p * 0.3;
-    for (let k = 0; k < 3; k++) {
-      const a = a0 + (k * Math.PI) / 3;
-      b.moveTo(q.x - Math.cos(a) * arm, q.y - Math.sin(a) * arm).lineTo(q.x + Math.cos(a) * arm, q.y + Math.sin(a) * arm);
+    const a0 = rFloat(rng, 0, Math.PI / 3), in0 = p * 0.1, out = p * 0.34;
+    for (let k = 0; k < 6; k++) {
+      const a = a0 + (k * Math.PI) / 3, c = Math.cos(a), n = Math.sin(a);
+      b.moveTo(q.x + c * in0, q.y + n * in0).lineTo(q.x + c * out, q.y + n * out);
     }
   }
   return [{ d: b.d, fill: "none" }];
@@ -350,17 +354,16 @@ function honeycomb(rng, r, cfg) {
 function mandala(rng, r, cfg) {
   const { x: cx, y: cy } = centerOf(r);
   const R = sideOf(r) / 2;
-  const n = cfg.solids ? rInt(rng, 8, 12) : rInt(rng, 7, 9);
+  const n = rInt(rng, 7, 9);
   const a0 = rFloat(rng, 0, TAU);
   const b = mk(rng, cfg), core = mk(rng, cfg);
-  // Con tinta: núcleo, anillo de puntos y borde doble. Para colorear se
-  // omiten (dejaban coronas y círculos de ~1 mm imposibles de rellenar).
+  // Sin anillo de puntos ni borde doble (dejaban coronas y círculos de ~1 mm
+  // imposibles de rellenar); el núcleo solo se pinta con tinta.
   if (cfg.solids) core.circle(cx, cy, R * 0.13);
   b.circle(cx, cy, R * 0.2);
   for (let k = 0; k < n; k++) {
     const a = a0 + (k / n) * TAU;
     emit(b, PETAL, cx + Math.sin(a) * R * 0.22, cy - Math.cos(a) * R * 0.22, R * 0.22, R * 0.36, a);
-    if (cfg.solids) b.circle(cx + Math.sin(a) * R * 0.64, cy - Math.cos(a) * R * 0.64, R * 0.045);
   }
   const m = n * 2;
   for (let k = 0; k < m; k++) {
@@ -371,7 +374,6 @@ function mandala(rng, r, cfg) {
     b.moveTo(p1[0], p1[1]);
     b.arcTo(rr, rr, 0, 0, 1, p2[0], p2[1]);
   }
-  if (cfg.solids) b.circle(cx, cy, R * 0.9);
   return [{ d: b.d, fill: "none" }, { d: core.d, fill: ink(cfg) }];
 }
 

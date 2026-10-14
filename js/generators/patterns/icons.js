@@ -80,6 +80,7 @@ function mushrooms(rng, r, cfg) {
       layers.push(...zen(pickKinds(rng, 1, ["dots", "hatch", "scallops"])[0], rng, box, cfg, gFor(cfg, u, 0.3), shapeD(CAP, x, y, u, u, tilt), 0.8));
       return;
     }
+    if (!cfg.solids) return; // en contorno, manchas de ~1.5 mm no admiten un marcador
     for (const [a, c, rr] of [[-0.5, -0.32, 0.17], [0.05, -0.62, 0.2], [0.55, -0.3, 0.14]]) {
       const [sx, sy] = T(a, c);
       spots.circle(sx, sy, rr * u);
@@ -332,7 +333,7 @@ function fishSchool(rng, r, cfg) {
   const { x: cx, y: cy } = centerOf(r);
   const R = sideOf(r) / 2, hw = R * 0.62, flip = rng() < 0.5 ? 1 : -1;
   const layers = [], b = mk(rng, cfg), eye = mk(rng, cfg), dot = mk(rng, cfg), bub = mk(rng, cfg);
-  const kBody = "scallops", kTail = rng() < 0.5 ? "hatch" : "zigzag";
+  const kBody = "scallops", kTail = "hatch"; // el zigzag en la cola dejaba cuñas de ~1 mm
   [[-0.45, -0.1, 1], [0.45, 0.1, -1]].forEach(([dy, dx, dir0]) => {
     const dir = dir0 * flip, x = cx + dx * R, y = cy + dy * R;
     const box = { x0: x - hw, y0: y - hw, x1: x + hw, y1: y + hw };
@@ -343,7 +344,7 @@ function fishSchool(rng, r, cfg) {
     emit(b, FISH_TAIL, x, y, hw * dir, hw);
     emit(b, GILL, x, y, hw * dir, hw);
     eye.circle(x + dir * hw * 0.66, y - hw * 0.08, hw * 0.13);
-    dot.circle(x + dir * hw * 0.66, y - hw * 0.08, hw * 0.05);
+    if (cfg.solids) dot.circle(x + dir * hw * 0.66, y - hw * 0.08, hw * 0.05);
     bub.circle(x + dir * hw * 1.22, y - hw * 0.55, R * 0.06);
   });
   layers.push({ d: b.d, fill: "none" }, { d: eye.d, fill: W }, { d: dot.d, fill: ink(cfg) }, { d: bub.d, fill: "none" });
@@ -360,7 +361,7 @@ function owl(rng, r, cfg) {
   const { x: cx, y: cy } = centerOf(r);
   const R = sideOf(r) / 2, s = R * 0.8;
   const T = tfFor(cx, cy + R * 0.02, s);
-  const g = gFor(cfg, s, 0.2);
+  const g = gFor(cfg, s, 0.25);
   const box = { x0: cx - s, y0: cy - s, x1: cx + s, y1: cy + s };
   const layers = [], ears = mk(rng, cfg), body = mk(rng, cfg), belly = mk(rng, cfg), wings = mk(rng, cfg);
   const eyes = mk(rng, cfg), rings = mk(rng, cfg), pupils = mk(rng, cfg), beak = mk(rng, cfg);
@@ -405,14 +406,15 @@ function tulips(rng, r, cfg) {
   specs.forEach(([dx, dy, k, tilt], idx) => {
     const s = R * k, x = cx + dx * R, y = cy + dy * R;
     const T = tfFor(x, y, s, tilt);
-    const g = gFor(cfg, s, 0.26);
+    const g = gFor(cfg, s, 0.32);
     const box = { x0: x - s, y0: y - s, x1: x + s, y1: y + s };
     const [kc, ks] = pickFrom(rng, TULIP_KINDS, 2);
     const sides = mk(rng, cfg), center = mk(rng, cfg);
     for (const m of [1, -1]) emit(sides, T_SIDE, x, y, s * m, s, tilt);
     emit(center, T_CENTER, x, y, s, s, tilt);
     layers.push({ d: sides.d, fill: W });
-    for (const m of [1, -1]) layers.push(...zen(ks, rng, box, cfg, g, shapeD(T_SIDE, x, y, s * m, s, tilt), 0.9 * m));
+    // Tulipanes chicos: pétalos laterales lisos (con tangle quedaban cuñas en la punta).
+    if (k >= 0.7) for (const m of [1, -1]) layers.push(...zen(ks, rng, box, cfg, g, shapeD(T_SIDE, x, y, s * m, s, tilt), 0.9 * m));
     layers.push({ d: center.d, fill: W });
     layers.push(...zen(kc, rng, box, cfg, g, shapeD(T_CENTER, x, y, s, s, tilt), Math.PI / 2 + tilt));
     const [sx0, sy0] = T(0, 0.25), [sx1, sy1] = T(0, 1.25);
@@ -433,7 +435,7 @@ const ARM = [["M", -0.2, 0.17], ["L", -0.42, 0.17], ["Q", -0.64, 0.17, -0.64, -0
 function cactus(rng, r, cfg) {
   const { x: cx, y: cy } = centerOf(r);
   const R = sideOf(r) / 2, s = R * 0.84;
-  const g = gFor(cfg, s, 0.2);
+  const g = gFor(cfg, s, 0.26);
   const box = { x0: cx - s, y0: cy - s, x1: cx + s, y1: cy + s };
   const layers = [], arms = mk(rng, cfg), col = mk(rng, cfg), pot = mk(rng, cfg), rim = mk(rng, cfg), fl = mk(rng, cfg);
   const [kc, kp] = pickKinds(rng, 2, ["hatch", "cross"]);
@@ -447,10 +449,10 @@ function cactus(rng, r, cfg) {
   layers.push({ d: pot.d, fill: W });
   layers.push(...zen(kp === "hatch" ? "cross" : kp, rng, box, cfg, g, shapeD(POT, cx, cy + oy, s, s), Math.PI / 4));
   layers.push({ d: rim.d, fill: W });
-  const fy = cy + oy - s * 0.86;
+  const fy = cy + oy - s * 0.8;
   for (let k = 0; k < 5; k++) {
     const a = (k / 5) * TAU;
-    emit(fl, [["M", 0, 0], ["Q", 0.9, -0.5, 0, -1], ["Q", -0.9, -0.5, 0, 0], ["Z"]], cx + Math.sin(a) * s * 0.04, fy - Math.cos(a) * s * 0.04, s * 0.11, s * 0.16, a);
+    emit(fl, [["M", 0, 0], ["Q", 0.9, -0.5, 0, -1], ["Q", -0.9, -0.5, 0, 0], ["Z"]], cx + Math.sin(a) * s * 0.05, fy - Math.cos(a) * s * 0.05, s * 0.17, s * 0.26, a);
   }
   layers.push({ d: fl.d, fill: "none" });
   return layers;

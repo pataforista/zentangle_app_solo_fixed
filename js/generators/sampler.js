@@ -7,22 +7,26 @@
 import { createRNG, hash, rFloat } from "../core/prng.js";
 import { MOTIFS } from "./patterns/motifs.js";
 import { ICONS } from "./patterns/icons.js";
-import { fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon } from "./patterns/tangles.js";
+import { fillCadent, fillFlorz, fillTipple, fillCrescentMoon } from "./patterns/tangles.js";
 import { fillConcentricSquares } from "./patterns/geometric.js";
 import { fillScallops, fillSpiralBands } from "./patterns/organic.js";
 import { fillParadox, fillFlux } from "./patterns/complex.js";
 
-const classic = (id, fn) => ({
+// Los tangles clásicos están pensados para celdas de página (>= 15 mm) con su
+// propio espaciado; en una unidad pequeña quedaban demasiado apretados, así que
+// printemps (espirales) se omite: duplica `spirals` y al recortarse en el borde
+// dejaba espirales cerradas de ~1 mm. Se les pide más aire (gapMul) para que las zonas quepan en un marcador.
+const classic = (id, fn, gapMul = 1.5) => ({
   id,
   fn: (rng, r, cfg) => {
-    const d = fn(rng, r, { ...cfg, focus: { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2, r: (r.x1 - r.x0) / 2 } });
+    const d = fn(rng, r, { ...cfg, minGapMm: cfg.minGapMm * gapMul, focus: { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2, r: (r.x1 - r.x0) / 2 } });
     return d ? [{ d, fill: "none" }] : [];
   },
 });
 
 const CLASSIC = [
   classic("cadent", fillCadent), classic("florz", fillFlorz), classic("tipple", fillTipple),
-  classic("printemps", fillPrintemps), classic("crescentMoon", fillCrescentMoon),
+  classic("crescentMoon", fillCrescentMoon),
   classic("concentricSquares", fillConcentricSquares), classic("scallops", fillScallops),
   classic("spiralBands", fillSpiralBands), classic("paradox", fillParadox), classic("flux", fillFlux),
 ];
@@ -177,3 +181,4 @@ export async function generateSampler(doc, opts) {
 
   if (!useDocDefs && localDefs.length) doc.body.unshift(`<defs>${localDefs.join("")}</defs>`);
 }
+export { POOLS };
