@@ -23,15 +23,20 @@ function star(b, cx, cy, ro, ri, rot) {
   b.close();
 }
 
+// Estrella central doble (eco) rodeada de seis estrellas; en tinta las pequeñas
+// van negras. Composición fija: una retícula al azar dejaba a veces una sola.
 function starfield(rng, r, cfg) {
-  const p = pitch(rng, r, cfg, 2, 3, 5.5);
-  const b = mk(rng, cfg), core = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.95, { stagger: true, jitter: 0.03, over: 0.2 })) {
-    const rot = rFloat(rng, -0.25, 0.25), ro = p * 0.4;
-    star(b, q.x, q.y, ro, ro * 0.45, rot);
-    star(core, q.x, q.y, ro * 0.5, ro * 0.22, rot);
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, a0 = rFloat(rng, 0, TAU);
+  const b = mk(rng, cfg), core = mk(rng, cfg), small = mk(rng, cfg);
+  const ro = R * 0.34, rot = rFloat(rng, -0.2, 0.2);
+  star(b, cx, cy, ro, ro * 0.45, rot);
+  star(core, cx, cy, ro * 0.5, ro * 0.22, rot);
+  for (let k = 0; k < 6; k++) {
+    const a = a0 + (k / 6) * TAU;
+    star(small, cx + Math.cos(a) * R * 0.72, cy + Math.sin(a) * R * 0.72, R * 0.19, R * 0.19 * 0.46, a + Math.PI / 2);
   }
-  return [{ d: b.d, fill: "none" }, { d: core.d, fill: ink(cfg) }];
+  return [{ d: b.d, fill: "none" }, { d: small.d, fill: ink(cfg) }, { d: core.d, fill: ink(cfg) }];
 }
 
 function sun(rng, r, cfg) {

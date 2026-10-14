@@ -200,6 +200,15 @@ async function runTests() {
         assert.ok(!/fill="#000"/.test(docCol.body.join("")), `ERROR: ${name} contiene rellenos negros (seed ${seed}).`);
       }
     }
+    // Cobertura: con semillas consecutivas deben salir TODOS los iconos (un PRNG
+    // sin mezclar dejaba fuera al cactus para siempre).
+    const seenIcons = new Set();
+    for (let seed = 1; seed <= 120; seed++) {
+      const d = { body: [], defs: [] };
+      await generateZentangle(d, { seed, presetName: "sampler_icons", areaMm: area });
+      for (const m of d.body.join("").matchAll(/data-motif="(\w+)"/g)) seenIcons.add(m[1]);
+    }
+    for (const ic of ICONS) assert.ok(seenIcons.has(ic.id), `ERROR: el icono ${ic.id} nunca sale en sampler_icons (120 semillas).`);
     console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length + ICONS.length} motivos).`);
 
     console.log("\n==============================================");

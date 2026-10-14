@@ -99,7 +99,11 @@ export async function generateSampler(doc, opts) {
   const shapeOpt = opts.samplerShape || "circle"; // circle | square | rounded | mixed
   const pool = POOLS[opts.samplerSet] || POOLS.all;
 
-  const rng = createRNG(seed);
+  // createRNG (sfc32 sin calentar) da salidas muy parecidas con semillas
+  // consecutivas: el sorteo de motivos dejaba fuera siempre a algunos (el cactus
+  // nunca salía). Se mezcla la semilla con hash() y se descartan las primeras.
+  const rng = createRNG(hash(seed, 0x51ab));
+  for (let w = 0; w < 12; w++) rng();
   const prefix = `z_${Math.floor(rng() * 1000000).toString(16)}_`;
   const useDocDefs = Array.isArray(doc.defs);
   const localDefs = [];

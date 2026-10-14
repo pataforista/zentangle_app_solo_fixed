@@ -128,14 +128,18 @@ function drops(rng, r, cfg) {
 }
 
 function clouds(rng, r, cfg) {
-  const px = Math.max(sideOf(r) / rFloat(rng, 2.0, 2.5), cfg.minGapMm * 8);
-  const py = px * 0.68;
-  const w = px * 0.88, h = px * 0.56;
-  const b = mk(rng, cfg);
+  // Tres nubes escalonadas (composición fija, sin recortes). Cada una es una
+  // capa con relleno blanco: si se rozan, la de adelante tapa a la de atrás.
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2;
   // Contorno en unidades (0..1): cuatro lóbulos sobre una base plana redondeada.
   const U = [[0, 0.3], [0.2, 0.74], [0.52, 1], [0.82, 0.72], [1, 0.3]];
-  for (const q of lattice(rng, r, cfg, px, py, { stagger: true, jitter: 0.03, over: 0.1 })) {
-    const X = (u) => q.x - w / 2 + u * w, Y = (v) => q.y + h / 2 - v * h;
+  const flip = rng() < 0.5 ? 1 : -1;
+  const layers = [];
+  for (const [dx, dy, wk] of [[-0.1, -0.52, 0.88], [0.2, 0.02, 1.0], [-0.16, 0.56, 0.84]]) {
+    const b = mk(rng, cfg);
+    const w = R * wk * 0.86, h = w * 0.58;
+    const X = (u) => cx + flip * dx * R - w / 2 + u * w, Y = (v) => cy + dy * R + h / 2 - v * h;
     const pt = U.map(([u, v]) => [X(u), Y(v)]);
     const arc = (a, c) => { const rr = Math.hypot(c[0] - a[0], c[1] - a[1]) * 0.52; b.arcTo(rr, rr, 0, 0, 1, c[0], c[1]); };
     b.moveTo(pt[0][0], pt[0][1]);
@@ -145,8 +149,9 @@ function clouds(rng, r, cfg) {
     b.lineTo(bl[0], bl[1]);
     arc(bl, pt[0]);
     b.close();
+    layers.push({ d: b.d, fill: W });
   }
-  return [{ d: b.d, fill: "none" }];
+  return layers;
 }
 
 function checker(rng, r, cfg) {
