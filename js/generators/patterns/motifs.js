@@ -155,20 +155,15 @@ function clouds(rng, r, cfg) {
 }
 
 function checker(rng, r, cfg) {
-  const n = rInt(rng, 4, 6);
-  const s = Math.max(sideOf(r) / n, cfg.minGapMm * 3.4);
+  // Tablero cuadrado centrado, entero dentro del círculo (con la retícula al azar
+  // los bordes quedaban escalonados). En tinta las casillas oscuras van negras;
+  // para colorear todas quedan en contorno.
   const { x: cx, y: cy } = centerOf(r);
-  const ox = rFloat(rng, 0, s), oy = rFloat(rng, 0, s);
-  const b = mk(rng, cfg);
-  const m = Math.ceil(sideOf(r) / s / 2) + 2;
-  for (let j = -m; j <= m; j++) {
-    for (let i = -m; i <= m; i++) {
-      if ((i + j) & 1) continue;
-      const x = cx + ox + i * s - s / 2, y = cy + oy + j * s - s / 2;
-      if (cfg.inside(x + s / 2, y + s / 2, s * 0.15)) b.rect(x, y, s, s);
-    }
-  }
-  return [{ d: b.d, fill: ink(cfg) }];
+  const R = sideOf(r) / 2, n = rInt(rng, 4, 5);
+  const side = R * 1.4, s = side / n, x0 = cx - side / 2, y0 = cy - side / 2;
+  const outline = mk(rng, cfg), dark = mk(rng, cfg);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) ((i + j) & 1 ? outline : dark).rect(x0 + i * s, y0 + j * s, s, s);
+  return [{ d: outline.d, fill: "none" }, { d: dark.d, fill: ink(cfg) }];
 }
 
 // Bandas excéntricas (círculos anidados desplazados): rayado grueso tipo diana.
@@ -257,25 +252,27 @@ function rainbows(rng, r, cfg) {
 }
 
 function squareSpirals(rng, r, cfg) {
-  const p = pitch(rng, r, cfg, 2, 3, 5);
-  const size = p * 0.82;
-  const st = Math.max(cfg.minGapMm * 1.25, size / rInt(rng, 6, 8));
+  // Cuatro espirales cuadradas en 2x2 (caben enteras en el círculo).
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, size = R * 0.6;
+  const st = Math.max(cfg.minGapMm * 1.25, size / rInt(rng, 5, 6));
   const b = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p, { over: 0.2 })) {
-    let L = q.x - size / 2, T = q.y - size / 2, R = q.x + size / 2, B = q.y + size / 2;
+  for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const x = cx + dx * R * 0.42, y = cy + dy * R * 0.42;
+    let L = x - size / 2, T = y - size / 2, Rr = x + size / 2, B = y + size / 2;
     b.moveTo(L, T);
     let first = true;
     for (let guard = 0; guard < 40; guard++) {
-      b.lineTo(R, T);
+      b.lineTo(Rr, T);
       if (B - T < st * 1.5) break;
       if (!first) L += st;
-      b.lineTo(R, B);
-      if (R - L < st * 1.5) break;
+      b.lineTo(Rr, B);
+      if (Rr - L < st * 1.5) break;
       b.lineTo(L, B);
       T += st;
       b.lineTo(L, T);
-      if (R - L < st * 2.2 || B - T < st * 1.5) break;
-      R -= st; B -= st; first = false;
+      if (Rr - L < st * 2.2 || B - T < st * 1.5) break;
+      Rr -= st; B -= st; first = false;
     }
   }
   return [{ d: b.d, fill: "none" }];
