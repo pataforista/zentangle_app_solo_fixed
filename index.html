@@ -92,9 +92,30 @@
 
     .panel-scroll {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       padding: 24px;
     }
+
+    .control-group-title { margin-top: 4px; }
+
+    /* Valor numérico junto a cada slider */
+    .range-val {
+      float: right;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hover);
+    }
+
+    .image-section { margin: 0 0 24px; }
+    .image-section[open] > summary { border-bottom: 1px solid var(--border-light); }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .btn:disabled { opacity: .55; cursor: progress; }
+
 
     /* Form Elements */
     .control-group {
@@ -341,6 +362,8 @@
       color: var(--text-muted);
       border: 1px solid var(--border-light);
       backdrop-filter: blur(4px);
+      max-width: calc(100% - 40px);
+      z-index: 2;
     }
 
     /* Details styling */
@@ -367,6 +390,39 @@
     details .grid-inner {
       padding: 16px;
     }
+
+    /* Móvil: la vista previa va primero y se queda fija; las acciones también (compactas) */
+    @media (max-width: 899px) {
+      .app-container { height: auto; min-height: 100vh; }
+      .preview-panel {
+        order: -1;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        flex: none;
+        height: 38vh;
+        min-height: 220px;
+        padding: 10px;
+        box-shadow: 0 2px 8px rgb(0 0 0 / .12);
+      }
+      #previewInner svg { max-height: calc(38vh - 20px); }
+      .status-bar { bottom: 6px; right: 6px; font-size: 11px; padding: 4px 10px; max-width: calc(100% - 12px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .panel-scroll { overflow: visible; padding: 16px; }
+      .actions-bar {
+        position: sticky; bottom: 0; z-index: 15;
+        padding: 8px 12px; gap: 6px;
+        box-shadow: 0 -2px 8px rgb(0 0 0 / .1);
+        grid-template-columns: repeat(12, 1fr);
+      }
+      .actions-bar > div { display: contents !important; }
+      .actions-bar .btn { min-height: 44px; padding: 6px 4px; font-size: 12px; }
+      #btnRender, #btnRandomSeed, #btnGallery { grid-column: span 4; order: 0; }
+      #btnDownloadSVG, #btnDownloadPDF, #btnDownloadPNG, #btnDownloadJSON { grid-column: span 3; order: 1; }
+      input[type="range"] { height: 8px; }
+      input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+      input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+      input[type="number"], select { font-size: 16px; padding: 10px 12px; }
+    }
   </style>
 </head>
 
@@ -382,8 +438,9 @@
       <div class="panel-scroll">
 
         <!-- Image Integration Section -->
-        <span class="control-group-title">Integración de Imágenes</span>
-        <div class="control-group">
+        <details class="image-section" id="imageSection">
+          <summary>🖼️ Integrar una imagen (opcional)</summary>
+        <div class="control-group" style="margin:0; border:0; border-radius:0;">
           <div style="margin-bottom: 12px;">
             <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 6px;">Subir imagen</label>
             <input type="file" id="imageUpload" accept="image/*" style="display: block; width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;" />
@@ -449,6 +506,7 @@
             <p style="font-size: 12px; color: var(--text-muted); margin: 0;">👆 Arrastra la imagen en el preview para mover</p>
           </div>
         </div>
+        </details>
 
         <!-- Main Settings -->
         <span class="control-group-title">Configuración Base</span>
@@ -511,8 +569,9 @@
                 </optgroup>
               </select>
             </div>
+          </div>
         </div>
-        
+
         <!-- KDP Standards & Quality -->
         <span class="control-group-title">Estándares KDP & Calidad</span>
         <div class="control-group">
@@ -551,7 +610,7 @@
               <input id="minCellSizeMm" type="range" min="8" max="26" step="1" value="14" />
             </div>
             <div>
-              <label for="minGapMm">Espaciado int.</label>
+              <label for="minGapMm">Espaciado int. (mm)</label>
               <input id="minGapMm" type="range" min="0.6" max="5.0" step="0.1" value="1.4" />
             </div>
           </div>
@@ -696,24 +755,20 @@
 
           <div class="actions-bar">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-          <button id="btnRandomSeed" class="btn btn-secondary">🎲 Random Seed</button>
-          <button id="btnRender" class="btn btn-primary">⚡ Renderizar</button>
+          <button id="btnRandomSeed" class="btn btn-secondary">🎲 Semilla</button>
+          <button id="btnRender" class="btn btn-primary">⚡ Render</button>
         </div>
-        <button id="btnGallery" class="btn btn-secondary">🖼️ Generar 8 variaciones</button>
+        <button id="btnGallery" class="btn btn-secondary">🖼️ 8 variaciones</button>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-          <button id="btnDownloadSVG" class="btn btn-secondary">
-            <i class="fas fa-file-code"></i> Descargar SVG
+          <button id="btnDownloadSVG" class="btn btn-secondary"> ⬇ SVG
           </button>
-          <button id="btnDownloadPDF" class="btn btn-accent">
-            <i class="fas fa-file-pdf"></i> Descargar PDF (KDP)
+          <button id="btnDownloadPDF" class="btn btn-accent"> ⬇ PDF (KDP)
           </button>
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-          <button id="btnDownloadPNG" class="btn btn-secondary">
-            <i class="fas fa-file-image"></i> Descargar PNG
+          <button id="btnDownloadPNG" class="btn btn-secondary"> ⬇ PNG
           </button>
-          <button id="btnDownloadJSON" class="btn btn-secondary">
-            <i class="fas fa-file-json"></i> Descargar JSON
+          <button id="btnDownloadJSON" class="btn btn-secondary"> ⬇ JSON
           </button>
         </div>
       </div>
@@ -721,10 +776,10 @@
 
     <!-- Main Preview -->
     <main class="preview-panel">
-      <div id="preview">
+      <div id="preview" aria-label="Vista previa del diseño">
         <div id="previewInner"></div>
       </div>
-      <div id="status" class="status-bar">Listo</div>
+      <div id="status" class="status-bar" role="status" aria-live="polite">Listo</div>
     </main>
 
   </div>

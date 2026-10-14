@@ -10,7 +10,7 @@ import { generateZentangle } from "./generators/zentangle.generator.js";
 const $ = (id) => document.getElementById(id);
 
 const DEFAULT_STATE = {
-  paper: "A4",
+  preset: "A4",
   mode: "zentangle",
   seed: 42,
   zPreset: "kdp_balanced",
@@ -449,14 +449,45 @@ async function processImage(threshold) {
   ui.status.textContent = "✓ Imagen procesada";
 }
 
+// Muestra el valor actual junto a cada slider que no tenga ya un readout propio
+// (los de imagen usan sus spans *Val). Sin esto el usuario ajusta a ciegas.
+function attachRangeReadouts() {
+  document.querySelectorAll('.controls-panel input[type="range"]').forEach((input) => {
+    if (document.getElementById(input.id + "Val")) return;
+    const label = document.querySelector(`label[for="${input.id}"]`);
+    if (!label) return;
+    const out = document.createElement("output");
+    out.className = "range-val";
+    out.htmlFor = input.id;
+    const show = () => { out.textContent = input.value; };
+    show();
+    input.addEventListener("input", show);
+    label.appendChild(out);
+  });
+}
+
+// Evita clics repetidos mientras se genera/exporta y deja claro que hay trabajo en curso.
+const busyButtons = () => [ui.btnRender, ui.btnRandomSeed, ui.btnGallery,
+  ui.btnDownloadSVG, ui.btnDownloadPNG, ui.btnDownloadPDF, ui.btnDownloadJSON];
+async function withBusy(fn) {
+  const btns = busyButtons();
+  btns.forEach((b) => { if (b) b.disabled = true; });
+  try { return await fn(); }
+  finally { btns.forEach((b) => { if (b) b.disabled = false; }); }
+}
+
 function bind() {
   const st = getStateFromURL(DEFAULT_STATE);
+  attachRangeReadouts();
 
+  // Si la URL trae un valor desconocido, el <select> quedaría en blanco: usar el de respaldo.
   ui.paper.value = st.preset;
+  if (ui.paper.selectedIndex < 0) ui.paper.value = DEFAULT_STATE.preset;
   ui.seed.value = String(st.seed >>> 0);
   ui.zPreset.value = st.zPreset;
+  if (ui.zPreset.selectedIndex < 0) ui.zPreset.value = DEFAULT_STATE.zPreset;
   // Aplica el preset inicial a los controles (base de estilo real).
-  applyPresetToUI(st.zPreset);
+  applyPresetToUI(ui.zPreset.value);
 
   ui.paperTextureEnabled.value = st.paperTextureEnabled || "0";
   ui.cellShadowEnabled.value = st.cellShadowEnabled || "0";
@@ -495,6 +526,8 @@ function bind() {
       const stats = appState.imageStats;
       const sizeInfo = `${stats.width}×${stats.height}px (${stats.contrast})`;
       ui.imageFileName.textContent = `✓ ${file.name} · ${sizeInfo}`;
+      const sec = document.getElementById("imageSection");
+      if (sec) sec.open = true;
 
       ui.useImageMode.checked = true;
       render();
@@ -606,12 +639,12 @@ function bind() {
 
   ui.btnRandomSeed.addEventListener("click", () => {
     ui.seed.value = String(randomSeed32());
-    render();
+    withBusy(render);
   });
 
-  ui.btnRender.addEventListener("click", () => render());
+  ui.btnRender.addEventListener("click", () => withBusy(render));
 
-  if (ui.btnGallery) ui.btnGallery.addEventListener("click", () => renderGallery(8));
+  if (ui.btnGallery) ui.btnGallery.addEventListener("click", () => withBusy(() => renderGallery(8)));
 
   // El preset sincroniza los controles NO tocados antes de renderizar; tus
   // ajustes manuales se conservan para iterar rápido entre presets.
@@ -654,7 +687,7 @@ function bind() {
     el.addEventListener(evt, debouncedRender);
   });
 
-  ui.btnDownloadSVG.addEventListener("click", async () => {
+  ui.btnDownloadSVG.addEventListener("click", () => withBusy(async () => {
     try {
       ui.status.innerText = "Preparando SVG...";
       const { svg, paperKey, zPresetKey } = await render();
@@ -664,9 +697,9 @@ function bind() {
       ui.status.innerText = `✗ Error al descargar SVG: ${err.message}`;
       console.error("Error al descargar SVG:", err);
     }
-  });
+  }));
 
-  ui.btnDownloadPNG.addEventListener("click", async () => {
+  ui.btnDownloadPNG.addEventListener("click", () => withBusy(async () => {
     try {
       const { svg, paperKey, zPresetKey } = await render();
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
@@ -677,9 +710,9 @@ function bind() {
       ui.status.innerText = `✗ Error al descargar PNG: ${err.message}`;
       console.error("Error al descargar PNG:", err);
     }
-  });
+  }));
 
-  ui.btnDownloadPDF.addEventListener("click", async () => {
+  ui.btnDownloadPDF.addEventListener("click", () => withBusy(async () => {
     try {
       const { svg, paperKey, zPresetKey } = await render();
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
@@ -690,9 +723,9 @@ function bind() {
       ui.status.innerText = `✗ Error al descargar PDF: ${err.message}`;
       console.error("Error al descargar PDF:", err);
     }
-  });
+  }));
 
-  ui.btnDownloadJSON.addEventListener("click", async () => {
+  ui.btnDownloadJSON.addEventListener("click", () => withBusy(async () => {
     try {
       ui.status.innerText = "Preparando JSON...";
       const { opts, paperKey, zPresetKey } = await render();
@@ -705,7 +738,7 @@ function bind() {
       ui.status.innerText = `✗ Error al descargar JSON: ${err.message}`;
       console.error("Error al descargar JSON:", err);
     }
-  });
+  }));
 
   render();
 }
