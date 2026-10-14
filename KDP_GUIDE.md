@@ -261,8 +261,8 @@ Elige el estilo en **Muestrarios** y usa **Celdas** para el número de unidades.
 
 | Preset | Para qué sirve |
 |---|---|
-| **Iconos para colorear** (`sampler_icons`) | El más memorable y coloreable: luna, sol, mariposa, peces, gato, loto, paraguas, hongos, estrellas, pluma. Unidades grandes (12), sin rellenos negros. ~5 regiones no coloreables por página. |
-| Iconos (tinta) (`sampler_icons_ink`) | Mismos iconos con detalles en negro (ojos, manchas, luna llena). Para muestrarios o portada. |
+| **Iconos para colorear** (`sampler_icons`) | El más memorable: siluetas con el interior lleno de tangles (búho, mariposa, peces, corazones, tulipanes, cactus, luna) y otros iconos (sol, gato, loto, paraguas, hongos, estrellas, pluma). Unidades grandes (12), sin rellenos negros. ~27 regiones no coloreables por página (los tangles agregan detalle: puntas de pétalos, alrededor de los ojos). |
+| Iconos (tinta) (`sampler_icons_ink`) | Mismos iconos con detalles en negro (ojos, manchas, puntos). Los corazones nunca van rellenos: llevan tangles. |
 | Círculos (tinta) / cuadros (tinta) | Texturas y motivos variados con masas negras repartidas. |
 | Círculos (para colorear) | Texturas sin rellenos negros. |
 | Mini (48 unidades) | Hoja de muestras densa; **no** pensada para colorear. |

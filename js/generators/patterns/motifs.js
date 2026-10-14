@@ -86,14 +86,17 @@ function smoothThrough(b, pts) {
 
 /* ============ Motivos ============ */
 
+// Corazones en contorno con "eco" interior (tangle clásico): nunca rellenos.
 function hearts(rng, r, cfg) {
-  const p = pitch(rng, r, cfg, 3, 5);
-  const tilt = rFloat(rng, 0, 0.35);
-  const b = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.9, { stagger: true, jitter: 0.04 })) {
-    emit(b, HEART, q.x, q.y, p * 0.38, p * 0.38, (rng() - 0.5) * 2 * tilt);
+  const p = pitch(rng, r, cfg, 3, 4, 5);
+  const tilt = rFloat(rng, 0, 0.3);
+  const outer = mk(rng, cfg), inner = mk(rng, cfg);
+  for (const q of lattice(rng, r, cfg, p, p * 0.92, { stagger: true, jitter: 0.03 })) {
+    const t = (rng() - 0.5) * 2 * tilt, hs = p * 0.42;
+    emit(outer, HEART, q.x, q.y, hs, hs, t);
+    emit(inner, HEART, q.x, q.y + hs * 0.06, hs * 0.5, hs * 0.5, t);
   }
-  return [{ d: b.d, fill: ink(cfg) }];
+  return [{ d: outer.d, fill: "none" }, { d: inner.d, fill: "none" }];
 }
 
 function flowers(rng, r, cfg) {
@@ -445,7 +448,7 @@ function bricks(rng, r, cfg) {
 // heavy: con solids=true produce una masa negra grande; el muestrario las reparte
 // para que dos vecinas pesadas no se junten.
 export const MOTIFS = [
-  { id: "hearts", fn: hearts, heavy: true },
+  { id: "hearts", fn: hearts },
   { id: "flowers", fn: flowers },
   { id: "drops", fn: drops, heavy: true },
   { id: "clouds", fn: clouds },

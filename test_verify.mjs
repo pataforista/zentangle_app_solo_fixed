@@ -185,6 +185,11 @@ async function runTests() {
         assert.ok(d.length > 20, `ERROR: el motivo ${m.id} no dibujó nada (solids=${solids}).`);
         assert.ok(!/NaN|Infinity/.test(d), `ERROR: el motivo ${m.id} produce coordenadas inválidas.`);
         if (!solids) assert.ok(layers.every((l) => l.fill !== "#000"), `ERROR: ${m.id} rellena de negro con solids=false.`);
+        // Determinista aunque se llame varias veces seguidas (sin estado compartido).
+        const again = m.fn(createRNG(5), { x0: 0, y0: 0, x1: 42, y1: 42 }, cfg).filter((l) => l.d);
+        assert.strictEqual(JSON.stringify(again), JSON.stringify(layers), `ERROR: ${m.id} no es determinista entre llamadas.`);
+        // Los rellenos recortados deben traer un contorno válido.
+        for (const l of layers) if (l.clipD) assert.ok(l.clipD.length > 10 && !/NaN/.test(l.clipD), `ERROR: ${m.id} tiene un recorte inválido.`);
       }
     }
     // Para colorear (solids=false) no debe haber rellenos negros en toda la página.

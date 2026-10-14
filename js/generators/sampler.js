@@ -151,9 +151,18 @@ export async function generateSampler(doc, opts) {
       ? `<clipPath id="${clipId}"><circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(R)}"/></clipPath>`
       : `<clipPath id="${clipId}"><rect x="${fmt(x0)}" y="${fmt(y0)}" width="${fmt(size)}" height="${fmt(size)}" rx="${fmt(rx)}"/></clipPath>`);
 
-    const paths = layers.map((l) => l.stroke === false
-      ? `<path d="${l.d}" fill="${l.fill}" stroke="none"/>`
-      : `<path d="${l.d}" fill="${l.fill}" stroke="#000" stroke-width="${fmt(sw)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    // Capas: l.clipD recorta la capa a un contorno propio (relleno tangle dentro
+    // de una silueta); l.w escala el grosor (los tangles van más finos que el contorno).
+    let nClip = 0;
+    const paths = layers.map((l) => {
+      const el = l.stroke === false
+        ? `<path d="${l.d}" fill="${l.fill}" stroke="none"/>`
+        : `<path d="${l.d}" fill="${l.fill}" stroke="#000" stroke-width="${fmt(sw * (l.w || 1))}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      if (!l.clipD) return el;
+      const id = `${clipId}_${nClip++}`;
+      pushDef(`<clipPath id="${id}"><path d="${l.clipD}"/></clipPath>`);
+      return `<g clip-path="url(#${id})">${el}</g>`;
+    });
     doc.body.push(`<g clip-path="url(#${clipId})" data-motif="${motifs[k].id}">${paths.join("")}</g>`);
 
     const inset = borderMm / 2;
