@@ -41,7 +41,7 @@ globalThis.__dbg = { w, h, out }; }
 const names = process.argv[2] ? process.argv[2].split(",") : Object.keys(ZENTANGLE_PRESETS);
 const tot = { ink: 0, bad: 0, micro: 0, n: 0 };
 for (const name of names) {
-  const acc = { ink: 0, bad: 0, micro: 0, regions: 0 }; const seeds = [1, 7, 23];
+  const acc = { ink: 0, bad: 0, micro: 0, regions: 0 }; const seeds = process.env.SEEDS ? Array.from({ length: +process.env.SEEDS }, (_, i) => i * 13 + 1) : [1, 7, 23];
   for (const seed of seeds) {
     const doc = { body: [], defs: [] };
     await generateZentangle(doc, { seed, presetName: name, areaMm: { x: 12, y: 12, w: 186, h: 273 } });

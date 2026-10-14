@@ -261,14 +261,15 @@ Elige el estilo en **Muestrarios** y usa **Celdas** para el número de unidades.
 
 | Preset | Para qué sirve |
 |---|---|
-| **Iconos para colorear** (`sampler_icons`) | El más memorable: siluetas con el interior lleno de tangles (búho, mariposa, peces, corazones, tulipanes, cactus, luna) y otros iconos (sol, gato, loto, paraguas, hongos, estrellas, pluma). Unidades grandes (12), sin rellenos negros. ~27 regiones no coloreables por página (los tangles agregan detalle: puntas de pétalos, alrededor de los ojos). |
+| **Iconos para colorear** (`sampler_icons`) | El más memorable: siluetas con el interior lleno de tangles (búho, mariposa, peces, corazones, tulipanes, cactus, luna) y otros iconos (sol, gato, loto, paraguas, hongos, estrellas, pluma). Unidades grandes (12), sin rellenos negros. ~31 regiones no coloreables por página (media de 20 semillas; `kdp_balanced` ronda 62). Los tangles agregan detalle: puntas de pétalos, alrededor de los ojos. |
 | Iconos (tinta) (`sampler_icons_ink`) | Mismos iconos con detalles en negro (ojos, manchas, puntos). Los corazones nunca van rellenos: llevan tangles. |
-| Círculos (tinta) / cuadros (tinta) | Texturas y motivos variados con masas negras repartidas. |
-| Círculos (para colorear) | Texturas sin rellenos negros. |
+| Círculos (tinta) / cuadros (tinta) | Texturas y motivos variados con masas negras repartidas. **No** están pensados para colorear: ~88 y ~118 regiones no coloreables por página (mezclan tangles clásicos densos). |
+| Círculos (para colorear) | Texturas sin rellenos negros. ~43 regiones no coloreables por página. |
 | Mini (48 unidades) | Hoja de muestras densa; **no** pensada para colorear. |
 
 Notas:
 - En modo para colorear los motivos repetidos que el borde cortaría se omiten
   (dejaban astillas imposibles de rellenar).
-- `npm run colorability -- sampler_icons` mide las regiones no coloreables.
+- `npm run colorability -- sampler_icons` mide las regiones no coloreables; usa
+  `SEEDS=20` para promediar más semillas (con 3 la cifra varía mucho).
 - Ajusta el slider **Sketchy** para más (o menos) trazo a mano.
