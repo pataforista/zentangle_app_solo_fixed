@@ -478,7 +478,10 @@
     .sp-card.ink::after { content: "tinta"; position: absolute; top: 9px; right: 9px; font-size: 9.5px; font-weight: 600; background: #111; color: #fff; padding: 1px 5px; border-radius: 4px; }
 
     /* Revisión del libro */
-    .book-review { width: 100%; }
+    /* #previewInner usa line-height 0 para el SVG; la revisión necesita texto normal. */
+    .book-review { width: 100%; line-height: 1.35; }
+    .book-tile .gallery-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .book-tile .tile-redo { flex: none; white-space: nowrap; }
     .book-review-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--border-light); border-radius: 10px; position: sticky; top: 0; z-index: 3; }
     .book-review-title { margin: 0; font-size: 13px; line-height: 1.4; }
     .book-grid { grid-template-columns: repeat(5, 1fr); }
@@ -531,6 +534,7 @@
           </div>
           <select id="zPreset" class="visually-hidden" tabindex="-1" aria-hidden="true">
                 <optgroup label="🎲 Aleatorio">
+                  <option value="best_sellers">💰 Más vendidos — mezcla de los estilos más rentables para KDP</option>
                   <option value="random_all">🎲 Aleatorio — mezcla todos los estilos</option>
                   <option value="random_color">🎲 Aleatorio — solo para colorear (sin negros)</option>
                 </optgroup>

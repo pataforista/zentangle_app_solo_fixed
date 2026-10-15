@@ -3,7 +3,7 @@ import { ZENTANGLE_PRESETS } from "./zentangle.presets.js";
 import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
-import { RANDOM_COLOR_KEY, isRandomKey, resolveRandomStyle } from "./randomStyle.js";
+import { RANDOM_STYLE_KEY, BESTSELLER_KEY, isRandomKey, resolveRandomStyle, resolveBestSeller } from "./randomStyle.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   if (!areaMm || typeof areaMm !== "object") {
@@ -27,11 +27,19 @@ export async function generateZentangle(doc, {
   presetName = "editorial_airy",
   overrides = {},
   cellsOnly = false,
+  // Solo para "Más vendidos" dentro de un libro: posición de la página y
+  // semilla del libro, para repartir los estilos en proporciones fijas.
+  pageIndex = null,
+  bookSeed = null,
 } = {}) {
   const area = normalizeAreaMm(areaMm);
   let randomOverrides = {};
   if (isRandomKey(presetName)) {
-    const r = resolveRandomStyle(seed, { cellsOnly, coloringOnly: presetName === RANDOM_COLOR_KEY });
+    // En modo imagen (cellsOnly) "Más vendidos" cae al aleatorio para colorear:
+    // la mitad de sus estilos no son de celdas.
+    const r = presetName === BESTSELLER_KEY && !cellsOnly
+      ? resolveBestSeller(seed, { pageIndex, bookSeed })
+      : resolveRandomStyle(seed, { cellsOnly, coloringOnly: presetName !== RANDOM_STYLE_KEY });
     presetName = r.presetName;
     randomOverrides = r.overrides;
   }

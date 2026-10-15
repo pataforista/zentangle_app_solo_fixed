@@ -5,7 +5,7 @@ import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
 import { MOTIFS } from "./js/generators/patterns/motifs.js";
 import { ICONS } from "./js/generators/patterns/icons.js";
 import { createRNG } from "./js/core/prng.js";
-import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, resolveRandomStyle, isColoringSafe } from "./js/generators/randomStyle.js";
+import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, BESTSELLER_KEY, BESTSELLERS, resolveRandomStyle, resolveBestSeller, isColoringSafe } from "./js/generators/randomStyle.js";
 import { POOLS } from "./js/generators/sampler.js";
 import { LAYOUT_TEMPLATES, getTemplateCells } from "./js/generators/layoutTemplates.js";
 import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
@@ -271,7 +271,7 @@ async function runTests() {
     const menuValues = [...menu.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
     assert.strictEqual(new Set(menuValues).size, menuValues.length, "ERROR: opciones duplicadas en el menú de estilos.");
     for (const name of Object.keys(ZENTANGLE_PRESETS)) assert.ok(menuValues.includes(name), `ERROR: el preset ${name} no se puede elegir en el menú.`);
-    for (const v of menuValues) assert.ok(v === RANDOM_STYLE_KEY || v === RANDOM_COLOR_KEY || ZENTANGLE_PRESETS[v], `ERROR: el menú ofrece ${v}, que no existe.`);
+    for (const v of menuValues) assert.ok(v === RANDOM_STYLE_KEY || v === RANDOM_COLOR_KEY || v === BESTSELLER_KEY || ZENTANGLE_PRESETS[v], `ERROR: el menú ofrece ${v}, que no existe.`);
     assert.ok(menuValues.includes(RANDOM_STYLE_KEY), "ERROR: falta la opción Aleatorio en el menú.");
     assert.ok(menuValues.includes(RANDOM_COLOR_KEY), "ERROR: falta la opción Aleatorio para colorear en el menú.");
     assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(html), "ERROR: falta la regla CSS [hidden]; .form-row (display:grid) dejaría visibles los selectores ocultos.");
@@ -414,6 +414,30 @@ async function runTests() {
       }
     }
     console.log(`✓ ${Object.keys(LAYOUT_TEMPLATES).length} plantillas son particiones exactas; 80 páginas sin celdas vacías.`);
+
+    console.log("\nPrueba 9: Más vendidos (estilos rentables, repartidos sin repetir)...");
+    const deckTotal = BESTSELLERS.reduce((a, [, w]) => a + w, 0);
+    for (const [k] of BESTSELLERS) {
+      assert.ok(ZENTANGLE_PRESETS[k], `ERROR: Más vendidos incluye ${k}, que no existe.`);
+      assert.ok(isColoringSafe(ZENTANGLE_PRESETS[k]), `ERROR: Más vendidos incluye ${k}, que tiene rellenos negros.`);
+    }
+    for (const bs of [1, 42, 347387974]) {
+      const styles = Array.from({ length: deckTotal * 2 }, (_, i) => resolveBestSeller(0, { pageIndex: i, bookSeed: bs }).presetName);
+      for (let i = 1; i < styles.length; i++) assert.notStrictEqual(styles[i], styles[i - 1], `ERROR: Más vendidos repite ${styles[i]} en las páginas ${i} y ${i + 1} (libro ${bs}).`);
+      const first = styles.slice(0, deckTotal);
+      for (const [k, w] of BESTSELLERS) assert.strictEqual(first.filter((x) => x === k).length, w, `ERROR: ${k} debería salir ${w} veces cada ${deckTotal} páginas (libro ${bs}).`);
+    }
+    // En el libro el estilo depende de la página, no de la semilla: ↻ Cambiar
+    // (otra semilla, misma página) da otro diseño del mismo estilo.
+    const dA = { body: [], defs: [] }, dB = { body: [], defs: [] };
+    const uA = await generateZentangle(dA, { seed: 11, presetName: BESTSELLER_KEY, areaMm: area, pageIndex: 3, bookSeed: 42 });
+    const uB = await generateZentangle(dB, { seed: 999, presetName: BESTSELLER_KEY, areaMm: area, pageIndex: 3, bookSeed: 42 });
+    assert.strictEqual(uA.presetName, uB.presetName, "ERROR: cambiar una página de Más vendidos cambió su estilo.");
+    assert.notStrictEqual(dA.body.join(""), dB.body.join(""), "ERROR: cambiar una página de Más vendidos no cambió el diseño.");
+    assert.ok(!/fill="#000"/.test(dA.body.join("") + dB.body.join("")), "ERROR: Más vendidos dibujó rellenos negros.");
+    const cellsOnlyPick = await generateZentangle({ body: [], defs: [] }, { seed: 5, presetName: BESTSELLER_KEY, areaMm: area, cellsOnly: true });
+    assert.ok(!["sampler", "icon_mandala", "facet_spiral"].includes(ZENTANGLE_PRESETS[cellsOnlyPick.presetName].cellLayout), "ERROR: Más vendidos en modo imagen devolvió un estilo sin celdas.");
+    console.log(`✓ ${BESTSELLERS.length} estilos rentables sin negros; proporciones exactas cada ${deckTotal} páginas y sin repeticiones seguidas.`);
 
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
