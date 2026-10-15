@@ -5,6 +5,10 @@ import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
 import { MOTIFS } from "./js/generators/patterns/motifs.js";
 import { ICONS } from "./js/generators/patterns/icons.js";
 import { createRNG } from "./js/core/prng.js";
+import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, resolveRandomStyle, isColoringSafe } from "./js/generators/randomStyle.js";
+import { POOLS } from "./js/generators/sampler.js";
+import { LAYOUT_TEMPLATES } from "./js/generators/layoutTemplates.js";
+import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
 
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
@@ -173,7 +177,14 @@ async function runTests() {
       assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: ${name} produce coordenadas inválidas.`);
       const tiles = (a.body.join("").match(/data-motif=/g) || []).length;
       const want = ZENTANGLE_PRESETS[name].cellCount;
-      assert.ok(Math.abs(tiles - want) <= Math.max(3, want * 0.25), `ERROR: ${name} generó ${tiles} unidades (pedidas ~${want}).`);
+      if (ZENTANGLE_PRESETS[name].samplerLayout && ZENTANGLE_PRESETS[name].samplerLayout !== "grid") {
+        // Teselado: cellCount cuenta las teselas principales; las chicas y las
+        // cortadas por el borde se suman como acompañamiento (data-minor).
+        const majors = (a.body.join("").match(/data-motif="\w+">/g) || []).length;
+        assert.ok(majors >= Math.max(1, Math.floor(want * 0.3)) && tiles >= want, `ERROR: ${name} generó ${majors} teselas principales / ${tiles} en total (pedidas ~${want}).`);
+      } else {
+        assert.ok(Math.abs(tiles - want) <= Math.max(3, want * 0.25), `ERROR: ${name} generó ${tiles} unidades (pedidas ~${want}).`);
+      }
     }
     // Cada motivo debe devolver capas con trazo, sin NaN, con y sin rellenos negros.
     const R = 21;
@@ -209,7 +220,174 @@ async function runTests() {
       for (const m of d.body.join("").matchAll(/data-motif="(\w+)"/g)) seenIcons.add(m[1]);
     }
     for (const ic of ICONS) assert.ok(seenIcons.has(ic.id), `ERROR: el icono ${ic.id} nunca sale en sampler_icons (120 semillas).`);
+    // Teselados: las teselas de la celda primitiva cubren exactamente su área
+    // (coordenadas de Cairo/rombille tomadas de Wolfram PeriodicTiling) y la
+    // contracción convexa nunca deja picos fuera del polígono original.
+    for (const [tname, t] of Object.entries(TILINGS)) {
+      const unit = Math.abs(t.v1.x * t.v2.y - t.v1.y * t.v2.x);
+      const sum = t.tiles.reduce((acc, x) => acc + Math.abs(polyArea(x.poly)), 0);
+      assert.ok(Math.abs(sum - unit) < 1e-9, `ERROR: el teselado ${tname} no cubre su celda (${sum} vs ${unit}).`);
+      const cells = tileArea(tname, area, 14);
+      assert.ok(cells.length >= 8, `ERROR: ${tname} colocó solo ${cells.length} teselas.`);
+      for (const c of cells) {
+        for (const p of c.poly) assert.ok(p.x >= area.x - 1e-6 && p.x <= area.x + area.w + 1e-6 && p.y >= area.y - 1e-6 && p.y <= area.y + area.h + 1e-6, `ERROR: ${tname} se sale del área.`);
+        for (const p of insetConvex(c.poly, 1.5)) assert.ok(pointInPoly(p.x, p.y, c.poly) || distToEdges(p.x, p.y, c.poly) < 1e-6, `ERROR: la contracción de ${tname} deja picos.`);
+      }
+    }
+    for (const layout of TILING_NAMES) {
+      const d = { body: [], defs: [] };
+      await generateZentangle(d, { seed: 5, presetName: "sampler_coloring", areaMm: area, overrides: { samplerLayout: layout } });
+      const out = d.body.join("") + d.defs.join("");
+      assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: samplerLayout=${layout} produce coordenadas inválidas.`);
+      assert.ok(!/fill="#000"/.test(d.body.join("")), `ERROR: samplerLayout=${layout} rellena de negro para colorear.`);
+    }
+
+    // Zentangle con figura: estrella como string, mandala de iconos y pétalos
+    // facetados. Deterministas, sin coordenadas inválidas y renderizables (un
+    // recorte vacío anidado en otro hacía fallar a resvg).
+    const { Resvg } = await import("@resvg/resvg-js");
+    for (const name of ["zen_star", "icon_mandala", "facet_spiral"]) {
+      for (const seed of [3, 8, 21, 77]) {
+        const d1 = { body: [], defs: [] }, d2 = { body: [], defs: [] };
+        await generateZentangle(d1, { seed, presetName: name, areaMm: area });
+        await generateZentangle(d2, { seed, presetName: name, areaMm: area });
+        const out = d1.body.join("") + d1.defs.join("");
+        assert.strictEqual(out, d2.body.join("") + d2.defs.join(""), `ERROR: ${name} no es determinista.`);
+        assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: ${name} produce coordenadas inválidas (seed ${seed}).`);
+        assert.ok(!/fill="#000"/.test(d1.body.join("")) || name === "zen_star", `ERROR: ${name} rellena de negro (seed ${seed}).`);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297"><defs>${d1.defs.join("")}</defs>${d1.body.join("")}</svg>`;
+        new Resvg(svg, { fitTo: { mode: "width", value: 200 } }).render();
+      }
+    }
+
     console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length + ICONS.length} motivos).`);
+
+    // 7. Elegibles y aleatorio: todo estilo del motor se puede elegir en el menú
+    // y el modo aleatorio los sortea todos (y las opciones de los muestrarios).
+    console.log("\nPrueba 7: Estilos elegibles y modo aleatorio...");
+    const { readFileSync } = await import("node:fs");
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+    const menu = html.match(/<select id="zPreset">([\s\S]*?)<\/select>/)[1];
+    const menuValues = [...menu.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
+    assert.strictEqual(new Set(menuValues).size, menuValues.length, "ERROR: opciones duplicadas en el menú de estilos.");
+    for (const name of Object.keys(ZENTANGLE_PRESETS)) assert.ok(menuValues.includes(name), `ERROR: el preset ${name} no se puede elegir en el menú.`);
+    for (const v of menuValues) assert.ok(v === RANDOM_STYLE_KEY || v === RANDOM_COLOR_KEY || ZENTANGLE_PRESETS[v], `ERROR: el menú ofrece ${v}, que no existe.`);
+    assert.ok(menuValues.includes(RANDOM_STYLE_KEY), "ERROR: falta la opción Aleatorio en el menú.");
+    assert.ok(menuValues.includes(RANDOM_COLOR_KEY), "ERROR: falta la opción Aleatorio para colorear en el menú.");
+    assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(html), "ERROR: falta la regla CSS [hidden]; .form-row (display:grid) dejaría visibles los selectores ocultos.");
+    for (const id of ["samplerLayout", "samplerEdge", "samplerIconMode"]) {
+      const sel = html.match(new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`))[1];
+      const vals = [...sel.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
+      const expected = { samplerLayout: ["grid", ...TILING_NAMES], samplerEdge: ["fill", "whole"], samplerIconMode: ["single", "pattern", "fractal", "mixed"] }[id];
+      assert.deepStrictEqual(vals, expected, `ERROR: el selector ${id} no ofrece todas las opciones del motor.`);
+    }
+
+    const picked = { presets: new Set(), layouts: new Set(), edges: new Set(), modes: new Set(), shapes: new Set(), sets: new Set(), templates: new Set(), groups: new Set() };
+    const samplerSeeds = [];
+    for (let seed = 1; seed <= 1500; seed++) {
+      const r = resolveRandomStyle(seed), again = resolveRandomStyle(seed);
+      assert.strictEqual(JSON.stringify(r), JSON.stringify(again), "ERROR: el estilo aleatorio no es determinista.");
+      picked.presets.add(r.presetName); picked.groups.add(r.group);
+      const o = r.overrides, p = ZENTANGLE_PRESETS[r.presetName];
+      if (r.group === "sampler") {
+        picked.layouts.add(o.samplerLayout); picked.sets.add(o.samplerSet); picked.modes.add(o.samplerIconMode);
+        if (o.samplerEdge) picked.edges.add(o.samplerEdge);
+        if (o.samplerShape) picked.shapes.add(o.samplerShape);
+        if (samplerSeeds.length < 120) samplerSeeds.push(seed);
+      }
+      if (p.cellLayout === "template") picked.templates.add(o.templateName || p.templateName);
+      const cells = resolveRandomStyle(seed, { cellsOnly: true });
+      assert.ok(!["sampler", "icon_mandala", "facet_spiral"].includes(ZENTANGLE_PRESETS[cells.presetName].cellLayout), "ERROR: cellsOnly devolvió un estilo que no es de celdas.");
+    }
+    for (const name of Object.keys(ZENTANGLE_PRESETS)) assert.ok(picked.presets.has(name), `ERROR: el modo aleatorio nunca sortea ${name} (1500 semillas).`);
+    for (const l of ["grid", ...TILING_NAMES]) assert.ok(picked.layouts.has(l), `ERROR: el aleatorio nunca sortea la distribución ${l}.`);
+    for (const e of ["fill", "whole"]) assert.ok(picked.edges.has(e), `ERROR: el aleatorio nunca sortea bordes ${e}.`);
+    for (const m of ["single", "pattern", "fractal", "mixed"]) assert.ok(picked.modes.has(m), `ERROR: el aleatorio nunca sortea el modo de iconos ${m}.`);
+    for (const sh of ["circle", "rounded", "square", "mixed"]) assert.ok(picked.shapes.has(sh), `ERROR: el aleatorio nunca sortea la forma ${sh}.`);
+    for (const st of Object.keys(POOLS)) assert.ok(picked.sets.has(st), `ERROR: el aleatorio nunca sortea el conjunto ${st}.`);
+    for (const t of Object.keys(LAYOUT_TEMPLATES)) assert.ok(picked.templates.has(t), `ERROR: el aleatorio nunca sortea la plantilla ${t}.`);
+    for (const g of ["kdp", "classic", "template", "sampler", "figure"]) assert.ok(picked.groups.has(g), `ERROR: el aleatorio nunca sortea la familia ${g}.`);
+
+    // Cada preset genera y se renderiza (resvg falló alguna vez con recortes vacíos).
+    // En Node d3-delaunay no carga por https y el Voronoi cae a su versión simple:
+    // se silencia ese aviso, que no es de lo que se prueba aquí.
+    const realWarn = console.warn, realError = console.error;
+    console.warn = () => {}; console.error = (...a) => { if (!/d3-delaunay/.test(String(a[0]))) realError(...a); };
+    for (const name of Object.keys(ZENTANGLE_PRESETS)) {
+      const d = { body: [], defs: [] };
+      const used = await generateZentangle(d, { seed: 7, presetName: name, areaMm: area });
+      const out = d.body.join("") + d.defs.join("");
+      assert.strictEqual(used.presetName, name, `ERROR: ${name} reporta otro estilo (${used.presetName}).`);
+      assert.ok(out.length > 800 && !/NaN|Infinity|undefined/.test(out), `ERROR: el preset ${name} no dibuja o produce coordenadas inválidas.`);
+      new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297"><defs>${d.defs.join("")}</defs>${d.body.join("")}</svg>`, { fitTo: { mode: "width", value: 160 } }).render();
+    }
+
+    console.warn = realWarn; console.error = realError;
+
+    // Aleatorio: genera con el estilo sorteado, igual a pedir ese preset con esos overrides.
+    for (const seed of [2, 11, 29, 53, 97, 131]) {
+      const viaRandom = { body: [], defs: [] }, direct = { body: [], defs: [] };
+      const used = await generateZentangle(viaRandom, { seed, presetName: RANDOM_STYLE_KEY, areaMm: area });
+      const r = resolveRandomStyle(seed);
+      await generateZentangle(direct, { seed, presetName: r.presetName, overrides: r.overrides, areaMm: area });
+      assert.strictEqual(used.presetName, r.presetName, "ERROR: el aleatorio reporta un estilo distinto al sorteado.");
+      assert.strictEqual(viaRandom.body.join("") + viaRandom.defs.join(""), direct.body.join("") + direct.defs.join(""), `ERROR: aleatorio(seed ${seed}) difiere del preset ${r.presetName} directo.`);
+    }
+
+    // Los overrides del llamador ganan sobre el sorteo.
+    {
+      const seed = samplerSeeds[0];
+      const d = { body: [], defs: [] };
+      await generateZentangle(d, { seed, presetName: RANDOM_STYLE_KEY, overrides: { samplerLayout: "cairo", samplerIconMode: "single" }, areaMm: area });
+      assert.ok(/data-motif=/.test(d.body.join("")), "ERROR: el override del llamador rompió el aleatorio.");
+    }
+
+    // Aleatorio para colorear: nunca elige un estilo con tinta, sí elige todos los
+    // demás, y sus páginas no tienen un solo relleno negro. La regla se contrasta
+    // con los hechos: los presets excluidos son justo los que dibujan negro.
+    {
+      const safe = Object.keys(ZENTANGLE_PRESETS).filter((n) => isColoringSafe(ZENTANGLE_PRESETS[n]));
+      const unsafe = Object.keys(ZENTANGLE_PRESETS).filter((n) => !safe.includes(n));
+      assert.ok(unsafe.length >= 4 && safe.length >= 30, `ERROR: la clasificación de estilos para colorear es sospechosa (${safe.length} aptos / ${unsafe.length} con tinta).`);
+      const gotColor = new Set(), gotGroups = new Set(), colorSampler = [];
+      for (let seed = 1; seed <= 1500; seed++) {
+        const r = resolveRandomStyle(seed, { coloringOnly: true });
+        assert.ok(safe.includes(r.presetName), `ERROR: el aleatorio para colorear sorteó ${r.presetName}, que lleva tinta.`);
+        assert.ok(r.group !== "sampler" || r.overrides.samplerSolids === false, "ERROR: un muestrario sorteado para colorear no fuerza samplerSolids=false.");
+        gotColor.add(r.presetName); gotGroups.add(r.group);
+        if (r.group === "sampler" && colorSampler.length < 25) colorSampler.push(seed);
+      }
+      for (const n of safe) assert.ok(gotColor.has(n), `ERROR: el aleatorio para colorear nunca sortea ${n}.`);
+      for (const g of ["kdp", "classic", "template", "sampler", "figure"]) assert.ok(gotGroups.has(g), `ERROR: el aleatorio para colorear nunca sortea la familia ${g}.`);
+      // Hechos: los estilos "con tinta" realmente dibujan negro y los aptos no.
+      for (const n of Object.keys(ZENTANGLE_PRESETS)) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 5, presetName: n, areaMm: area });
+        assert.strictEqual(/fill="#000"/.test(d.body.join("")), unsafe.includes(n), `ERROR: ${n} ${unsafe.includes(n) ? "no dibuja negro pero está marcado con tinta" : "dibuja negro pero está marcado apto para colorear"}.`);
+      }
+      // Páginas completas en modo colorear: sin negro, y con el mismo resultado que pedir el estilo directo.
+      const pagesSeeds = [...colorSampler.slice(0, 10), 3, 8, 21, 34, 55, 89, 144, 233, 377, 610];
+      for (const seed of pagesSeeds) {
+        const d = { body: [], defs: [] };
+        const used = await generateZentangle(d, { seed, presetName: RANDOM_COLOR_KEY, areaMm: area });
+        assert.ok(safe.includes(used.presetName), `ERROR: aleatorio-colorear dibujó ${used.presetName}, que lleva tinta.`);
+        assert.ok(!/fill="#000"/.test(d.body.join("")), `ERROR: aleatorio-colorear produjo un relleno negro (seed ${seed}, ${used.presetName}).`);
+      }
+      // cellsOnly y coloringOnly se combinan (imagen de fondo + libro de colorear).
+      const both = resolveRandomStyle(9, { cellsOnly: true, coloringOnly: true });
+      assert.ok(!["sampler", "icon_mandala", "facet_spiral"].includes(ZENTANGLE_PRESETS[both.presetName].cellLayout), "ERROR: cellsOnly + coloringOnly devolvió un estilo que no es de celdas.");
+      console.log(`✓ Aleatorio para colorear: ${safe.length} estilos aptos sorteados, ${unsafe.length} con tinta excluidos (${unsafe.join(", ")}).`);
+    }
+
+    // Todos los motivos e iconos aparecen alguna vez en el aleatorio (páginas de muestrario).
+    const seenMotifs = new Set();
+    for (const seed of samplerSeeds) {
+      const d = { body: [], defs: [] };
+      await generateZentangle(d, { seed, presetName: RANDOM_STYLE_KEY, areaMm: area });
+      for (const m of d.body.join("").matchAll(/data-motif="(\w+)"/g)) seenMotifs.add(m[1]);
+    }
+    for (const m of [...MOTIFS, ...ICONS]) assert.ok(seenMotifs.has(m.id), `ERROR: el motivo ${m.id} nunca sale en el aleatorio (${samplerSeeds.length} muestrarios).`);
+    console.log(`✓ ${Object.keys(ZENTANGLE_PRESETS).length} estilos elegibles y sorteados (1500 semillas), ${picked.layouts.size} distribuciones, ${picked.modes.size} modos de iconos, ${MOTIFS.length + ICONS.length} motivos.`);
 
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");

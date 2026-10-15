@@ -2,6 +2,7 @@
 import { createRNG, rFloat, rInt, pick, hash } from "../core/prng.js";
 import { PathBuilder } from "../core/pathBuilder.js";
 import { LAYOUT_TEMPLATES, getTemplateCells } from "./layoutTemplates.js";
+import { starCells } from "./ornaments.js";
 
 import {
   fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit
@@ -599,6 +600,11 @@ function _makeCells(rng, baseRect, cfg) {
   if (cellLayout === "voronoi") return _makeVoronoiCells(rng, baseRect, Math.max(10, cellCount));
   // cellCount/8 dejaba los presets de strings (cellCount ~18) en 2 celdas.
   if (cellLayout === "strings") return _makeStringCells(rng, baseRect, Math.max(3, Math.round(cellCount / 2.5)));
+
+  // Estrella subdividida como string (ornaments.js).
+  if (cellLayout === "star") {
+    return starCells(rng, baseRect, Math.max(6, cellCount), _clipPolyToRect).map((poly) => ({ kind: "poly", bbox: _bboxOfPoly(poly), poly }));
+  }
 
   if (cellLayout === "template") {
     const names = Object.keys(LAYOUT_TEMPLATES);
