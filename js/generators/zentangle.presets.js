@@ -754,4 +754,73 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 2.2,
     sketchy: 0.2,
   },
+
+  // Teselados en lugar de retícula (samplerLayout): hexágonos, octógonos +
+  // cuadrados (4.8²), dodecágonos + hexágonos + cuadrados (4.6.12), pentágonos de
+  // El Cairo y rombos (rombille). cellCount = teselas principales aprox.; las
+  // chicas y las cortadas por el borde llevan texturas.
+  sampler_hex: {
+    cellLayout: "sampler",
+    samplerLayout: "hex",
+    cellCount: 14,
+    samplerSet: "iconic",
+    samplerSolids: false,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.55,
+    minGapMm: 2.0,
+    sketchy: 0.2,
+  },
+
+  sampler_octagons: {
+    cellLayout: "sampler",
+    samplerLayout: "octagons",
+    cellCount: 12,
+    samplerSet: "all",
+    samplerSolids: false,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.55,
+    minGapMm: 2.0,
+    sketchy: 0.2,
+  },
+
+  sampler_dodecagons: {
+    cellLayout: "sampler",
+    samplerLayout: "dodecagons",
+    cellCount: 8,
+    samplerSet: "iconic",
+    samplerSolids: false,
+    samplerGapMm: 2.5,
+    cellBorderWidthMm: 0.8,
+    patternStrokeMm: 0.5,
+    minGapMm: 1.9,
+    sketchy: 0.2,
+  },
+
+  sampler_cairo: {
+    cellLayout: "sampler",
+    samplerLayout: "cairo",
+    cellCount: 14,
+    samplerSet: "all",
+    samplerSolids: false,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.55,
+    minGapMm: 2.0,
+    sketchy: 0.2,
+  },
+
+  sampler_rhombille: {
+    cellLayout: "sampler",
+    samplerLayout: "rhombille",
+    cellCount: 14,
+    samplerSet: "iconic",
+    samplerSolids: true,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.5,
+    minGapMm: 1.9,
+    sketchy: 0.2,
+  },
 };

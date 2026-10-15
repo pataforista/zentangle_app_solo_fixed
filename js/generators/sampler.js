@@ -1,6 +1,6 @@
 // sampler.js
-// Modo muestrario: una retícula de contenedores iguales (círculos o cuadros),
-// cada uno con UN motivo distinto, como las hojas de "doodle patterns".
+// Modo muestrario: una retícula de contenedores iguales (círculos o cuadros) o
+// un teselado periódico (samplerLayout), cada unidad con UN motivo distinto, como las hojas de "doodle patterns".
 // Contrasta con zentangleCells: allí las celdas son irregulares y los patrones
 // genéricos; aquí cada unidad es una idea reconocible (corazones, gotas, nubes,
 // tablero...) y la hoja mezcla negros sólidos, rayado y blancos.
@@ -9,6 +9,7 @@ import { MOTIFS } from "./patterns/motifs.js";
 import { ICONS } from "./patterns/icons.js";
 import { fillCadent, fillFlorz, fillTipple, fillCrescentMoon } from "./patterns/tangles.js";
 import { fillConcentricSquares } from "./patterns/geometric.js";
+import { TILINGS, tileArea, insetConvex, polyArea, polyCentroid, distToEdges, pointInPoly } from "./samplerTilings.js";
 import { fillScallops, fillSpiralBands } from "./patterns/organic.js";
 import { fillParadox, fillFlux } from "./patterns/complex.js";
 
@@ -33,6 +34,8 @@ const CLASSIC = [
 
 // "iconic": imágenes reconocibles + texturas suaves (mezcla más memorable).
 const SOFT = ["bubbles", "scales", "rainbows", "clouds", "flowers", "leaves", "mandala", "honeycomb", "polka", "hearts"];
+
+const ICON_IDS = new Set(ICONS.map((m) => m.id));
 
 const POOLS = {
   all: [...MOTIFS, ...ICONS, ...CLASSIC],
@@ -59,10 +62,10 @@ export function pickGrid(count, w, h, gap) {
   return best || { cols: 1, rows: 1, size: Math.min(w, h), score: 0 };
 }
 
-// Asigna un motivo por tile sin repetir hasta agotar la paleta; las masas negras
-// ("heavy") no se juntan con vecinas (izquierda/arriba) ni superan el tope.
-function assignMotifs(rng, pool, cols, rows, solids, heavyShare) {
-  const n = cols * rows;
+// Asigna un motivo por unidad sin repetir hasta agotar la paleta; las masas
+// negras ("heavy") no se juntan con vecinas ya asignadas ni superan el tope.
+// neighbors(k) devuelve los índices (< k) que tocan a la unidad k.
+function assignMotifs(rng, pool, n, neighbors, solids, heavyShare) {
   const maxHeavy = solids ? Math.max(1, Math.ceil(n * heavyShare)) : n;
   const shuffle = (a) => {
     const o = a.slice();
@@ -74,9 +77,8 @@ function assignMotifs(rng, pool, cols, rows, solids, heavyShare) {
   let heavyCount = 0;
   for (let k = 0; k < n; k++) {
     if (!queue.length) queue = shuffle(pool).filter((m) => m !== out[k - 1]);
-    const i = k % cols, j = Math.floor(k / cols);
-    const left = i > 0 ? out[k - 1] : null, up = j > 0 ? out[k - cols] : null;
-    const heavyOk = (m) => !solids || !m.heavy || (heavyCount < maxHeavy && !left?.heavy && !up?.heavy);
+    const near = neighbors(k).map((q) => out[q]);
+    const heavyOk = (m) => !solids || !m.heavy || (heavyCount < maxHeavy && !near.some((x) => x?.heavy));
     let idx = queue.findIndex(heavyOk);
     if (idx < 0) idx = 0;
     const m = queue.splice(idx, 1)[0];
@@ -84,6 +86,100 @@ function assignMotifs(rng, pool, cols, rows, solids, heavyShare) {
     out.push(m);
   }
   return out;
+}
+
+// Retícula de contenedores iguales (círculo, cuadro o cuadro redondeado).
+function gridUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, shapeOpt) {
+  const { cols, rows, size } = pickGrid(count, a.w, a.h, gap);
+  const gridW = cols * size + (cols - 1) * gap, gridH = rows * size + (rows - 1) * gap;
+  const ox = a.x + (a.w - gridW) / 2, oy = a.y + (a.h - gridH) / 2;
+  const motifs = assignMotifs(rng, pool, cols * rows, (k) => {
+    const i = k % cols, j = Math.floor(k / cols), nb = [];
+    if (i > 0) nb.push(k - 1);
+    if (j > 0) nb.push(k - cols);
+    return nb;
+  }, solids, heavyShare);
+  const shapes = ["circle", "rounded", "square"];
+  const units = [];
+  for (let k = 0; k < cols * rows; k++) {
+    const i = k % cols, j = Math.floor(k / cols);
+    const x0 = ox + i * (size + gap), y0 = oy + j * (size + gap);
+    const cx = x0 + size / 2, cy = y0 + size / 2, R = size / 2;
+    const shape = shapeOpt === "mixed" ? shapes[Math.floor(rng() * shapes.length)] : shapeOpt;
+    const isCircle = shape === "circle";
+    const rx = shape === "rounded" ? size * 0.14 : 0;
+    const inset = borderMm / 2;
+    units.push({
+      motif: motifs[k],
+      box: { x0, y0, x1: x0 + size, y1: y0 + size },
+      inside: isCircle
+        ? (x, y, over) => Math.hypot(x - cx, y - cy) <= R + over
+        : (x, y, over) => Math.abs(x - cx) <= R + over && Math.abs(y - cy) <= R + over,
+      clip: isCircle
+        ? `<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(R)}"/>`
+        : `<rect x="${fmt(x0)}" y="${fmt(y0)}" width="${fmt(size)}" height="${fmt(size)}" rx="${fmt(rx)}"/>`,
+      border: isCircle
+        ? `<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(R - inset)}" fill="none" stroke="#000" stroke-width="${fmt(borderMm)}"/>`
+        : `<rect x="${fmt(x0 + inset)}" y="${fmt(y0 + inset)}" width="${fmt(size - borderMm)}" height="${fmt(size - borderMm)}" rx="${fmt(Math.max(0, rx - inset))}" fill="none" stroke="#000" stroke-width="${fmt(borderMm)}" stroke-linejoin="round"/>`,
+    });
+  }
+  return units;
+}
+
+const polyD = (poly) => poly.map((p, i) => `${i ? "L" : "M"}${fmt(p.x)} ${fmt(p.y)}`).join(" ") + " Z";
+
+// Teselado periódico (hexágonos, 4.8², 4.6.12, Cairo, rombille). Cada celda es
+// un polígono convexo: el motivo recibe una caja cuadrada centrada en él. Los
+// iconos usan la caja inscrita (no se recortan); las texturas una mayor, para
+// llegar a las esquinas.
+function tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, layout) {
+  const cells = tileArea(layout, a, count).map((c) => ({ ...c, poly: insetConvex(c.poly, gap / 2) }))
+    .filter((c) => c.poly.length >= 3 && Math.abs(polyArea(c.poly)) > 4).map((c) => {
+    const poly = c.poly;
+    const cen = polyCentroid(poly);
+    const ri = distToEdges(cen.x, cen.y, poly);
+    const rc = Math.max(...poly.map((p) => Math.hypot(p.x - cen.x, p.y - cen.y)));
+    return { poly, cen, ri, rc, minor: c.minor, partial: c.partial };
+  });
+  // Una tesela cortada por el borde puede llevar icono si conserva casi todo su
+  // círculo inscrito; si no, recibe una textura como las teselas chicas.
+  const refRi = Math.max(0, ...cells.filter((c) => !c.minor && !c.partial).map((c) => c.ri));
+  for (const c of cells) if (c.partial && (c.minor || c.ri < refRi * 0.8)) c.minor = true;
+
+  // Vecinas: celdas que comparten arista (centros a menos de la suma de radios).
+  const near = (i, j) => Math.hypot(cells[i].cen.x - cells[j].cen.x, cells[i].cen.y - cells[j].cen.y) < (cells[i].rc + cells[j].rc) * 0.98 + gap;
+  const major = cells.map((c, i) => i).filter((i) => !cells[i].minor);
+  // Las teselas chicas sin espacio para una textura coloreable quedan vacías:
+  // son ellas mismas una región para pintar.
+  const minorIdx = cells.map((c, i) => i).filter((i) => cells[i].minor && cells[i].ri >= 7);
+  const pos = new Map(major.map((ci, k) => [ci, k]));
+  const majorMotifs = assignMotifs(rng, pool, major.length,
+    (k) => major.slice(0, k).filter((cj) => near(major[k], cj)).map((cj) => pos.get(cj)), solids, heavyShare);
+  // Las teselas chicas llevan texturas livianas: los iconos ahí quedarían diminutos.
+  // Escamas, flores y arcoíris se vuelven astillas sin espacio para colorear en
+  // teselas chicas (métrica de colorabilidad), así que se omiten ahí.
+  const fine = new Set(["scales", "flowers", "rainbows"]);
+  let texPool = pool.filter((m) => !ICON_IDS.has(m.id) && !m.heavy && !fine.has(m.id));
+  if (texPool.length < 3) texPool = MOTIFS.filter((m) => SOFT.includes(m.id) && !fine.has(m.id));
+  const minorMotifs = assignMotifs(rng, texPool, minorIdx.length, () => [], false, 0);
+
+  const motifOf = new Map();
+  major.forEach((ci, k) => motifOf.set(ci, majorMotifs[k]));
+  minorIdx.forEach((ci, k) => motifOf.set(ci, minorMotifs[k]));
+
+  return cells.map((c, i) => {
+    const m = motifOf.get(i) || null;
+    const h = m && ICON_IDS.has(m.id) ? c.ri * 1.04 : Math.min(c.rc, (c.ri + c.rc) / 2);
+    const inner = insetConvex(c.poly, borderMm / 2);
+    return {
+      motif: m,
+      minor: c.minor,
+      box: { x0: c.cen.x - h, y0: c.cen.y - h, x1: c.cen.x + h, y1: c.cen.y + h },
+      inside: (x, y, over) => (pointInPoly(x, y, c.poly) ? -distToEdges(x, y, c.poly) : distToEdges(x, y, c.poly)) <= over,
+      clip: `<path d="${polyD(c.poly)}"/>`,
+      border: `<path d="${polyD(inner)}" fill="none" stroke="#000" stroke-width="${fmt(borderMm)}" stroke-linejoin="round"/>`,
+    };
+  });
 }
 
 export async function generateSampler(doc, opts) {
@@ -113,51 +209,32 @@ export async function generateSampler(doc, opts) {
   const localDefs = [];
   const pushDef = (s) => { if (useDocDefs) doc.defs.push(s); else localDefs.push(s); };
 
-  const grid = pickGrid(count, a.w, a.h, gap);
-  const { cols, rows, size } = grid;
-  const gridW = cols * size + (cols - 1) * gap, gridH = rows * size + (rows - 1) * gap;
-  const ox = a.x + (a.w - gridW) / 2, oy = a.y + (a.h - gridH) / 2;
-
   if (opts.drawOuterBorder === true) {
     doc.body.push(`<rect x="${fmt(a.x)}" y="${fmt(a.y)}" width="${fmt(a.w)}" height="${fmt(a.h)}" fill="none" stroke="#000" stroke-width="${fmt(borderMm)}" stroke-linejoin="round"/>`);
   }
 
-  const motifs = assignMotifs(rng, pool, cols, rows, solids, heavyShare);
-  const shapes = ["circle", "rounded", "square"];
+  const layout = TILINGS[opts.samplerLayout] ? opts.samplerLayout : "grid";
+  const units = layout === "grid"
+    ? gridUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, shapeOpt)
+    : tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, layout);
 
-  for (let k = 0; k < cols * rows; k++) {
-    const i = k % cols, j = Math.floor(k / cols);
-    const x0 = ox + i * (size + gap), y0 = oy + j * (size + gap);
-    const cx = x0 + size / 2, cy = y0 + size / 2, R = size / 2;
-    const shape = shapeOpt === "mixed" ? shapes[Math.floor(rng() * shapes.length)] : shapeOpt;
-    const isCircle = shape === "circle";
-    const rx = shape === "rounded" ? size * 0.14 : 0;
-
+  units.forEach((u, k) => {
     const trng = createRNG(hash(seed, 1000 + k));
     const sw = strokeMm * rFloat(trng, 1 - strokeVar * 0.6, 1 + strokeVar);
-    const cfg = {
-      minGapMm,
-      patternStrokeMm: sw,
-      sketchy,
-      solids,
-      inside: isCircle
-        ? (x, y, over) => Math.hypot(x - cx, y - cy) <= R + over
-        : (x, y, over) => Math.abs(x - cx) <= R + over && Math.abs(y - cy) <= R + over,
-    };
-    const box = { x0, y0, x1: x0 + size, y1: y0 + size };
+    const cfg = { minGapMm, patternStrokeMm: sw, sketchy, solids, inside: u.inside };
 
     let layers = [];
-    try { layers = motifs[k].fn(trng, box, cfg) || []; } catch (e) { layers = []; }
-    layers = layers.filter((l) => l && l.d);
-    if (!layers.length) {
-      const fallback = MOTIFS.find((m) => m.id === "bubbles").fn(trng, box, cfg);
-      layers = fallback.filter((l) => l.d);
+    if (u.motif) {
+      try { layers = u.motif.fn(trng, u.box, cfg) || []; } catch (e) { layers = []; }
+      layers = layers.filter((l) => l && l.d);
+      if (!layers.length) {
+        const fallback = MOTIFS.find((m) => m.id === "bubbles").fn(trng, u.box, cfg);
+        layers = fallback.filter((l) => l.d);
+      }
     }
 
     const clipId = `${prefix}c${k}`;
-    pushDef(isCircle
-      ? `<clipPath id="${clipId}"><circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(R)}"/></clipPath>`
-      : `<clipPath id="${clipId}"><rect x="${fmt(x0)}" y="${fmt(y0)}" width="${fmt(size)}" height="${fmt(size)}" rx="${fmt(rx)}"/></clipPath>`);
+    pushDef(`<clipPath id="${clipId}">${u.clip}</clipPath>`);
 
     // Capas: l.clipD recorta la capa a un contorno propio (relleno tangle dentro
     // de una silueta); l.w escala el grosor (los tangles van más finos que el contorno).
@@ -171,13 +248,11 @@ export async function generateSampler(doc, opts) {
       pushDef(`<clipPath id="${id}"><path d="${l.clipD}"/></clipPath>`);
       return `<g clip-path="url(#${id})">${el}</g>`;
     });
-    doc.body.push(`<g clip-path="url(#${clipId})" data-motif="${motifs[k].id}">${paths.join("")}</g>`);
-
-    const inset = borderMm / 2;
-    doc.body.push(isCircle
-      ? `<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(R - inset)}" fill="none" stroke="#000" stroke-width="${fmt(borderMm)}"/>`
-      : `<rect x="${fmt(x0 + inset)}" y="${fmt(y0 + inset)}" width="${fmt(size - borderMm)}" height="${fmt(size - borderMm)}" rx="${fmt(Math.max(0, rx - inset))}" fill="none" stroke="#000" stroke-width="${fmt(borderMm)}" stroke-linejoin="round"/>`);
-  }
+    if (u.motif) {
+      doc.body.push(`<g clip-path="url(#${clipId})" data-motif="${u.motif.id}"${u.minor ? ' data-minor="1"' : ""}>${paths.join("")}</g>`);
+    }
+    doc.body.push(u.border);
+  });
 
   if (!useDocDefs && localDefs.length) doc.body.unshift(`<defs>${localDefs.join("")}</defs>`);
 }

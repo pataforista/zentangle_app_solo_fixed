@@ -530,6 +530,11 @@
                   <option value="sampler_coloring">Muestrario círculos (para colorear)</option>
                   <option value="sampler_squares">Muestrario cuadros (tinta)</option>
                   <option value="sampler_mini">Muestrario mini (48 unidades)</option>
+                  <option value="sampler_hex">⬡ Panal hexagonal (para colorear)</option>
+                  <option value="sampler_octagons">Octógonos + cuadros (para colorear)</option>
+                  <option value="sampler_dodecagons">Dodecágonos + hexágonos (para colorear)</option>
+                  <option value="sampler_cairo">Pentágonos de El Cairo (para colorear)</option>
+                  <option value="sampler_rhombille">Rombos / cubos (tinta)</option>
                 </optgroup>
                 <optgroup label="Templates Especiales">
                   <option value="classic_z_string">Cuerda en Z (Template)</option>
@@ -537,6 +542,19 @@
                   <option value="classic_grid">Cuadrícula (Template)</option>
                   <option value="spiral_modern">Espiral (Template)</option>
                 </optgroup>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" id="samplerLayoutRow" hidden>
+            <div style="grid-column: span 2">
+              <label for="samplerLayout">Distribución del muestrario</label>
+              <select id="samplerLayout">
+                <option value="grid">Retícula (círculos / cuadros)</option>
+                <option value="hex">Panal hexagonal</option>
+                <option value="octagons">Octógonos + cuadros (4.8²)</option>
+                <option value="dodecagons">Dodecágonos + hexágonos + cuadros (4.6.12)</option>
+                <option value="cairo">Pentágonos de El Cairo</option>
+                <option value="rhombille">Rombos / cubos (rombille)</option>
               </select>
             </div>
           </div>

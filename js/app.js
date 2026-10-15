@@ -21,6 +21,8 @@ const ui = {
   marginMm: $("marginMm"),
   seed: $("seed"),
   zPreset: $("zPreset"),
+  samplerLayout: $("samplerLayout"),
+  samplerLayoutRow: $("samplerLayoutRow"),
 
   cellCount: $("cellCount"),
   minCellSizeMm: $("minCellSizeMm"),
@@ -160,6 +162,9 @@ function buildOptsFromUI() {
     cellShadowEnabled: bool01(ui.cellShadowEnabled.value),
   };
 
+  // Distribución del muestrario (retícula o teselado); solo aplica a muestrarios.
+  if (zPreset.cellLayout === "sampler" && ui.samplerLayout) opts.samplerLayout = String(ui.samplerLayout.value || "grid");
+
   // Familia de patrón: solo sobreescribe el preset si el usuario eligió una.
   const famVal = String(ui.patternFamily.value || "");
   if (famVal) opts.patternFamily = famVal;
@@ -198,6 +203,8 @@ function applyPresetToUI(presetKey, { force = false } = {}) {
   set(ui.innerOrganicRoundMm, p.innerOrganicRoundMm);
 
   set(ui.patternFamily, p.patternFamily || "");
+  if (ui.samplerLayout) ui.samplerLayout.value = p.samplerLayout || "grid";
+  if (ui.samplerLayoutRow) ui.samplerLayoutRow.hidden = p.cellLayout !== "sampler";
   set(ui.focalStrength, p.focalStrength != null ? p.focalStrength : 0.3);
   set(ui.rotationJitterDeg, p.rotationJitterDeg != null ? p.rotationJitterDeg : 2.5);
 }
@@ -815,7 +822,9 @@ function bind() {
   // Controles no ligados al estilo del preset: solo re-renderizan.
   [
     ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone,
-    ui.paperTextureEnabled, ui.cellShadowEnabled
+    ui.paperTextureEnabled, ui.cellShadowEnabled,
+    // La distribución la define cada preset de muestrario: no se arrastra al cambiar.
+    ui.samplerLayout,
   ].forEach((el) => {
     if (!el) return;
     const evt = el.type === "checkbox" ? "change" : "input";

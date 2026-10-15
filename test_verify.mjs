@@ -5,6 +5,7 @@ import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
 import { MOTIFS } from "./js/generators/patterns/motifs.js";
 import { ICONS } from "./js/generators/patterns/icons.js";
 import { createRNG } from "./js/core/prng.js";
+import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
 
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
@@ -173,7 +174,14 @@ async function runTests() {
       assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: ${name} produce coordenadas inválidas.`);
       const tiles = (a.body.join("").match(/data-motif=/g) || []).length;
       const want = ZENTANGLE_PRESETS[name].cellCount;
-      assert.ok(Math.abs(tiles - want) <= Math.max(3, want * 0.25), `ERROR: ${name} generó ${tiles} unidades (pedidas ~${want}).`);
+      if (ZENTANGLE_PRESETS[name].samplerLayout && ZENTANGLE_PRESETS[name].samplerLayout !== "grid") {
+        // Teselado: cellCount cuenta las teselas principales; las chicas y las
+        // cortadas por el borde se suman como acompañamiento (data-minor).
+        const majors = (a.body.join("").match(/data-motif="\w+">/g) || []).length;
+        assert.ok(majors >= want * 0.4 && tiles >= want, `ERROR: ${name} generó ${majors} teselas principales / ${tiles} en total (pedidas ~${want}).`);
+      } else {
+        assert.ok(Math.abs(tiles - want) <= Math.max(3, want * 0.25), `ERROR: ${name} generó ${tiles} unidades (pedidas ~${want}).`);
+      }
     }
     // Cada motivo debe devolver capas con trazo, sin NaN, con y sin rellenos negros.
     const R = 21;
@@ -209,6 +217,28 @@ async function runTests() {
       for (const m of d.body.join("").matchAll(/data-motif="(\w+)"/g)) seenIcons.add(m[1]);
     }
     for (const ic of ICONS) assert.ok(seenIcons.has(ic.id), `ERROR: el icono ${ic.id} nunca sale en sampler_icons (120 semillas).`);
+    // Teselados: las teselas de la celda primitiva cubren exactamente su área
+    // (coordenadas de Cairo/rombille tomadas de Wolfram PeriodicTiling) y la
+    // contracción convexa nunca deja picos fuera del polígono original.
+    for (const [tname, t] of Object.entries(TILINGS)) {
+      const unit = Math.abs(t.v1.x * t.v2.y - t.v1.y * t.v2.x);
+      const sum = t.tiles.reduce((acc, x) => acc + Math.abs(polyArea(x.poly)), 0);
+      assert.ok(Math.abs(sum - unit) < 1e-9, `ERROR: el teselado ${tname} no cubre su celda (${sum} vs ${unit}).`);
+      const cells = tileArea(tname, area, 14);
+      assert.ok(cells.length >= 8, `ERROR: ${tname} colocó solo ${cells.length} teselas.`);
+      for (const c of cells) {
+        for (const p of c.poly) assert.ok(p.x >= area.x - 1e-6 && p.x <= area.x + area.w + 1e-6 && p.y >= area.y - 1e-6 && p.y <= area.y + area.h + 1e-6, `ERROR: ${tname} se sale del área.`);
+        for (const p of insetConvex(c.poly, 1.5)) assert.ok(pointInPoly(p.x, p.y, c.poly) || distToEdges(p.x, p.y, c.poly) < 1e-6, `ERROR: la contracción de ${tname} deja picos.`);
+      }
+    }
+    for (const layout of TILING_NAMES) {
+      const d = { body: [], defs: [] };
+      await generateZentangle(d, { seed: 5, presetName: "sampler_coloring", areaMm: area, overrides: { samplerLayout: layout } });
+      const out = d.body.join("") + d.defs.join("");
+      assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: samplerLayout=${layout} produce coordenadas inválidas.`);
+      assert.ok(!/fill="#000"/.test(d.body.join("")), `ERROR: samplerLayout=${layout} rellena de negro para colorear.`);
+    }
+
     console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length + ICONS.length} motivos).`);
 
     console.log("\n==============================================");
