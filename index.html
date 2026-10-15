@@ -451,6 +451,7 @@
     .link-btn:hover { background: #eef2ff; }
     .seed-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: end; }
     .seed-row .btn { padding: 9px 10px; font-size: 13px; white-space: nowrap; }
+    .fill-check { margin-top: 10px; }
     .check-cell { display: flex; align-items: flex-end; padding-bottom: 8px; }
     label.check { display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 13px; }
     details.more { margin: 0 0 12px; }
@@ -654,6 +655,7 @@
             <button id="btnGallery" class="btn btn-secondary" type="button" title="Genera 8 variaciones para elegir">🖼️ 8 variaciones</button>
           </div>
           <p class="hint">La semilla fija el dibujo: mismo estilo + misma semilla = mismo diseño.</p>
+          <label class="check fill-check"><input type="checkbox" id="fillDeadSpace" checked /> Rellenar huecos vacíos con burbujas para colorear</label>
         </section>
 
         <!-- ③ Libro -->

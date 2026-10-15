@@ -439,6 +439,48 @@ async function runTests() {
     assert.ok(!["sampler", "icon_mandala", "facet_spiral"].includes(ZENTANGLE_PRESETS[cellsOnlyPick.presetName].cellLayout), "ERROR: Más vendidos en modo imagen devolvió un estilo sin celdas.");
     console.log(`✓ ${BESTSELLERS.length} estilos rentables sin negros; proporciones exactas cada ${deckTotal} páginas y sin repeticiones seguidas.`);
 
+    console.log("\nPrueba 10: Relleno de huecos vacíos (burbujas sin tocar líneas)...");
+    {
+      const { Resvg } = await import("@resvg/resvg-js");
+      const PXMM = 4;
+      const raster = async (svg, w) => { const r = new Resvg(svg, { fitTo: { mode: "width", value: w } }).render(); return { data: r.pixels, width: r.width, height: r.height }; };
+      const inkOf = async (body, defs) => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${area.x} ${area.y} ${area.w} ${area.h}"><defs>${defs.join("")}</defs><rect x="0" y="0" width="999" height="999" fill="#fff"/>${body.join("")}</svg>`;
+        const r = await raster(svg, Math.round(area.w * PXMM));
+        const ink = new Uint8Array(r.width * r.height);
+        for (let i = 0; i < ink.length; i++) ink[i] = r.data[i * 4] < 160 ? 1 : 0;
+        return { ink, w: r.width, h: r.height };
+      };
+      let filled = 0;
+      for (const name of ["sampler_icons", "sampler_icon_fractal", "icon_mandala", "classic_z_string"]) {
+        const a0 = { body: [], defs: [] }, a1 = { body: [], defs: [] };
+        await generateZentangle(a0, { seed: 3, presetName: name, areaMm: area });
+        await generateZentangle(a1, { seed: 3, presetName: name, areaMm: area, rasterize: raster });
+        assert.strictEqual(a1.body.slice(0, a0.body.length).join(""), a0.body.join(""), `ERROR: el relleno de ${name} alteró el diseño original.`);
+        const extra = a1.body.slice(a0.body.length);
+        if (!extra.length) continue;
+        filled++;
+        assert.ok(extra.length === 1 && /data-filler="bubbles"/.test(extra[0]), `ERROR: el relleno de ${name} añadió algo inesperado.`);
+        // Ninguna burbuja a menos de 1.2 mm de una línea del diseño (hueco pedido: 1.8 mm).
+        const base = await inkOf(a0.body, a0.defs), bub = await inkOf(extra, []);
+        const near = Math.round(1.2 * PXMM);
+        for (let y = 0; y < bub.h; y += 1) for (let x = 0; x < bub.w; x += 1) {
+          if (!bub.ink[y * bub.w + x]) continue;
+          for (let dy = -near; dy <= near; dy++) for (let dx = -near; dx <= near; dx++) {
+            if (dx * dx + dy * dy > near * near) continue;
+            const xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= base.w || yy >= base.h) continue;
+            assert.ok(!base.ink[yy * base.w + xx], `ERROR: una burbuja de ${name} toca una línea del diseño en (${(x / PXMM).toFixed(1)}, ${(y / PXMM).toFixed(1)}) mm.`);
+          }
+        }
+      }
+      assert.ok(filled >= 3, "ERROR: el relleno de huecos no se aplicó en los estilos con espacio vacío.");
+      const off = { body: [], defs: [] };
+      await generateZentangle(off, { seed: 3, presetName: "sampler_icons", areaMm: area, rasterize: raster, overrides: { fillDeadSpace: false } });
+      assert.ok(!/data-filler/.test(off.body.join("")), "ERROR: fillDeadSpace: false no desactivó el relleno.");
+      console.log(`✓ Relleno aplicado en ${filled} estilos sin alterar el diseño ni acercarse a menos de 1.2 mm de una línea.`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

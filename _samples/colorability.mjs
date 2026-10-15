@@ -11,6 +11,8 @@ const { generateZentangle } = await import(ROOT + "/js/generators/zentangle.gene
 const { ZENTANGLE_PRESETS } = await import(ROOT + "/js/generators/zentangle.presets.js");
 import { Resvg } from "@resvg/resvg-js";
 console.warn = () => {};
+// Como en la app: relleno de huecos muertos activo (NOFILL=1 lo desactiva).
+const rasterize = process.env.NOFILL ? null : async (svg, w) => { const r = new Resvg(svg, { fitTo: { mode: "width", value: w } }).render(); return { data: r.pixels, width: r.width, height: r.height }; };
 const PX = 8, W = 210, H = 297;
 function analyze(svg, outPng) {
   const img = new Resvg(svg, { fitTo: { mode: "width", value: W * PX } }).render();
@@ -44,7 +46,7 @@ for (const name of names) {
   const acc = { ink: 0, bad: 0, micro: 0, regions: 0 }; const seeds = process.env.SEEDS ? Array.from({ length: +process.env.SEEDS }, (_, i) => i * 13 + 1) : [1, 7, 23];
   for (const seed of seeds) {
     const doc = { body: [], defs: [] };
-    await generateZentangle(doc, { seed, presetName: name, areaMm: { x: 12, y: 12, w: 186, h: 273 } });
+    await generateZentangle(doc, { seed, presetName: name, areaMm: { x: 12, y: 12, w: 186, h: 273 }, rasterize });
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs>${doc.defs.join("")}</defs><rect width="${W}" height="${H}" fill="#fff"/>${doc.body.join("")}</svg>`;
     const m = analyze(svg, process.env.DBG && seed === 1);
     if (process.env.DBG && seed === 1) { const { w, h, out } = globalThis.__dbg; const { writeFileSync } = await import('node:fs'); const zlib = await import('node:zlib'); writeFileSync(`_samples/dbg_${name}.png`, png(w, h, out, zlib)); } for (const k in acc) acc[k] += m[k] / seeds.length;

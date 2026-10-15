@@ -93,6 +93,7 @@ const ui = {
   showSafeZone: $("showSafeZone"),
   paperTextureEnabled: $("paperTextureEnabled"),
   cellShadowEnabled: $("cellShadowEnabled"),
+  fillDeadSpace: $("fillDeadSpace"),
   imageOffsetXVal: $("imageOffsetXVal"),
   imageOffsetYVal: $("imageOffsetYVal"),
   btnResetOffset: $("btnResetOffset"),
@@ -123,6 +124,26 @@ function bool01(v) {
   return String(v) === "1";
 }
 
+// Rasterizador para el relleno de huecos (deadSpace.js): dibuja el SVG en un
+// canvas y devuelve sus píxeles RGBA.
+async function rasterizeSvg(svg, w, h) {
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("No se pudo rasterizar la página")); img.src = url; });
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const { data } = ctx.getImageData(0, 0, w, h);
+    canvas.width = 0; canvas.height = 0;
+    return { data, width: w, height: h };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 const debounce = (fn, ms = 100) => {
   let timeoutId;
   return (...args) => {
@@ -143,6 +164,7 @@ function buildOptsFromUI() {
       showSafeZone: ui.showSafeZone.checked,
       paperTextureEnabled: bool01(ui.paperTextureEnabled.value),
       cellShadowEnabled: bool01(ui.cellShadowEnabled.value),
+      fillDeadSpace: ui.fillDeadSpace ? ui.fillDeadSpace.checked : true,
     };
     if (touched.has("sketchy")) opts.sketchy = num(ui.sketchy.value, 0);
     return { opts, zPresetKey };
@@ -180,6 +202,7 @@ function buildOptsFromUI() {
     // Advanced look options
     paperTextureEnabled: bool01(ui.paperTextureEnabled.value),
     cellShadowEnabled: bool01(ui.cellShadowEnabled.value),
+    fillDeadSpace: ui.fillDeadSpace ? ui.fillDeadSpace.checked : true,
   };
 
   // Distribución del muestrario (retícula o teselado); solo aplica a muestrarios.
@@ -288,7 +311,7 @@ async function renderGallery(count = 8) {
   for (let i = 0; i < seeds.length; i++) {
     const seed = seeds[i];
     const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "zentangle" } });
-    const used = await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner });
+    const used = await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner, rasterize: rasterizeSvg });
     const innerSvg = renderSvgToString(doc);
     // En aleatorio cada variación es de un estilo distinto: se rotula.
     const styleTag = isRandomKey(zPresetKey) ? ` · ${styleLabel(used.presetName)}` : "";
@@ -329,7 +352,7 @@ const THUMB_SEED = 7;
 async function renderThumb(key) {
   const p = PAPER_SIZES_MM.LETTER, m = 10;
   const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "zentangle" } });
-  await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m } });
+  await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m }, rasterize: rasterizeSvg });
   return renderSvgToString(doc);
 }
 
@@ -399,7 +422,7 @@ const pageSeed = (base, i, tries) => {
 // libro (un reemplazo con ↻ cambia el diseño, no el estilo).
 async function makeBookPage(g, seed, pageIndex, bookSeed) {
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "zentangle" } });
-  const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides: { ...g.opts, seed }, areaMm: g.inner, pageIndex, bookSeed });
+  const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides: { ...g.opts, seed }, areaMm: g.inner, pageIndex, bookSeed, rasterize: rasterizeSvg });
   const svg = renderSvgToString(d);
   return { seed, svg, url: URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })), presetName: used.presetName };
 }
@@ -587,7 +610,7 @@ async function createBook() {
 
 // ---------- Recordar ajustes entre sesiones (uso personal) ----------
 const SETTINGS_KEY = "zentangle.settings.v1";
-const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "kdpBleedMm", "showSafeZone"];
+const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || {}; } catch { return {}; }
 }
@@ -645,6 +668,7 @@ async function render() {
     presetName: zPresetKey,
     overrides: opts,
     areaMm: inner,
+    rasterize: rasterizeSvg, // relleno de huecos; opts.fillDeadSpace lo apaga
   });
   // En aleatorio, el estilo realmente dibujado (para estado, nombre de archivo y JSON).
   const shownKey = isRandomKey(zPresetKey) ? used.presetName : zPresetKey;
@@ -1072,7 +1096,7 @@ function bind() {
 
   // Controles no ligados al estilo del preset: solo re-renderizan.
   [
-    ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone,
+    ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone, ui.fillDeadSpace,
     ui.paperTextureEnabled, ui.cellShadowEnabled,
     // La distribución la define cada preset de muestrario: no se arrastra al cambiar.
     ui.samplerLayout, ui.samplerEdge, ui.samplerIconMode,
