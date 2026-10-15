@@ -7,6 +7,7 @@ import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry, gene
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
 import { RANDOM_COLOR_KEY, isRandomKey } from "./generators/randomStyle.js";
+import { createStylePicker } from "./ui/stylePicker.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -318,6 +319,25 @@ function kdpWarning(marginMm, bleedMm = 0) {
   if (artEdgeMm < 6.35) return " | ⚠ Arte a menos de 6.35 mm del borde: KDP lo rechazaría (sube el margen o quita el sangrado)";
   if (marginMm < 9.5) return " | ⚠ Margen menor a 9.5 mm: insuficiente como gutter KDP";
   return "";
+}
+
+// ---------- Selector de estilos ----------
+// Miniatura de un estilo con sus valores propios (sin los ajustes finos del
+// usuario) y una semilla fija, para comparar estilos entre sí.
+const THUMB_SEED = 7;
+async function renderThumb(key) {
+  const p = PAPER_SIZES_MM.LETTER, m = 10;
+  const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "zentangle" } });
+  await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m } });
+  return renderSvgToString(doc);
+}
+
+function showCurrentStyle() {
+  const el = $("styleCurrent");
+  if (!el) return;
+  const strong = document.createElement("strong");
+  strong.textContent = styleLabel(ui.zPreset.value);
+  el.replaceChildren("Seleccionado: ", strong);
 }
 
 // ---------- Libro completo ----------
@@ -827,7 +847,8 @@ function bind() {
     withBusy(render);
   });
 
-  ui.btnRender.addEventListener("click", () => withBusy(render));
+  // El render es automático al cambiar cualquier ajuste; el botón es opcional.
+  ui.btnRender?.addEventListener("click", () => withBusy(render));
   ui.btnBook.addEventListener("click", createBook);
 
   // Resumen del libro en vivo (páginas totales, tamaño, avisos KDP).
@@ -843,8 +864,22 @@ function bind() {
   // ajustes manuales se conservan para iterar rápido entre presets.
   ui.zPreset.addEventListener("change", () => {
     applyPresetToUI(ui.zPreset.value);
+    showCurrentStyle();
     debouncedRender();
   });
+
+  // Selector visual: escribe en el <select> (fuente de verdad) y dispara su
+  // "change", así el resto de la app no cambia.
+  const pickerRoot = $("stylePicker");
+  if (pickerRoot) {
+    createStylePicker({
+      select: ui.zPreset,
+      root: pickerRoot,
+      renderThumb,
+      onPick: () => ui.zPreset.dispatchEvent(new Event("change")),
+    });
+  }
+  showCurrentStyle();
 
   // Reset: reaplica el preset completo (descarta tus ajustes) y vuelve al estilo limpio.
   if (ui.btnResetPreset) {

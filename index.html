@@ -435,6 +435,59 @@
       input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
       input[type="number"], select { font-size: 16px; padding: 10px 12px; }
     }
+
+    /* ---------- Panel por pasos ---------- */
+    .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .steps { display: flex; gap: 6px; list-style: none; margin: 10px 0 0; padding: 0; counter-reset: st; }
+    .steps li { counter-increment: st; }
+    .steps a { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); text-decoration: none; padding: 4px 10px 4px 4px; border-radius: 999px; background: #f1f5f9; }
+    .steps a::before { content: counter(st); display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; }
+    .steps a:hover { color: var(--text-main); background: #e2e8f0; }
+    .step { margin-bottom: 20px; padding: 16px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: #f8fafc; scroll-margin-top: 12px; }
+    .step-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .step-head h2 { margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .step-num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; }
+    .link-btn { background: none; border: 0; color: var(--accent-hover); font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+    .link-btn:hover { background: #eef2ff; }
+    .seed-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: end; }
+    .seed-row .btn { padding: 9px 10px; font-size: 13px; white-space: nowrap; }
+    .check-cell { display: flex; align-items: flex-end; padding-bottom: 8px; }
+    label.check { display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 13px; }
+    details.more { margin: 0 0 12px; }
+    details.more .control-group-title { margin-top: 14px; }
+    details.more .grid-inner > .control-group-title:first-child { margin-top: 0; }
+    .sampler-opts { margin: 12px 0 0; padding-top: 12px; border-top: 1px dashed var(--border-light); }
+    .style-current { font-size: 12px; color: var(--text-muted); margin: 10px 0 0; }
+    .style-current strong { color: var(--text-main); }
+
+    /* ---------- Selector visual de estilos ---------- */
+    .sp-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .sp-tab { flex: none; border: 1px solid var(--border-light); background: #fff; color: var(--text-main); font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+    .sp-tab:hover { border-color: #cbd5e1; }
+    .sp-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .sp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 360px; overflow-y: auto; padding: 2px; }
+    .sp-card { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 5px; text-align: left; background: #fff; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; font: inherit; color: var(--text-main); transition: border-color .15s, box-shadow .15s; }
+    .sp-card:hover { border-color: #a5b4fc; }
+    .sp-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+    .sp-card img { width: 100%; aspect-ratio: 8.5 / 11; object-fit: contain; background: #fff; border-radius: 4px; display: block; }
+    .sp-card.loading img { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: sp-shimmer 1.2s infinite linear; }
+    @keyframes sp-shimmer { to { background-position: -200% 0; } }
+    @media (prefers-reduced-motion: reduce) { .sp-card.loading img { animation: none; } }
+    .sp-name { font-size: 11.5px; font-weight: 600; line-height: 1.25; }
+    .sp-sub { font-size: 10.5px; color: var(--text-muted); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .sp-card.ink::after { content: "tinta"; position: absolute; top: 9px; right: 9px; font-size: 9.5px; font-weight: 600; background: #111; color: #fff; padding: 1px 5px; border-radius: 4px; }
+
+    /* Barra de acciones */
+    .dl-row { display: grid; grid-template-columns: auto repeat(4, 1fr); gap: 6px; align-items: center; }
+    .dl-label { font-size: 12px; color: var(--text-muted); }
+    .dl-row .btn { padding: 7px 4px; font-size: 12px; }
+
+    @media (max-width: 899px) {
+      .sp-grid { grid-template-columns: repeat(4, 1fr); max-height: 300px; }
+      .seed-row { grid-template-columns: 1fr 1fr; }
+      .seed-row > div { grid-column: span 2; }
+    }
+    @media (max-width: 480px) { .sp-grid { grid-template-columns: repeat(3, 1fr); } }
   </style>
 </head>
 
@@ -445,63 +498,22 @@
     <aside class="controls-panel">
       <div class="panel-header">
         <h1>Zentangle Creator</h1>
+        <ol class="steps" aria-label="Pasos">
+          <li><a href="#stepStyle">Estilo</a></li>
+          <li><a href="#stepPage">Página</a></li>
+          <li><a href="#stepBook">Libro</a></li>
+        </ol>
       </div>
 
       <div class="panel-scroll">
 
-        <!-- Libro completo -->
-        <span class="control-group-title">📖 Tu libro</span>
-        <div class="control-group book-box">
-          <div class="form-row">
-            <div>
-              <label for="bookPages">Nº de diseños</label>
-              <input id="bookPages" type="number" min="1" max="150" step="1" value="30" inputmode="numeric" />
-            </div>
-            <div>
-              <label for="bookBlank">Hojas en blanco</label>
-              <select id="bookBlank">
-                <option value="1">Entre diseños</option>
-                <option value="0">Ninguna</option>
-              </select>
-            </div>
+        <!-- ① Estilo -->
+        <section class="step" id="stepStyle" aria-labelledby="stepStyleTitle">
+          <div class="step-head">
+            <h2 id="stepStyleTitle"><span class="step-num">1</span> Elige un estilo</h2>
+            <button id="btnResetPreset" type="button" class="link-btn" title="Descarta tus ajustes finos y vuelve a los valores del estilo">↺ Restablecer</button>
           </div>
-          <p id="bookSummary" class="hint" aria-live="polite"></p>
-          <progress id="bookBar" class="book-bar" max="1" value="0" hidden></progress>
-          <p class="hint">Cada página usa una semilla distinta derivada de la <strong>Seed</strong>: mismos ajustes + misma seed = mismo libro.</p>
-        </div>
-
-        <!-- Main Settings -->
-        <span class="control-group-title">🎨 Estilo de las páginas</span>
-        <div class="control-group">
-          <div class="form-row">
-            <div>
-              <label for="paper">Papel</label>
-              <select id="paper">
-                <option value="LETTER">8.5×11 in (Letter) · KDP</option>
-                <option value="KDP_8X10">8×10 in · KDP</option>
-                <option value="KDP_SQUARE">8.5×8.5 in (cuadrado) · KDP</option>
-                <option value="KDP_6X9">6×9 in · KDP</option>
-                <option value="A4">A4 (210×297 mm)</option>
-              </select>
-            </div>
-            <div>
-              <label for="marginMm">Margen (mm)</label>
-              <input id="marginMm" type="number" min="0" max="25" step="0.5" value="12.7" />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div>
-              <label for="seed">Seed (Semilla)</label>
-              <input id="seed" type="number" min="0" step="1" value="1" />
-            </div>
-            <div>
-              <label for="zPreset" style="display:flex; justify-content:space-between; align-items:center;">
-                <span>Estilo</span>
-                <button id="btnResetPreset" type="button" title="Volver a los valores originales del preset"
-                  style="font-size:11px; padding:1px 6px; cursor:pointer; background:none; border:1px solid var(--border, #ccc); border-radius:4px; color:var(--text-muted);">↺ Reset</button>
-              </label>
-              <select id="zPreset">
+          <select id="zPreset" class="visually-hidden" tabindex="-1" aria-hidden="true">
                 <optgroup label="🎲 Aleatorio">
                   <option value="random_all">🎲 Aleatorio — mezcla todos los estilos</option>
                   <option value="random_color">🎲 Aleatorio — solo para colorear (sin negros)</option>
@@ -557,12 +569,13 @@
                   <option value="spiral_modern">Espiral (Template)</option>
                 </optgroup>
               </select>
-            </div>
-          </div>
-          <p id="randomHint" class="hint" hidden>🎲 Cada diseño usa un estilo distinto de toda la biblioteca (y en los muestrarios también sortea distribución, bordes e iconos). «Otro diseño», «8 variaciones» y cada página del libro cambian de estilo. Los ajustes finos de estilo no aplican.</p>
-          <div class="form-row" id="samplerLayoutRow" hidden>
+          <div id="stylePicker" class="style-picker"></div>
+          <p id="styleCurrent" class="style-current" aria-live="polite"></p>
+          <p id="randomHint" class="hint" hidden></p>
+
+          <div class="form-row sampler-opts" id="samplerLayoutRow" hidden>
             <div style="grid-column: span 2">
-              <label for="samplerLayout">Distribución del muestrario</label>
+              <label for="samplerLayout">Distribución</label>
               <select id="samplerLayout">
                 <option value="grid">Retícula (círculos / cuadros)</option>
                 <option value="hex">Panal hexagonal</option>
@@ -589,101 +602,155 @@
               </select>
             </div>
           </div>
-        </div>
+        </section>
 
-        <details class="image-section" id="fineSection">
-          <summary>⚙️ Ajustes finos (celdas, trazos, KDP)</summary>
-          <div class="grid-inner">
-        <!-- KDP Standards & Quality -->
-        <span class="control-group-title">Estándares KDP & Calidad</span>
-        <div class="control-group">
+        <!-- ② Página -->
+        <section class="step" id="stepPage" aria-labelledby="stepPageTitle">
+          <div class="step-head">
+            <h2 id="stepPageTitle"><span class="step-num">2</span> Página</h2>
+          </div>
           <div class="form-row">
             <div>
-              <label for="kdpBleedMm">Sangrado (Bleed mm)</label>
-              <select id="kdpBleedMm">
-                <option value="0">Sin sangrado</option>
-                <option value="3.175">3.175 mm (Full Bleed)</option>
+              <label for="paper">Tamaño</label>
+              <select id="paper">
+                <option value="LETTER">8.5×11 in (Letter) · KDP</option>
+                <option value="KDP_8X10">8×10 in · KDP</option>
+                <option value="KDP_SQUARE">8.5×8.5 in (cuadrado) · KDP</option>
+                <option value="KDP_6X9">6×9 in · KDP</option>
+                <option value="A4">A4 (210×297 mm)</option>
               </select>
             </div>
-            <div style="display: flex; align-items: flex-end; padding-bottom: 8px;">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 0;">
-                <input type="checkbox" id="showSafeZone" style="cursor: pointer;" />
-                <span style="font-size: 13px;">Guías Zona Segura</span>
-              </label>
+            <div>
+              <label for="marginMm">Margen (mm)</label>
+              <input id="marginMm" type="number" min="0" max="25" step="0.5" value="12.7" />
             </div>
           </div>
-          <p style="font-size: 11px; color: var(--text-muted); margin: 0;">
-            ⚠️ 4mm² min área activado automáticamente para KDP.
-          </p>
-        </div>
+          <div class="seed-row">
+            <div>
+              <label for="seed">Semilla</label>
+              <input id="seed" type="number" min="0" step="1" value="1" />
+            </div>
+            <button id="btnRandomSeed" class="btn btn-secondary" type="button" title="Nuevo diseño con otra semilla">🎲 Otro diseño</button>
+            <button id="btnGallery" class="btn btn-secondary" type="button" title="Genera 8 variaciones para elegir">🖼️ 8 variaciones</button>
+          </div>
+          <p class="hint">La semilla fija el dibujo: mismo estilo + misma semilla = mismo diseño.</p>
+        </section>
 
-        <!-- Grid & Layout -->
-        <span class="control-group-title">Estructura & Celdas</span>
-        <div class="control-group">
-          <div class="form-row">
-            <div style="grid-column: span 2">
-              <label for="cellCount">Cantidad de Celdas</label>
-              <input id="cellCount" type="range" min="8" max="55" step="1" value="30" />
-            </div>
+        <!-- ③ Libro -->
+        <section class="step book-box" id="stepBook" aria-labelledby="stepBookTitle">
+          <div class="step-head">
+            <h2 id="stepBookTitle"><span class="step-num">3</span> Tu libro</h2>
           </div>
           <div class="form-row">
             <div>
-              <label for="minCellSizeMm">Tamaño min (mm)</label>
-              <input id="minCellSizeMm" type="range" min="8" max="26" step="1" value="14" />
+              <label for="bookPages">Nº de diseños</label>
+              <input id="bookPages" type="number" min="1" max="150" step="1" value="30" inputmode="numeric" />
             </div>
             <div>
-              <label for="minGapMm">Espaciado int. (mm)</label>
-              <input id="minGapMm" type="range" min="0.6" max="5.0" step="0.1" value="1.4" />
+              <label for="bookBlank">Reverso de cada diseño</label>
+              <select id="bookBlank">
+                <option value="1">Hoja en blanco</option>
+                <option value="0">Otro diseño</option>
+              </select>
             </div>
           </div>
-        </div>
+          <p id="bookSummary" class="hint" aria-live="polite"></p>
+          <progress id="bookBar" class="book-bar" max="1" value="0" hidden></progress>
+          <p class="hint">Cada página deriva su propia semilla de la tuya: el libro se puede regenerar idéntico.</p>
+        </section>
 
-        <!-- Typography / Line Weight -->
-        <span class="control-group-title">Trazos</span>
-        <div class="control-group">
-          <div class="form-row">
-            <div>
-              <label for="cellBorderWidthMm">Borde Celda</label>
-              <input id="cellBorderWidthMm" type="range" min="0.25" max="1.2" step="0.05" value="0.70" />
-            </div>
-            <div>
-              <label for="patternStrokeMm">Trazo Patrón</label>
-              <input id="patternStrokeMm" type="range" min="0.20" max="0.80" step="0.02" value="0.35" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div style="grid-column: span 2">
-              <label for="sketchy">Estilo Trazo (Sketchy)</label>
-              <input id="sketchy" type="range" min="0" max="1.0" step="0.05" value="0" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Advanced Details -->
-        <details>
-          <summary>Opciones Avanzadas</summary>
+        <!-- Ajustes finos (planos: sin desplegables anidados) -->
+        <details class="more" id="fineSection">
+          <summary>⚙️ Ajustes finos del estilo</summary>
           <div class="grid-inner">
+            <span class="control-group-title">Celdas</span>
+            <div class="form-row">
+              <div style="grid-column: span 2">
+                <label for="cellCount">Cantidad de celdas</label>
+                <input id="cellCount" type="range" min="8" max="55" step="1" value="30" />
+              </div>
+            </div>
             <div class="form-row">
               <div>
-                <label for="maxPatternPassesPerCell">Max Capas</label>
+                <label for="minCellSizeMm">Tamaño mín. (mm)</label>
+                <input id="minCellSizeMm" type="range" min="8" max="26" step="1" value="14" />
+              </div>
+              <div>
+                <label for="minGapMm">Espaciado (mm)</label>
+                <input id="minGapMm" type="range" min="0.6" max="5.0" step="0.1" value="1.4" />
+              </div>
+            </div>
+
+            <span class="control-group-title">Trazos</span>
+            <div class="form-row">
+              <div>
+                <label for="cellBorderWidthMm">Borde de celda</label>
+                <input id="cellBorderWidthMm" type="range" min="0.25" max="1.2" step="0.05" value="0.70" />
+              </div>
+              <div>
+                <label for="patternStrokeMm">Trazo del patrón</label>
+                <input id="patternStrokeMm" type="range" min="0.20" max="0.80" step="0.02" value="0.35" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div style="grid-column: span 2">
+                <label for="sketchy">Trazo a mano (sketchy)</label>
+                <input id="sketchy" type="range" min="0" max="1.0" step="0.05" value="0" />
+              </div>
+            </div>
+
+            <span class="control-group-title">Composición</span>
+            <div class="form-row">
+              <div style="grid-column: span 2">
+                <label for="patternFamily">Familia de patrón</label>
+                <select id="patternFamily">
+                  <option value="">Auto (según estilo)</option>
+                  <option value="geometric">Geométrico</option>
+                  <option value="organic">Orgánico</option>
+                  <option value="tangles">Tangles clásicos</option>
+                  <option value="dense">Denso</option>
+                  <option value="mixed">🎲 Mixto (paleta por página)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="focalStrength">Punto focal</label>
+                <input id="focalStrength" type="range" min="0" max="0.6" step="0.05" value="0.3" />
+              </div>
+              <div>
+                <label for="whiteSpaceMm">Aire extra (mm)</label>
+                <input id="whiteSpaceMm" type="range" min="0" max="4.0" step="0.1" value="1.0" />
+              </div>
+            </div>
+            <p class="hint">Punto focal: más detalle al centro y más aire en los bordes (0 = uniforme).</p>
+          </div>
+        </details>
+
+        <details class="more" id="advancedSection">
+          <summary>🧪 Avanzado y KDP</summary>
+          <div class="grid-inner">
+            <span class="control-group-title">Capas y rotación</span>
+            <div class="form-row">
+              <div>
+                <label for="maxPatternPassesPerCell">Máx. capas</label>
                 <input id="maxPatternPassesPerCell" type="range" min="1" max="3" step="1" value="2" />
               </div>
               <div>
-                <label for="patternSkipProb">Prob. Saltar</label>
+                <label for="patternSkipProb">Prob. celda vacía</label>
                 <input id="patternSkipProb" type="range" min="0" max="0.65" step="0.01" value="0.18" />
               </div>
             </div>
-
             <div class="form-row">
               <div>
-                <label for="rotatePatterns">Rotar Patrones</label>
+                <label for="rotatePatterns">Rotar patrones</label>
                 <select id="rotatePatterns">
                   <option value="1">Sí</option>
                   <option value="0">No</option>
                 </select>
               </div>
               <div>
-                <label for="rotationSet">Modo Rotación</label>
+                <label for="rotationSet">Modo de rotación</label>
                 <select id="rotationSet">
                   <option value="ergonomic">Ergonómico</option>
                   <option value="classic">Clásico</option>
@@ -691,18 +758,17 @@
                 </select>
               </div>
             </div>
-
             <div class="form-row">
               <div style="grid-column: span 2">
-                <label for="whiteSpaceMm">Aire Extra (mm)</label>
-                <input id="whiteSpaceMm" type="range" min="0" max="4.0" step="0.1" value="1.0" />
+                <label for="rotationJitterDeg">Giro "a mano" (°)</label>
+                <input id="rotationJitterDeg" type="range" min="0" max="6" step="0.5" value="2.5" />
               </div>
             </div>
 
-            <span class="control-group-title" style="margin-top:10px">Look Orgánico</span>
+            <span class="control-group-title">Borde orgánico</span>
             <div class="form-row">
               <div>
-                <label for="innerOrganicBorderEnabled">Borde Interno</label>
+                <label for="innerOrganicBorderEnabled">Borde interno</label>
                 <select id="innerOrganicBorderEnabled">
                   <option value="1">Sí</option>
                   <option value="0">No</option>
@@ -715,7 +781,7 @@
             </div>
             <div class="form-row">
               <div>
-                <label for="innerOrganicJitterMm">Temblor (Jitter)</label>
+                <label for="innerOrganicJitterMm">Temblor</label>
                 <input id="innerOrganicJitterMm" type="range" min="0" max="1.2" step="0.05" value="0.55" />
               </div>
               <div>
@@ -723,61 +789,43 @@
                 <input id="innerOrganicRoundMm" type="range" min="0" max="2.0" step="0.1" value="1.0" />
               </div>
             </div>
-            <span class="control-group-title" style="margin-top:10px">Efectos Especiales (No KDP)</span>
+
+            <span class="control-group-title">KDP</span>
             <div class="form-row">
               <div>
-                <label for="paperTextureEnabled">Textura Papel</label>
+                <label for="kdpBleedMm">Sangrado</label>
+                <select id="kdpBleedMm">
+                  <option value="0">Sin sangrado</option>
+                  <option value="3.175">3.175 mm (full bleed)</option>
+                </select>
+              </div>
+              <div class="check-cell">
+                <label class="check"><input type="checkbox" id="showSafeZone" /> Guías de zona segura</label>
+              </div>
+            </div>
+
+            <span class="control-group-title">Efectos (no recomendados para KDP)</span>
+            <div class="form-row">
+              <div>
+                <label for="paperTextureEnabled">Textura de papel</label>
                 <select id="paperTextureEnabled">
                   <option value="0" selected>No</option>
-                  <option value="1">Sí (Premium)</option>
+                  <option value="1">Sí</option>
                 </select>
               </div>
               <div>
-                <label for="cellShadowEnabled">Sombreado Celda</label>
+                <label for="cellShadowEnabled">Sombreado</label>
                 <select id="cellShadowEnabled">
                   <option value="0" selected>No</option>
-                  <option value="1">Sí (Grafitado)</option>
+                  <option value="1">Sí (grafito)</option>
                 </select>
               </div>
             </div>
-
-            <span class="control-group-title" style="margin-top:10px">Composición & Variación</span>
-            <div class="form-row">
-              <div style="grid-column: span 2">
-                <label for="patternFamily">Familia de Patrón</label>
-                <select id="patternFamily">
-                  <option value="">Auto (según preset)</option>
-                  <option value="geometric">Geométrico</option>
-                  <option value="organic">Orgánico</option>
-                  <option value="tangles">Tangles clásicos</option>
-                  <option value="dense">Denso</option>
-                  <option value="mixed">🎲 Mixto (paleta por página)</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div>
-                <label for="focalStrength">Punto Focal</label>
-                <input id="focalStrength" type="range" min="0" max="0.6" step="0.05" value="0.3" />
-              </div>
-              <div>
-                <label for="rotationJitterDeg">Jitter Rotación (°)</label>
-                <input id="rotationJitterDeg" type="range" min="0" max="6" step="0.5" value="2.5" />
-              </div>
-            </div>
-            <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0;">
-              Punto focal: concentra detalle al centro, deja aire en los bordes (0 = uniforme).
-              Jitter: leve giro "hecho a mano" (solo si rotas patrones).
-            </p>
-
-          </div>
-        </details>
-
           </div>
         </details>
 
         <!-- Image Integration Section -->
-        <details class="image-section" id="imageSection">
+        <details class="more" id="imageSection">
           <summary>🖼️ Integrar una imagen (opcional)</summary>
         <div class="control-group" style="margin:0; border:0; border-radius:0;">
           <div style="margin-bottom: 12px;">
@@ -846,21 +894,16 @@
           </div>
         </div>
         </details>
-
       </div>
 
-          <div class="actions-bar">
+      <div class="actions-bar">
         <button id="btnBook" class="btn btn-primary btn-lg">📖 Crear libro (PDF para KDP)</button>
-        <div class="row row3">
-          <button id="btnRandomSeed" class="btn btn-secondary" title="Nuevo diseño con otra semilla">🎲 Otro diseño</button>
-          <button id="btnRender" class="btn btn-secondary">⚡ Render</button>
-          <button id="btnGallery" class="btn btn-secondary" title="Genera 8 variaciones para elegir">🖼️ 8 variaciones</button>
-        </div>
-        <div class="row row4">
-          <button id="btnDownloadSVG" class="btn btn-secondary" title="Esta página como SVG">⬇ SVG</button>
-          <button id="btnDownloadPDF" class="btn btn-secondary" title="Esta página como PDF">⬇ PDF</button>
-          <button id="btnDownloadPNG" class="btn btn-secondary" title="Esta página como PNG 300 DPI">⬇ PNG</button>
-          <button id="btnDownloadJSON" class="btn btn-secondary" title="Ajustes de esta página">⬇ JSON</button>
+        <div class="dl-row" role="group" aria-label="Descargar esta página">
+          <span class="dl-label">Esta página:</span>
+          <button id="btnDownloadPDF" class="btn btn-secondary" title="Esta página como PDF">PDF</button>
+          <button id="btnDownloadPNG" class="btn btn-secondary" title="Esta página como PNG 300 DPI">PNG</button>
+          <button id="btnDownloadSVG" class="btn btn-secondary" title="Esta página como SVG">SVG</button>
+          <button id="btnDownloadJSON" class="btn btn-secondary" title="Ajustes de esta página">JSON</button>
         </div>
       </div>
     </aside>

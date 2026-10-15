@@ -7,7 +7,7 @@ import { ICONS } from "./js/generators/patterns/icons.js";
 import { createRNG } from "./js/core/prng.js";
 import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, resolveRandomStyle, isColoringSafe } from "./js/generators/randomStyle.js";
 import { POOLS } from "./js/generators/sampler.js";
-import { LAYOUT_TEMPLATES } from "./js/generators/layoutTemplates.js";
+import { LAYOUT_TEMPLATES, getTemplateCells } from "./js/generators/layoutTemplates.js";
 import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
 
 async function runTests() {
@@ -267,7 +267,7 @@ async function runTests() {
     console.log("\nPrueba 7: Estilos elegibles y modo aleatorio...");
     const { readFileSync } = await import("node:fs");
     const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
-    const menu = html.match(/<select id="zPreset">([\s\S]*?)<\/select>/)[1];
+    const menu = html.match(/<select id="zPreset"[^>]*>([\s\S]*?)<\/select>/)[1];
     const menuValues = [...menu.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
     assert.strictEqual(new Set(menuValues).size, menuValues.length, "ERROR: opciones duplicadas en el menú de estilos.");
     for (const name of Object.keys(ZENTANGLE_PRESETS)) assert.ok(menuValues.includes(name), `ERROR: el preset ${name} no se puede elegir en el menú.`);
@@ -276,7 +276,7 @@ async function runTests() {
     assert.ok(menuValues.includes(RANDOM_COLOR_KEY), "ERROR: falta la opción Aleatorio para colorear en el menú.");
     assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(html), "ERROR: falta la regla CSS [hidden]; .form-row (display:grid) dejaría visibles los selectores ocultos.");
     for (const id of ["samplerLayout", "samplerEdge", "samplerIconMode"]) {
-      const sel = html.match(new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`))[1];
+      const sel = html.match(new RegExp(`<select id="${id}"[^>]*>([\\s\\S]*?)</select>`))[1];
       const vals = [...sel.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
       const expected = { samplerLayout: ["grid", ...TILING_NAMES], samplerEdge: ["fill", "whole"], samplerIconMode: ["single", "pattern", "fractal", "mixed"] }[id];
       assert.deepStrictEqual(vals, expected, `ERROR: el selector ${id} no ofrece todas las opciones del motor.`);
@@ -388,6 +388,32 @@ async function runTests() {
     }
     for (const m of [...MOTIFS, ...ICONS]) assert.ok(seenMotifs.has(m.id), `ERROR: el motivo ${m.id} nunca sale en el aleatorio (${samplerSeeds.length} muestrarios).`);
     console.log(`✓ ${Object.keys(ZENTANGLE_PRESETS).length} estilos elegibles y sorteados (1500 semillas), ${picked.layouts.size} distribuciones, ${picked.modes.size} modos de iconos, ${MOTIFS.length + ICONS.length} motivos.`);
+
+    console.log("\nPrueba 8: Plantillas (string) sin huecos, solapes ni celdas vacías...");
+    // Cada plantilla es una partición: la suma de áreas es la página (antes
+    // "eye" dejaba franjas sin cubrir y "spiral" apilaba un cuadro sobre otro).
+    const rect = { x0: 0, y0: 0, x1: 190, y1: 254 };
+    const shoelace = (p) => Math.abs(p.reduce((s, a, i) => { const b = p[(i + 1) % p.length]; return s + a.x * b.y - b.x * a.y; }, 0) / 2);
+    for (const t of Object.keys(LAYOUT_TEMPLATES)) {
+      for (let s = 1; s <= 5; s++) {
+        const sum = getTemplateCells(t, rect, createRNG(s)).reduce((acc, c) => acc + shoelace(c.poly), 0);
+        assert.ok(Math.abs(sum - 190 * 254) < 1, `ERROR: la plantilla ${t} no cubre la página exacta (área ${sum.toFixed(1)}).`);
+      }
+    }
+    // Sin saltos probabilísticos, toda celda recibe patrón: un patrón que no
+    // cabía (fillCircles en celdas gigantes) dejaba media página en blanco.
+    for (const name of ["classic_z_string", "eye_focus", "classic_grid", "spiral_modern"]) {
+      for (let i = 0; i < 20; i++) {
+        const seed = (347387974 + Math.imul(i, 0x9e3779b1)) >>> 0;
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed, presetName: name, overrides: { patternSkipProb: 0 }, areaMm: area });
+        const clips = d.defs.join("").match(/<clipPath id="[^"]*clip_\d+"/g) || [];
+        const groups = d.body.join("").match(/<g clip-path="url\(#[^)]*clip_\d+\)"/g) || [];
+        assert.strictEqual(groups.length, clips.length, `ERROR: ${name} seed ${seed} deja ${clips.length - groups.length} celda(s) vacía(s).`);
+        assert.ok(clips.length >= 6, `ERROR: ${name} seed ${seed} tiene solo ${clips.length} regiones (la plantilla no se subdividió).`);
+      }
+    }
+    console.log(`✓ ${Object.keys(LAYOUT_TEMPLATES).length} plantillas son particiones exactas; 80 páginas sin celdas vacías.`);
 
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");

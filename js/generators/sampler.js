@@ -179,7 +179,9 @@ function iconPattern(motif, rng, box, cfg) {
       // Como en una tela estampada, las copias del borde se cortan contra la
       // celda (el recorte de la unidad las limita); solo se omiten las que
       // apenas asomarían.
-      if (!cfg.inside(x, y, half * 0.35)) continue;
+      // Para colorear (sin negros) solo copias enteras: un gato cortado por la
+      // mitad deja cuñas sin espacio para un marcador.
+      if (!cfg.inside(x, y, cfg.solids ? half * 0.35 : -half * 0.8)) continue;
       const sub = { x0: x - half, y0: y - half, x1: x + half, y1: y + half };
       // El giro/espejo es alrededor del centro de la copia: su círculo no cambia.
       const subCfg = { ...cfg, minGapMm: cfg.minGapMm * 1.35, inside: (qx, qy, o) => Math.hypot(qx - x, qy - y) <= half + o };
