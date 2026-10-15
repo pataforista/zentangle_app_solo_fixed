@@ -28,9 +28,16 @@ function pitch(rng, r, cfg, nMin, nMax, minFactor = 3.8) {
 
 // Retícula centrada en el contenedor (simétrica), opcionalmente alternada y con
 // jitter. Descarta puntos cuyo centro queda más allá de `over` del borde.
-function lattice(rng, r, cfg, px, py, { stagger = false, jitter = 0, over = 0.3 } = {}) {
+function lattice(rng, r, cfg, px, py, { stagger = false, jitter = 0, over = 0.3, ext = 0 } = {}) {
   // Para colorear los elementos cortados por el borde dejan astillas sin
   // espacio para un marcador: se exige que el centro quede bien adentro.
+  // Con ext (radio del elemento, en unidades del paso) el motivo aislado debe
+  // caber ENTERO y a un hueco del contorno: medio corazón cortado dejaba dos
+  // cuñas que ningún marcador alcanza.
+  if (ext > 0 && !cfg.solids) {
+    const pts = lattice(rng, r, cfg, px, py, { stagger, jitter, over: 0.32 - (ext + cfg.minGapMm / Math.min(px, py)) });
+    if (pts.length >= 3) return pts;
+  }
   const slack = cfg.solids ? 0 : 0.32;
   const { x: cx, y: cy } = centerOf(r);
   const nx = Math.ceil((r.x1 - r.x0) / px / 2) + 1;
@@ -91,7 +98,7 @@ function hearts(rng, r, cfg) {
   const p = pitch(rng, r, cfg, 3, 4, 5);
   const tilt = rFloat(rng, 0, 0.3);
   const outer = mk(rng, cfg), inner = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.92, { stagger: true, jitter: 0.03 })) {
+  for (const q of lattice(rng, r, cfg, p, p * 0.92, { stagger: true, jitter: 0.03, ext: 0.48 })) {
     const t = (rng() - 0.5) * 2 * tilt, hs = p * 0.42;
     emit(outer, HEART, q.x, q.y, hs, hs, t);
     emit(inner, HEART, q.x, q.y + hs * 0.06, hs * 0.5, hs * 0.5, t);
@@ -121,7 +128,7 @@ function flowers(rng, r, cfg) {
 function drops(rng, r, cfg) {
   const p = pitch(rng, r, cfg, 3, 5);
   const b = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.85, { stagger: true, jitter: 0.03 })) {
+  for (const q of lattice(rng, r, cfg, p, p * 0.85, { stagger: true, jitter: 0.03, ext: 0.36 })) {
     emit(b, DROP, q.x, q.y, p * 0.2, p * 0.3, (rng() - 0.5) * 0.2);
   }
   return [{ d: b.d, fill: ink(cfg) }];
@@ -190,7 +197,9 @@ function bubbles(rng, r, cfg) {
   for (let t = 0; t < 500 && cs.length < 70; t++) {
     const rad = Math.max(rMin, rMax * (1 - t / 380));
     const x = cx + rFloat(rng, -R, R), y = cy + rFloat(rng, -R, R);
-    if (!cfg.inside(x, y, rad * 0.4)) continue;
+    // Para colorear, burbuja entera y separada del contorno: la tangente con el
+    // borde dejaba lunas finísimas imposibles de pintar.
+    if (!cfg.inside(x, y, cfg.solids ? rad * 0.4 : -(rad + gap))) continue;
     if (cs.some((c) => Math.hypot(c.x - x, c.y - y) < c.r + rad + gap)) continue;
     cs.push({ x, y, r: rad });
   }
@@ -284,7 +293,7 @@ function spiralsGrid(rng, r, cfg) {
   const g = Math.max(cfg.minGapMm * 1.2, Rm / rFloat(rng, 2.4, 3.4));
   const turns = Rm / g;
   const b = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.9, { stagger: true, jitter: 0.02, over: 0.3 })) {
+  for (const q of lattice(rng, r, cfg, p, p * 0.9, { stagger: true, jitter: 0.02, over: 0.3, ext: 0.52 })) {
     const flip = rng() < 0.5 ? -1 : 1, a0 = rFloat(rng, 0, TAU);
     const pts = [];
     for (let th = 0; th <= turns * TAU; th += TAU / 9) {
@@ -301,7 +310,7 @@ function asterisks(rng, r, cfg) {
   // cuñas diminutas por asterisco.
   const p = pitch(rng, r, cfg, 3, 5, 4.2);
   const b = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.9, { stagger: true, jitter: 0.05 })) {
+  for (const q of lattice(rng, r, cfg, p, p * 0.9, { stagger: true, jitter: 0.05, ext: 0.4 })) {
     const a0 = rFloat(rng, 0, Math.PI / 3), in0 = p * 0.1, out = p * 0.34;
     for (let k = 0; k < 6; k++) {
       const a = a0 + (k * Math.PI) / 3, c = Math.cos(a), n = Math.sin(a);
@@ -314,7 +323,7 @@ function asterisks(rng, r, cfg) {
 function roundedSquares(rng, r, cfg) {
   const p = pitch(rng, r, cfg, 4, 5, 3.6);
   const b = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p, { jitter: 0.06 })) {
+  for (const q of lattice(rng, r, cfg, p, p, { jitter: 0.06, ext: 0.44 })) {
     emit(b, RSQ, q.x, q.y, p * 0.3, p * 0.3, (rng() - 0.5) * 0.3);
   }
   return [{ d: b.d, fill: ink(cfg) }];
@@ -324,7 +333,7 @@ function leaves(rng, r, cfg) {
   const p = pitch(rng, r, cfg, 3, 4, 4.6);
   const rot = rFloat(rng, -0.5, 0.5);
   const b = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.8, { stagger: true, jitter: 0.03 })) {
+  for (const q of lattice(rng, r, cfg, p, p * 0.8, { stagger: true, jitter: 0.03, ext: 0.54 })) {
     emit(b, cfg.solids ? LEAF_RIB : LEAF, q.x, q.y, p * 0.27, p * 0.42, rot + (rng() - 0.5) * 0.12);
   }
   return [{ d: b.d, fill: "none" }];
@@ -395,7 +404,7 @@ function wavesDots(rng, r, cfg) {
 function scatterTriangles(rng, r, cfg) {
   const p = pitch(rng, r, cfg, 3, 4, 4);
   const outline = mk(rng, cfg), solid = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p, { stagger: true, jitter: 0.1 })) {
+  for (const q of lattice(rng, r, cfg, p, p, { stagger: true, jitter: 0.1, ext: 0.38 })) {
     const a0 = rFloat(rng, 0, TAU), rad = p * 0.34;
     const t = cfg.solids && rng() < 0.45 ? solid : outline;
     for (let k = 0; k < 3; k++) {
@@ -431,7 +440,7 @@ function polka(rng, r, cfg) {
   // resultante era demasiado fina para un marcador).
   const rad = p * (cfg.solids ? 0.27 : 0.3);
   const dots = mk(rng, cfg);
-  for (const q of lattice(rng, r, cfg, p, p * 0.87, { stagger: true, jitter: 0.02 })) dots.circle(q.x, q.y, rad);
+  for (const q of lattice(rng, r, cfg, p, p * 0.87, { stagger: true, jitter: 0.02, ext: 0.36 })) dots.circle(q.x, q.y, rad);
   return [{ d: dots.d, fill: ink(cfg) }];
 }
 

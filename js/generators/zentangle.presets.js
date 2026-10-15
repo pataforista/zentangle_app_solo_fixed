@@ -367,6 +367,7 @@ export const ZENTANGLE_PRESETS = {
   classic_z_string: {
     cellLayout: "template",
     templateName: "classic_z",
+    templateCellCount: 9,
     cellBorderWidthMm: 0.85,
     patternStrokeMm: 0.38,
     minGapMm: 1.8,

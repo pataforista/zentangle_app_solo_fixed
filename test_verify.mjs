@@ -5,9 +5,9 @@ import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
 import { MOTIFS } from "./js/generators/patterns/motifs.js";
 import { ICONS } from "./js/generators/patterns/icons.js";
 import { createRNG } from "./js/core/prng.js";
-import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, resolveRandomStyle, isColoringSafe } from "./js/generators/randomStyle.js";
+import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, BESTSELLER_KEY, BESTSELLERS, resolveRandomStyle, resolveBestSeller, isColoringSafe } from "./js/generators/randomStyle.js";
 import { POOLS } from "./js/generators/sampler.js";
-import { LAYOUT_TEMPLATES } from "./js/generators/layoutTemplates.js";
+import { LAYOUT_TEMPLATES, getTemplateCells } from "./js/generators/layoutTemplates.js";
 import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
 
 async function runTests() {
@@ -267,16 +267,16 @@ async function runTests() {
     console.log("\nPrueba 7: Estilos elegibles y modo aleatorio...");
     const { readFileSync } = await import("node:fs");
     const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
-    const menu = html.match(/<select id="zPreset">([\s\S]*?)<\/select>/)[1];
+    const menu = html.match(/<select id="zPreset"[^>]*>([\s\S]*?)<\/select>/)[1];
     const menuValues = [...menu.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
     assert.strictEqual(new Set(menuValues).size, menuValues.length, "ERROR: opciones duplicadas en el menú de estilos.");
     for (const name of Object.keys(ZENTANGLE_PRESETS)) assert.ok(menuValues.includes(name), `ERROR: el preset ${name} no se puede elegir en el menú.`);
-    for (const v of menuValues) assert.ok(v === RANDOM_STYLE_KEY || v === RANDOM_COLOR_KEY || ZENTANGLE_PRESETS[v], `ERROR: el menú ofrece ${v}, que no existe.`);
+    for (const v of menuValues) assert.ok(v === RANDOM_STYLE_KEY || v === RANDOM_COLOR_KEY || v === BESTSELLER_KEY || ZENTANGLE_PRESETS[v], `ERROR: el menú ofrece ${v}, que no existe.`);
     assert.ok(menuValues.includes(RANDOM_STYLE_KEY), "ERROR: falta la opción Aleatorio en el menú.");
     assert.ok(menuValues.includes(RANDOM_COLOR_KEY), "ERROR: falta la opción Aleatorio para colorear en el menú.");
     assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(html), "ERROR: falta la regla CSS [hidden]; .form-row (display:grid) dejaría visibles los selectores ocultos.");
     for (const id of ["samplerLayout", "samplerEdge", "samplerIconMode"]) {
-      const sel = html.match(new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`))[1];
+      const sel = html.match(new RegExp(`<select id="${id}"[^>]*>([\\s\\S]*?)</select>`))[1];
       const vals = [...sel.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
       const expected = { samplerLayout: ["grid", ...TILING_NAMES], samplerEdge: ["fill", "whole"], samplerIconMode: ["single", "pattern", "fractal", "mixed"] }[id];
       assert.deepStrictEqual(vals, expected, `ERROR: el selector ${id} no ofrece todas las opciones del motor.`);
@@ -388,6 +388,98 @@ async function runTests() {
     }
     for (const m of [...MOTIFS, ...ICONS]) assert.ok(seenMotifs.has(m.id), `ERROR: el motivo ${m.id} nunca sale en el aleatorio (${samplerSeeds.length} muestrarios).`);
     console.log(`✓ ${Object.keys(ZENTANGLE_PRESETS).length} estilos elegibles y sorteados (1500 semillas), ${picked.layouts.size} distribuciones, ${picked.modes.size} modos de iconos, ${MOTIFS.length + ICONS.length} motivos.`);
+
+    console.log("\nPrueba 8: Plantillas (string) sin huecos, solapes ni celdas vacías...");
+    // Cada plantilla es una partición: la suma de áreas es la página (antes
+    // "eye" dejaba franjas sin cubrir y "spiral" apilaba un cuadro sobre otro).
+    const rect = { x0: 0, y0: 0, x1: 190, y1: 254 };
+    const shoelace = (p) => Math.abs(p.reduce((s, a, i) => { const b = p[(i + 1) % p.length]; return s + a.x * b.y - b.x * a.y; }, 0) / 2);
+    for (const t of Object.keys(LAYOUT_TEMPLATES)) {
+      for (let s = 1; s <= 5; s++) {
+        const sum = getTemplateCells(t, rect, createRNG(s)).reduce((acc, c) => acc + shoelace(c.poly), 0);
+        assert.ok(Math.abs(sum - 190 * 254) < 1, `ERROR: la plantilla ${t} no cubre la página exacta (área ${sum.toFixed(1)}).`);
+      }
+    }
+    // Sin saltos probabilísticos, toda celda recibe patrón: un patrón que no
+    // cabía (fillCircles en celdas gigantes) dejaba media página en blanco.
+    for (const name of ["classic_z_string", "eye_focus", "classic_grid", "spiral_modern"]) {
+      for (let i = 0; i < 20; i++) {
+        const seed = (347387974 + Math.imul(i, 0x9e3779b1)) >>> 0;
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed, presetName: name, overrides: { patternSkipProb: 0 }, areaMm: area });
+        const clips = d.defs.join("").match(/<clipPath id="[^"]*clip_\d+"/g) || [];
+        const groups = d.body.join("").match(/<g clip-path="url\(#[^)]*clip_\d+\)"/g) || [];
+        assert.strictEqual(groups.length, clips.length, `ERROR: ${name} seed ${seed} deja ${clips.length - groups.length} celda(s) vacía(s).`);
+        assert.ok(clips.length >= 6, `ERROR: ${name} seed ${seed} tiene solo ${clips.length} regiones (la plantilla no se subdividió).`);
+      }
+    }
+    console.log(`✓ ${Object.keys(LAYOUT_TEMPLATES).length} plantillas son particiones exactas; 80 páginas sin celdas vacías.`);
+
+    console.log("\nPrueba 9: Más vendidos (estilos rentables, repartidos sin repetir)...");
+    const deckTotal = BESTSELLERS.reduce((a, [, w]) => a + w, 0);
+    for (const [k] of BESTSELLERS) {
+      assert.ok(ZENTANGLE_PRESETS[k], `ERROR: Más vendidos incluye ${k}, que no existe.`);
+      assert.ok(isColoringSafe(ZENTANGLE_PRESETS[k]), `ERROR: Más vendidos incluye ${k}, que tiene rellenos negros.`);
+    }
+    for (const bs of [1, 42, 347387974]) {
+      const styles = Array.from({ length: deckTotal * 2 }, (_, i) => resolveBestSeller(0, { pageIndex: i, bookSeed: bs }).presetName);
+      for (let i = 1; i < styles.length; i++) assert.notStrictEqual(styles[i], styles[i - 1], `ERROR: Más vendidos repite ${styles[i]} en las páginas ${i} y ${i + 1} (libro ${bs}).`);
+      const first = styles.slice(0, deckTotal);
+      for (const [k, w] of BESTSELLERS) assert.strictEqual(first.filter((x) => x === k).length, w, `ERROR: ${k} debería salir ${w} veces cada ${deckTotal} páginas (libro ${bs}).`);
+    }
+    // En el libro el estilo depende de la página, no de la semilla: ↻ Cambiar
+    // (otra semilla, misma página) da otro diseño del mismo estilo.
+    const dA = { body: [], defs: [] }, dB = { body: [], defs: [] };
+    const uA = await generateZentangle(dA, { seed: 11, presetName: BESTSELLER_KEY, areaMm: area, pageIndex: 3, bookSeed: 42 });
+    const uB = await generateZentangle(dB, { seed: 999, presetName: BESTSELLER_KEY, areaMm: area, pageIndex: 3, bookSeed: 42 });
+    assert.strictEqual(uA.presetName, uB.presetName, "ERROR: cambiar una página de Más vendidos cambió su estilo.");
+    assert.notStrictEqual(dA.body.join(""), dB.body.join(""), "ERROR: cambiar una página de Más vendidos no cambió el diseño.");
+    assert.ok(!/fill="#000"/.test(dA.body.join("") + dB.body.join("")), "ERROR: Más vendidos dibujó rellenos negros.");
+    const cellsOnlyPick = await generateZentangle({ body: [], defs: [] }, { seed: 5, presetName: BESTSELLER_KEY, areaMm: area, cellsOnly: true });
+    assert.ok(!["sampler", "icon_mandala", "facet_spiral"].includes(ZENTANGLE_PRESETS[cellsOnlyPick.presetName].cellLayout), "ERROR: Más vendidos en modo imagen devolvió un estilo sin celdas.");
+    console.log(`✓ ${BESTSELLERS.length} estilos rentables sin negros; proporciones exactas cada ${deckTotal} páginas y sin repeticiones seguidas.`);
+
+    console.log("\nPrueba 10: Relleno de huecos vacíos (burbujas sin tocar líneas)...");
+    {
+      const { Resvg } = await import("@resvg/resvg-js");
+      const PXMM = 4;
+      const raster = async (svg, w) => { const r = new Resvg(svg, { fitTo: { mode: "width", value: w } }).render(); return { data: r.pixels, width: r.width, height: r.height }; };
+      const inkOf = async (body, defs) => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${area.x} ${area.y} ${area.w} ${area.h}"><defs>${defs.join("")}</defs><rect x="0" y="0" width="999" height="999" fill="#fff"/>${body.join("")}</svg>`;
+        const r = await raster(svg, Math.round(area.w * PXMM));
+        const ink = new Uint8Array(r.width * r.height);
+        for (let i = 0; i < ink.length; i++) ink[i] = r.data[i * 4] < 160 ? 1 : 0;
+        return { ink, w: r.width, h: r.height };
+      };
+      let filled = 0;
+      for (const name of ["sampler_icons", "sampler_icon_fractal", "icon_mandala", "classic_z_string"]) {
+        const a0 = { body: [], defs: [] }, a1 = { body: [], defs: [] };
+        await generateZentangle(a0, { seed: 3, presetName: name, areaMm: area });
+        await generateZentangle(a1, { seed: 3, presetName: name, areaMm: area, rasterize: raster });
+        assert.strictEqual(a1.body.slice(0, a0.body.length).join(""), a0.body.join(""), `ERROR: el relleno de ${name} alteró el diseño original.`);
+        const extra = a1.body.slice(a0.body.length);
+        if (!extra.length) continue;
+        filled++;
+        assert.ok(extra.length === 1 && /data-filler="bubbles"/.test(extra[0]), `ERROR: el relleno de ${name} añadió algo inesperado.`);
+        // Ninguna burbuja a menos de 1.2 mm de una línea del diseño (hueco pedido: 1.8 mm).
+        const base = await inkOf(a0.body, a0.defs), bub = await inkOf(extra, []);
+        const near = Math.round(1.2 * PXMM);
+        for (let y = 0; y < bub.h; y += 1) for (let x = 0; x < bub.w; x += 1) {
+          if (!bub.ink[y * bub.w + x]) continue;
+          for (let dy = -near; dy <= near; dy++) for (let dx = -near; dx <= near; dx++) {
+            if (dx * dx + dy * dy > near * near) continue;
+            const xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= base.w || yy >= base.h) continue;
+            assert.ok(!base.ink[yy * base.w + xx], `ERROR: una burbuja de ${name} toca una línea del diseño en (${(x / PXMM).toFixed(1)}, ${(y / PXMM).toFixed(1)}) mm.`);
+          }
+        }
+      }
+      assert.ok(filled >= 3, "ERROR: el relleno de huecos no se aplicó en los estilos con espacio vacío.");
+      const off = { body: [], defs: [] };
+      await generateZentangle(off, { seed: 3, presetName: "sampler_icons", areaMm: area, rasterize: raster, overrides: { fillDeadSpace: false } });
+      assert.ok(!/data-filler/.test(off.body.join("")), "ERROR: fillDeadSpace: false no desactivó el relleno.");
+      console.log(`✓ Relleno aplicado en ${filled} estilos sin alterar el diseño ni acercarse a menos de 1.2 mm de una línea.`);
+    }
 
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");

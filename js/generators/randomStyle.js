@@ -16,7 +16,65 @@ import { createRNG, hash, rInt } from "../core/prng.js";
 export const RANDOM_STYLE_KEY = "random_all";
 // Variante para libros de colorear: excluye los estilos con rellenos negros.
 export const RANDOM_COLOR_KEY = "random_color";
-export const isRandomKey = (key) => key === RANDOM_STYLE_KEY || key === RANDOM_COLOR_KEY;
+// "Más vendidos": mezcla curada de los estilos con más salida en libros para
+// colorear de KDP (mandalas, animales e iconos tiernos, mosaicos geométricos
+// para adultos, zentangle con figura), todos sin rellenos negros.
+export const BESTSELLER_KEY = "best_sellers";
+export const isRandomKey = (key) => key === RANDOM_STYLE_KEY || key === RANDOM_COLOR_KEY || key === BESTSELLER_KEY;
+
+// Peso = páginas de cada estilo por cada 20 del libro. La lista combina la
+// demanda del nicho con la métrica de colorabilidad (_samples/colorability.mjs)
+// y una revisión visual. Se excluyen bold_easy (cajas con patrones diminutos,
+// no el "bold & easy" de figuras grandes que se vende con ese nombre),
+// botanical_zen (sin plantas reales), kdp_relaxed (denso) y facet_spiral
+// (la peor colorabilidad de la biblioteca).
+export const BESTSELLERS = [
+  ["icon_mandala", 3], ["sampler_icons", 3], ["sampler_hex", 3],
+  ["sampler_cairo", 2], ["sampler_icon_fractal", 2], ["zen_star", 2], ["sampler_octagons", 2],
+  ["sampler_dodecagons", 1], ["classic_z_string", 1], ["eye_focus", 1],
+];
+
+// Mazo del libro: las 20 cartas de BESTSELLERS barajadas con la semilla del
+// libro y ordenadas para que dos páginas seguidas nunca repitan estilo (la
+// carta siguiente es la de más copias restantes distinta de la anterior).
+function bestSellerDeck(bookSeed) {
+  const rng = createRNG(hash(bookSeed >>> 0, 0xb357));
+  for (let w = 0; w < 12; w++) rng();
+  // Copias restantes por estilo; el desempate aleatorio va aparte para no
+  // alterar cuántas cartas tiene cada uno.
+  const left = new Map(BESTSELLERS.filter(([k]) => ZENTANGLE_PRESETS[k]).map(([k, w]) => [k, { c: w, tie: rng() }]));
+  const score = (k) => left.get(k).c + left.get(k).tie * 0.5;
+  const deck = [];
+  while (left.size) {
+    const prev = deck[deck.length - 1];
+    let best = null;
+    for (const k of left.keys()) if (k !== prev && (!best || score(k) > score(best))) best = k;
+    if (!best) best = prev;
+    deck.push(best);
+    if (--left.get(best).c === 0) left.delete(best);
+  }
+  return deck;
+}
+
+// Estilo de la página: con pageIndex sigue el mazo del libro (proporciones
+// exactas y sin repeticiones seguidas); sin él, sorteo ponderado por semilla.
+export function resolveBestSeller(seed, { pageIndex = null, bookSeed = null } = {}) {
+  let presetName;
+  if (Number.isInteger(pageIndex) && pageIndex >= 0) {
+    const deck = bestSellerDeck(bookSeed ?? seed);
+    // Al dar la vuelta al mazo, se desplaza para no empezar donde terminó.
+    presetName = deck[(pageIndex + Math.floor(pageIndex / deck.length)) % deck.length];
+  } else {
+    const rng = createRNG(hash(seed >>> 0, 0xb358));
+    for (let w = 0; w < 12; w++) rng();
+    const list = BESTSELLERS.filter(([k]) => ZENTANGLE_PRESETS[k]);
+    let r = rng() * list.reduce((a, [, w]) => a + w, 0);
+    presetName = list[list.length - 1][0];
+    for (const [k, w] of list) { if ((r -= w) < 0) { presetName = k; break; } }
+  }
+  const p = ZENTANGLE_PRESETS[presetName];
+  return { presetName, overrides: p.cellLayout === "sampler" ? { samplerSolids: false } : {}, group: "bestseller" };
+}
 
 // Presets que no dibujan en celdas del motor (página completa o muestrario).
 const NON_CELL = new Set(["sampler", "icon_mandala", "facet_spiral"]);

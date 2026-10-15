@@ -154,6 +154,9 @@ export async function generateZentangleCells(doc, opts) {
     minCellSizeMm,
     hexRadiusMm,
     triSideMm,
+    // Antes no se pasaba: «Cuerda en Z» sorteaba cualquier plantilla.
+    templateName: opts.templateName,
+    templateCellCount: opts.templateCellCount,
   });
 
   // KDP Quality Rule: Area mínima 4mm² (evita manchas negras ilegibles)
@@ -441,7 +444,13 @@ export async function generateZentangleCells(doc, opts) {
           : showcasePool;
         const fresh = pool.filter(p => !(patternUseCount.get(p) > 0));
         available = fresh.length ? fresh : pool;
-      } else if (minDim < 13) {
+      } else if (cellPoly && Math.PI * focusPage.r * focusPage.r < 0.33 * Math.abs(_polyArea(cellPoly))) {
+        // Celda alargada o irregular: una roseta única (flux) cubriría menos de
+        // un tercio y quedaría flotando en un mar blanco.
+        const spread = available.filter((p) => p !== fillFlux);
+        if (spread.length) available = spread;
+      }
+      if (minDim < 13 && !(isShowcaseCell && L === 0)) {
         const smallSafe = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox, fillTipple, fillWaves];
         const smallAvail = smallSafe.filter(p => !last3Fns.includes(p));
         available = smallAvail.length ? smallAvail : smallSafe;
@@ -462,14 +471,14 @@ export async function generateZentangleCells(doc, opts) {
       // Escalado dinámico: las celdas grandes ensanchan el espaciado para no
       // acumular cientos de repeticiones (que leen como un campo oscuro).
       // Celdas pequeñas ~1.0; celdas grandes hasta ~1.8x de aire.
-      let stepScale = Math.max(0.95, Math.min(1.8, minDim / 28));
+      let stepScale = Math.max(0.95, Math.min(2.2, minDim / 28));
       // Densidad por página (airBias) + punto focal (centro más denso, borde más aire)
       stepScale = Math.max(0.7, Math.min(2.0, stepScale * airBias * focalBias));
       
-      let strokeScale = 1.0;
-      if (opts.focusMode || familyKey === "dense") {
-        strokeScale = 0.7; // Solo adelgazamos si se busca densidad extrema
-      }
+      // Solo la familia densa adelgaza el trazo. focusMode también lo hacía y
+      // las plantillas quedaban en 0.25 mm: líneas que en imprenta se leen
+      // grises y que un marcador tapa.
+      const strokeScale = familyKey === "dense" ? 0.8 : 1.0;
 
       // El trazo crece más suave que el espaciado para no engrosar de más
       const strokeStep = Math.min(stepScale, 1.25);
@@ -509,6 +518,17 @@ export async function generateZentangleCells(doc, opts) {
       };
 
       let d = fn(rng, genBox, cellCfg);
+      // Un patrón puede no caber con su espaciado (devuelve vacío): la celda
+      // quedaba en blanco. Se prueban otros de la paleta con un rng aparte
+      // para no alterar la secuencia del resto de la página.
+      if (!d) {
+        const frng = createRNG(hash(seed >>> 0, 101 + i * 7 + L));
+        const rest = patterns.filter((p) => p !== fn);
+        for (let t = 0; t < rest.length && !d; t++) {
+          const alt = rest.splice(Math.floor(frng() * rest.length), 1)[0];
+          try { d = alt(frng, genBox, cellCfg); } catch (e) { d = null; }
+        }
+      }
 
       // Meta-Patterns: Círculos invocan stippling en los huecos. Solo si se pide
       // (stipplingEnabled): en un libro para colorear los puntos estorban.
@@ -608,13 +628,66 @@ function _makeCells(rng, baseRect, cfg) {
 
   if (cellLayout === "template") {
     const names = Object.keys(LAYOUT_TEMPLATES);
-    const tName = cfg.templateName || names[rInt(rng, 0, names.length - 1)];
-    return getTemplateCells(tName, baseRect);
+    const tName = LAYOUT_TEMPLATES[cfg.templateName] ? cfg.templateName : names[rInt(rng, 0, names.length - 1)];
+    const polys = getTemplateCells(tName, baseRect, rng).map((c) => c.poly);
+    // La plantilla da el string principal (2-9 regiones enormes); cada región
+    // grande se parte con cortes secundarios, como en un zentangle real. Una
+    // región de media página con un solo tangle quedaba como un mar de rayas.
+    const target = Math.max(polys.length, Math.round(safeClamp(cfg.templateCellCount, 2, 40, 10)));
+    return _subdivideLargest(rng, polys, target, baseRect).map((poly) => ({ kind: "poly", bbox: _bboxOfPoly(poly), poly }));
   }
 
   // default
   const rects = _splitRectangles(rng, baseRect, Math.max(1, cellCount), Math.max(6, minCellSizeMm));
   return rects.map((r) => ({ kind: "rect", bbox: r, poly: null }));
+}
+
+// Parte la región de mayor área con una recta que pasa cerca de su centro,
+// transversal a su eje largo, hasta llegar a `target` regiones. Solo acepta
+// cortes que crucen el contorno exactamente dos veces (en una región cóncava,
+// un corte con más cruces dejaría un puente de grosor cero) y que no dejen
+// astillas: cada mitad debe admitir un círculo de radio >= minR.
+function _subdivideLargest(rng, polys, target, rect) {
+  const out = polys.filter((p) => p.length >= 3 && Math.abs(_polyArea(p)) > 4);
+  const pageMin = Math.min(rect.x1 - rect.x0, rect.y1 - rect.y0);
+  const minR = Math.max(9, pageMin * 0.07);
+  const crossings = (poly, c, nx, ny) => {
+    let n = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      const sa = (a.x - c.x) * nx + (a.y - c.y) * ny, sb = (b.x - c.x) * nx + (b.y - c.y) * ny;
+      if ((sa < 0) !== (sb < 0)) n++;
+    }
+    return n;
+  };
+  const tooBig = new Set();
+  let guard = 0;
+  while (out.length < target && guard++ < target * 4) {
+    let idx = -1, best = 0;
+    out.forEach((p, k) => { const a = Math.abs(_polyArea(p)); if (!tooBig.has(p) && a > best) { best = a; idx = k; } });
+    if (idx < 0) break;
+    const poly = out[idx];
+    const bb = _bboxOfPoly(poly);
+    const f = _polyFocus(poly, bb);
+    if (f.r < minR * 2) { tooBig.add(poly); continue; }
+    // Eje largo de la región: el corte va transversal a él (±35°).
+    const across = (bb.x1 - bb.x0) > (bb.y1 - bb.y0) ? Math.PI / 2 : 0;
+    let done = false;
+    for (let t = 0; t < 10 && !done; t++) {
+      const ang = across + (rng() - 0.5) * 1.2;
+      const c = { x: f.x + (rng() - 0.5) * f.r * 0.6, y: f.y + (rng() - 0.5) * f.r * 0.6 };
+      const nx = Math.cos(ang), ny = Math.sin(ang); // normal de la recta de corte
+      if (crossings(poly, c, nx, ny) !== 2) continue;
+      const p = { x: c.x - nx, y: c.y - ny }, q = { x: c.x + nx, y: c.y + ny };
+      const A = _clipPolyHalfPlane(poly, p, q), B = _clipPolyHalfPlane(poly, q, p);
+      if (A.length < 3 || B.length < 3) continue;
+      if (_polyFocus(A, _bboxOfPoly(A)).r < minR || _polyFocus(B, _bboxOfPoly(B)).r < minR) continue;
+      out.splice(idx, 1, A, B);
+      done = true;
+    }
+    if (!done) tooBig.add(poly);
+  }
+  return out;
 }
 
 function _makeVoronoiCells(rng, rect, count) {

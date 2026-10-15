@@ -30,8 +30,13 @@ export function fillCircles(rng, r, cfg) {
     // Radio mínimo ~1.6 mm: con 0.6-0.9 mm el interior del círculo no admitía
     // ni la punta de un marcador fino.
     const rMin = Math.max(1.6, cfg.minGapMm * 0.8);
-    let radius = rFloat(rng, rMin, Math.max(rMin * 1.2, minDim * 0.09));
-    const pitch = radius * 2 + cfg.minGapMm * 0.5;
+    // En celdas grandes el radio crece con la celda (un campo de cientos de
+    // circulitos se lee como textura, no como zonas para colorear).
+    const rLo = Math.max(rMin, Math.min(minDim * 0.045, 9));
+    let radius = rFloat(rng, rLo, Math.max(rLo * 1.2, Math.min(minDim * 0.09, 16)));
+    // El paso debe reservar el hueco completo (minGapMm): con medio hueco, el
+    // reajuste de abajo encogía el radio bajo rMin y la celda quedaba vacía.
+    const pitch = radius * 2 + cfg.minGapMm;
     const cols = Math.max(1, Math.floor(w / pitch));
     const rows = Math.max(1, Math.floor(h / pitch));
 

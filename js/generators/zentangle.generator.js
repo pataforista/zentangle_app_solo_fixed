@@ -3,7 +3,8 @@ import { ZENTANGLE_PRESETS } from "./zentangle.presets.js";
 import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
-import { RANDOM_COLOR_KEY, isRandomKey, resolveRandomStyle } from "./randomStyle.js";
+import { fillDeadSpace } from "./deadSpace.js";
+import { RANDOM_STYLE_KEY, BESTSELLER_KEY, isRandomKey, resolveRandomStyle, resolveBestSeller } from "./randomStyle.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   if (!areaMm || typeof areaMm !== "object") {
@@ -27,11 +28,22 @@ export async function generateZentangle(doc, {
   presetName = "editorial_airy",
   overrides = {},
   cellsOnly = false,
+  // Solo para "Más vendidos" dentro de un libro: posición de la página y
+  // semilla del libro, para repartir los estilos en proporciones fijas.
+  pageIndex = null,
+  bookSeed = null,
+  // rasterize(svg, wPx, hPx) => RGBA: activa el relleno de huecos muertos
+  // (deadSpace.js) salvo que el estilo u overrides pongan fillDeadSpace: false.
+  rasterize = null,
 } = {}) {
   const area = normalizeAreaMm(areaMm);
   let randomOverrides = {};
   if (isRandomKey(presetName)) {
-    const r = resolveRandomStyle(seed, { cellsOnly, coloringOnly: presetName === RANDOM_COLOR_KEY });
+    // En modo imagen (cellsOnly) "Más vendidos" cae al aleatorio para colorear:
+    // la mitad de sus estilos no son de celdas.
+    const r = presetName === BESTSELLER_KEY && !cellsOnly
+      ? resolveBestSeller(seed, { pageIndex, bookSeed })
+      : resolveRandomStyle(seed, { cellsOnly, coloringOnly: presetName !== RANDOM_STYLE_KEY });
     presetName = r.presetName;
     randomOverrides = r.overrides;
   }
@@ -47,19 +59,22 @@ export async function generateZentangle(doc, {
     areaMm: area,
   };
 
+  await drawStyle(doc, finalOpts);
+  if (rasterize && finalOpts.fillDeadSpace !== false) {
+    await fillDeadSpace(doc, {
+      areaMm: area, seed, rasterize,
+      gapMm: Math.max(1.8, Number(finalOpts.minGapMm) || 0),
+      strokeMm: Math.max(0.35, Math.min(0.6, Number(finalOpts.patternStrokeMm) || 0.45)),
+    });
+  }
+  return { presetName };
+}
+
+async function drawStyle(doc, finalOpts) {
   // Composiciones de página completa (mandala de iconos, pétalos facetados).
   const ORNAMENTS = { icon_mandala: generateIconMandala, facet_spiral: generateFacetSpiral };
-  if (ORNAMENTS[finalOpts.cellLayout]) {
-    await ORNAMENTS[finalOpts.cellLayout](doc, finalOpts);
-    return { presetName };
-  }
-
+  if (ORNAMENTS[finalOpts.cellLayout]) return ORNAMENTS[finalOpts.cellLayout](doc, finalOpts);
   // Muestrario: retícula de círculos/cuadros con un motivo por unidad.
-  if (finalOpts.cellLayout === "sampler") {
-    await generateSampler(doc, finalOpts);
-    return { presetName };
-  }
-
-  await generateZentangleCells(doc, finalOpts);
-  return { presetName };
+  if (finalOpts.cellLayout === "sampler") return generateSampler(doc, finalOpts);
+  return generateZentangleCells(doc, finalOpts);
 }
