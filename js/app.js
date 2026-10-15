@@ -6,7 +6,7 @@ import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry, gene
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
-import { RANDOM_STYLE_KEY, resolveRandomStyle } from "./generators/randomStyle.js";
+import { RANDOM_COLOR_KEY, isRandomKey } from "./generators/randomStyle.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -135,7 +135,7 @@ function buildOptsFromUI() {
 
   // Aleatorio: cada semilla sortea su propio estilo (randomStyle.js), así que los
   // ajustes finos de estilo no aplican; solo viajan las opciones globales.
-  if (zPresetKey === RANDOM_STYLE_KEY) {
+  if (isRandomKey(zPresetKey)) {
     const opts = {
       seed: (int(ui.seed.value, 1) >>> 0),
       kdpBleedMm: num(ui.kdpBleedMm.value, 0),
@@ -195,12 +195,15 @@ function buildOptsFromUI() {
   return { opts, zPresetKey };
 }
 
+const RANDOM_HINT_ALL = "🎲 Cada diseño usa un estilo distinto de toda la biblioteca (y en los muestrarios también sortea distribución, bordes e iconos). «Otro diseño», «8 variaciones» y cada página del libro cambian de estilo. Los ajustes finos de estilo no aplican.";
+const RANDOM_HINT_COLOR = "🎲 Como el aleatorio, pero solo con estilos sin rellenos negros (se excluyen los muestrarios de tinta): todo queda listo para colorear. Los ajustes finos de estilo no aplican.";
+
 // Nombre legible de un estilo: el texto de su opción en el menú.
 const styleLabel = (key) => (ui.zPreset.querySelector(`option[value="${key}"]`)?.textContent || key).replace(/\s*\(.*?\)\s*$/, "").trim();
 
 // Margen mínimo según el estilo (sangrado KDP). En aleatorio no se sabe de
 // antemano qué estilo saldrá en cada página, así que se aplica el más estricto.
-const needsWideMargin = (key) => key === "commercial_print" || key === "bold_easy" || key === RANDOM_STYLE_KEY;
+const needsWideMargin = (key) => key === "commercial_print" || key === "bold_easy" || isRandomKey(key);
 
 // Controles que el usuario ha ajustado a mano. Al cambiar de preset se
 // conservan (para iterar diseños rápido sin re-tunear); el resto se sincroniza
@@ -211,8 +214,11 @@ const touched = new Set();
 // que el preset funcione como base de estilo real (antes los sliders pisaban
 // silenciosamente al preset). Respeta los controles tocados salvo force=true.
 function applyPresetToUI(presetKey, { force = false } = {}) {
-  const isRandom = presetKey === RANDOM_STYLE_KEY;
-  if (ui.randomHint) ui.randomHint.hidden = !isRandom;
+  const isRandom = isRandomKey(presetKey);
+  if (ui.randomHint) {
+    ui.randomHint.hidden = !isRandom;
+    ui.randomHint.textContent = presetKey === RANDOM_COLOR_KEY ? RANDOM_HINT_COLOR : RANDOM_HINT_ALL;
+  }
   const p = ZENTANGLE_PRESETS[presetKey];
   if (!p) {
     if (isRandom && ui.samplerLayoutRow) ui.samplerLayoutRow.hidden = true;
@@ -283,7 +289,7 @@ async function renderGallery(count = 8) {
     const used = await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner });
     const innerSvg = renderSvgToString(doc);
     // En aleatorio cada variación es de un estilo distinto: se rotula.
-    const styleTag = zPresetKey === RANDOM_STYLE_KEY ? ` · ${styleLabel(used.presetName)}` : "";
+    const styleTag = isRandomKey(zPresetKey) ? ` · ${styleLabel(used.presetName)}` : "";
 
     const item = document.createElement("button");
     item.type = "button";
@@ -341,7 +347,7 @@ function updateBookSummary() {
   if (!ui.bookSummary) return;
   const { n, blank, total } = bookPlan();
   const g = pageGeometry();
-  const parts = [`${n} diseños${blank ? ` + ${n} hojas en blanco` : ""} = <strong>${total} páginas</strong> · ${PAPER_LABELS[g.paperKey] || g.paperKey} · margen ${g.marginMm} mm${g.zPresetKey === RANDOM_STYLE_KEY ? " · 🎲 un estilo distinto en cada página" : ""}`];
+  const parts = [`${n} diseños${blank ? ` + ${n} hojas en blanco` : ""} = <strong>${total} páginas</strong> · ${PAPER_LABELS[g.paperKey] || g.paperKey} · margen ${g.marginMm} mm${isRandomKey(g.zPresetKey) ? " · 🎲 un estilo distinto en cada página" : ""}`];
   let cls = "hint ok";
   if (total < KDP_MIN_PAGES) { parts.push(`⚠ KDP pide mínimo ${KDP_MIN_PAGES} páginas: sube a ${blank ? KDP_MIN_PAGES / 2 : KDP_MIN_PAGES} diseños.`); cls = "hint warn"; }
   const w = kdpWarning(g.marginMm, g.opts.kdpBleedMm).replace(/^ \| /, "");
@@ -457,7 +463,7 @@ async function render() {
     areaMm: inner,
   });
   // En aleatorio, el estilo realmente dibujado (para estado, nombre de archivo y JSON).
-  const shownKey = zPresetKey === RANDOM_STYLE_KEY ? used.presetName : zPresetKey;
+  const shownKey = isRandomKey(zPresetKey) ? used.presetName : zPresetKey;
 
   const svg = renderSvgToString(doc);
   ui.previewInner.innerHTML = svg;
@@ -484,7 +490,7 @@ async function render() {
   }[shownKey] || styleLabel(shownKey);
 
   const kdpWarn = kdpWarning(marginMm, opts.kdpBleedMm);
-  const dice = zPresetKey === RANDOM_STYLE_KEY ? "🎲 " : "";
+  const dice = isRandomKey(zPresetKey) ? "🎲 " : "";
   ui.status.textContent = `✓ ${dice}${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready${kdpWarn}`;
   return { svg, opts, paperKey, zPresetKey: shownKey };
 }

@@ -5,7 +5,7 @@ import { ZENTANGLE_PRESETS } from "./js/generators/zentangle.presets.js";
 import { MOTIFS } from "./js/generators/patterns/motifs.js";
 import { ICONS } from "./js/generators/patterns/icons.js";
 import { createRNG } from "./js/core/prng.js";
-import { RANDOM_STYLE_KEY, resolveRandomStyle } from "./js/generators/randomStyle.js";
+import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, resolveRandomStyle, isColoringSafe } from "./js/generators/randomStyle.js";
 import { POOLS } from "./js/generators/sampler.js";
 import { LAYOUT_TEMPLATES } from "./js/generators/layoutTemplates.js";
 import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
@@ -271,8 +271,9 @@ async function runTests() {
     const menuValues = [...menu.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
     assert.strictEqual(new Set(menuValues).size, menuValues.length, "ERROR: opciones duplicadas en el menú de estilos.");
     for (const name of Object.keys(ZENTANGLE_PRESETS)) assert.ok(menuValues.includes(name), `ERROR: el preset ${name} no se puede elegir en el menú.`);
-    for (const v of menuValues) assert.ok(v === RANDOM_STYLE_KEY || ZENTANGLE_PRESETS[v], `ERROR: el menú ofrece ${v}, que no existe.`);
+    for (const v of menuValues) assert.ok(v === RANDOM_STYLE_KEY || v === RANDOM_COLOR_KEY || ZENTANGLE_PRESETS[v], `ERROR: el menú ofrece ${v}, que no existe.`);
     assert.ok(menuValues.includes(RANDOM_STYLE_KEY), "ERROR: falta la opción Aleatorio en el menú.");
+    assert.ok(menuValues.includes(RANDOM_COLOR_KEY), "ERROR: falta la opción Aleatorio para colorear en el menú.");
     assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(html), "ERROR: falta la regla CSS [hidden]; .form-row (display:grid) dejaría visibles los selectores ocultos.");
     for (const id of ["samplerLayout", "samplerEdge", "samplerIconMode"]) {
       const sel = html.match(new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`))[1];
@@ -339,6 +340,43 @@ async function runTests() {
       const d = { body: [], defs: [] };
       await generateZentangle(d, { seed, presetName: RANDOM_STYLE_KEY, overrides: { samplerLayout: "cairo", samplerIconMode: "single" }, areaMm: area });
       assert.ok(/data-motif=/.test(d.body.join("")), "ERROR: el override del llamador rompió el aleatorio.");
+    }
+
+    // Aleatorio para colorear: nunca elige un estilo con tinta, sí elige todos los
+    // demás, y sus páginas no tienen un solo relleno negro. La regla se contrasta
+    // con los hechos: los presets excluidos son justo los que dibujan negro.
+    {
+      const safe = Object.keys(ZENTANGLE_PRESETS).filter((n) => isColoringSafe(ZENTANGLE_PRESETS[n]));
+      const unsafe = Object.keys(ZENTANGLE_PRESETS).filter((n) => !safe.includes(n));
+      assert.ok(unsafe.length >= 4 && safe.length >= 30, `ERROR: la clasificación de estilos para colorear es sospechosa (${safe.length} aptos / ${unsafe.length} con tinta).`);
+      const gotColor = new Set(), gotGroups = new Set(), colorSampler = [];
+      for (let seed = 1; seed <= 1500; seed++) {
+        const r = resolveRandomStyle(seed, { coloringOnly: true });
+        assert.ok(safe.includes(r.presetName), `ERROR: el aleatorio para colorear sorteó ${r.presetName}, que lleva tinta.`);
+        assert.ok(r.group !== "sampler" || r.overrides.samplerSolids === false, "ERROR: un muestrario sorteado para colorear no fuerza samplerSolids=false.");
+        gotColor.add(r.presetName); gotGroups.add(r.group);
+        if (r.group === "sampler" && colorSampler.length < 25) colorSampler.push(seed);
+      }
+      for (const n of safe) assert.ok(gotColor.has(n), `ERROR: el aleatorio para colorear nunca sortea ${n}.`);
+      for (const g of ["kdp", "classic", "template", "sampler", "figure"]) assert.ok(gotGroups.has(g), `ERROR: el aleatorio para colorear nunca sortea la familia ${g}.`);
+      // Hechos: los estilos "con tinta" realmente dibujan negro y los aptos no.
+      for (const n of Object.keys(ZENTANGLE_PRESETS)) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 5, presetName: n, areaMm: area });
+        assert.strictEqual(/fill="#000"/.test(d.body.join("")), unsafe.includes(n), `ERROR: ${n} ${unsafe.includes(n) ? "no dibuja negro pero está marcado con tinta" : "dibuja negro pero está marcado apto para colorear"}.`);
+      }
+      // Páginas completas en modo colorear: sin negro, y con el mismo resultado que pedir el estilo directo.
+      const pagesSeeds = [...colorSampler.slice(0, 10), 3, 8, 21, 34, 55, 89, 144, 233, 377, 610];
+      for (const seed of pagesSeeds) {
+        const d = { body: [], defs: [] };
+        const used = await generateZentangle(d, { seed, presetName: RANDOM_COLOR_KEY, areaMm: area });
+        assert.ok(safe.includes(used.presetName), `ERROR: aleatorio-colorear dibujó ${used.presetName}, que lleva tinta.`);
+        assert.ok(!/fill="#000"/.test(d.body.join("")), `ERROR: aleatorio-colorear produjo un relleno negro (seed ${seed}, ${used.presetName}).`);
+      }
+      // cellsOnly y coloringOnly se combinan (imagen de fondo + libro de colorear).
+      const both = resolveRandomStyle(9, { cellsOnly: true, coloringOnly: true });
+      assert.ok(!["sampler", "icon_mandala", "facet_spiral"].includes(ZENTANGLE_PRESETS[both.presetName].cellLayout), "ERROR: cellsOnly + coloringOnly devolvió un estilo que no es de celdas.");
+      console.log(`✓ Aleatorio para colorear: ${safe.length} estilos aptos sorteados, ${unsafe.length} con tinta excluidos (${unsafe.join(", ")}).`);
     }
 
     // Todos los motivos e iconos aparecen alguna vez en el aleatorio (páginas de muestrario).

@@ -14,6 +14,9 @@ import { POOLS } from "./sampler.js";
 import { createRNG, hash, rInt } from "../core/prng.js";
 
 export const RANDOM_STYLE_KEY = "random_all";
+// Variante para libros de colorear: excluye los estilos con rellenos negros.
+export const RANDOM_COLOR_KEY = "random_color";
+export const isRandomKey = (key) => key === RANDOM_STYLE_KEY || key === RANDOM_COLOR_KEY;
 
 // Presets que no dibujan en celdas del motor (página completa o muestrario).
 const NON_CELL = new Set(["sampler", "icon_mandala", "facet_spiral"]);
@@ -34,10 +37,16 @@ const TILING_COUNT = { hex: [12, 18], octagons: [10, 14], dodecagons: [6, 10], c
 const SHAPES = ["circle", "rounded", "square", "mixed"];
 const SETS = Object.keys(POOLS);
 
-export function randomStyleGroups({ cellsOnly = false } = {}) {
+// Apto para colorear = sin rellenos negros. Solo los muestrarios los producen
+// (con samplerSolids); en ellos "sin definir" cuenta como tinta, porque
+// sampler.js usa solids salvo que samplerSolids sea false.
+export const isColoringSafe = (p) => p.cellLayout !== "sampler" || p.samplerSolids === false;
+
+export function randomStyleGroups({ cellsOnly = false, coloringOnly = false } = {}) {
   const groups = {};
   for (const [name, p] of Object.entries(ZENTANGLE_PRESETS)) {
     if (cellsOnly && NON_CELL.has(p.cellLayout)) continue;
+    if (coloringOnly && !isColoringSafe(p)) continue;
     (groups[groupOf(name, p)] ||= []).push(name);
   }
   return groups;
@@ -80,10 +89,10 @@ function randomizeSampler(rng, p) {
   return o;
 }
 
-export function resolveRandomStyle(seed, { cellsOnly = false } = {}) {
+export function resolveRandomStyle(seed, { cellsOnly = false, coloringOnly = false } = {}) {
   const rng = createRNG(hash(seed >>> 0, 0x2a4d));
   for (let w = 0; w < 12; w++) rng();
-  const groups = randomStyleGroups({ cellsOnly });
+  const groups = randomStyleGroups({ cellsOnly, coloringOnly });
   const keys = Object.keys(groups);
   const total = keys.reduce((s, k) => s + WEIGHTS[k], 0);
   let r = rng() * total, group = keys[keys.length - 1];
@@ -93,6 +102,8 @@ export function resolveRandomStyle(seed, { cellsOnly = false } = {}) {
 
   let overrides = {};
   if (group === "sampler") overrides = randomizeSampler(rng, p);
+  // Garantía explícita, por si el sorteo de un muestrario cambiara su tinta.
+  if (coloringOnly && group === "sampler") overrides.samplerSolids = false;
   // Plantillas: la mitad de las veces usa una de las seis (burst y la S
   // clásica no tienen preset propio).
   if (group === "template" && chance(rng, 0.5)) overrides.templateName = pickOf(rng, Object.keys(LAYOUT_TEMPLATES));

@@ -3,7 +3,7 @@ import { ZENTANGLE_PRESETS } from "./zentangle.presets.js";
 import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
-import { RANDOM_STYLE_KEY, resolveRandomStyle } from "./randomStyle.js";
+import { RANDOM_COLOR_KEY, isRandomKey, resolveRandomStyle } from "./randomStyle.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   if (!areaMm || typeof areaMm !== "object") {
@@ -19,8 +19,8 @@ function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   return { x, y, w, h };
 }
 
-// presetName "random_all": cada semilla sortea su propio estilo de toda la
-// biblioteca (ver randomStyle.js). Devuelve el estilo realmente usado.
+// presetName "random_all" / "random_color": cada semilla sortea su propio estilo
+// de la biblioteca (todos / solo sin rellenos negros; ver randomStyle.js). Devuelve el estilo realmente usado.
 export async function generateZentangle(doc, {
   seed = 123456789,
   areaMm,
@@ -30,8 +30,8 @@ export async function generateZentangle(doc, {
 } = {}) {
   const area = normalizeAreaMm(areaMm);
   let randomOverrides = {};
-  if (presetName === RANDOM_STYLE_KEY) {
-    const r = resolveRandomStyle(seed, { cellsOnly });
+  if (isRandomKey(presetName)) {
+    const r = resolveRandomStyle(seed, { cellsOnly, coloringOnly: presetName === RANDOM_COLOR_KEY });
     presetName = r.presetName;
     randomOverrides = r.overrides;
   }
