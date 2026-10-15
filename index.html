@@ -477,6 +477,22 @@
     .sp-sub { font-size: 10.5px; color: var(--text-muted); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .sp-card.ink::after { content: "tinta"; position: absolute; top: 9px; right: 9px; font-size: 9.5px; font-weight: 600; background: #111; color: #fff; padding: 1px 5px; border-radius: 4px; }
 
+    /* Revisión del libro */
+    .book-review { width: 100%; }
+    .book-review-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--border-light); border-radius: 10px; position: sticky; top: 0; z-index: 3; }
+    .book-review-title { margin: 0; font-size: 13px; line-height: 1.4; }
+    .book-grid { grid-template-columns: repeat(5, 1fr); }
+    .book-tile { margin: 0; cursor: default; }
+    .book-tile:hover { transform: none; }
+    .book-tile img { width: 100%; aspect-ratio: 8.5 / 11; object-fit: contain; background: #fff; display: block; cursor: zoom-in; }
+    .book-tile.zoomed { grid-column: 1 / -1; }
+    .book-tile.zoomed img { cursor: zoom-out; max-height: 85vh; }
+    .book-tile figcaption { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
+    .book-tile .tile-redo { padding: 4px 8px; font-size: 12px; }
+    .book-tile.busy img { opacity: .35; }
+    @media (max-width: 1100px) { .book-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 720px) { .book-grid { grid-template-columns: repeat(2, 1fr); } .book-review-head { flex-direction: column; align-items: stretch; } }
+
     /* Barra de acciones */
     .dl-row { display: grid; grid-template-columns: auto repeat(4, 1fr); gap: 6px; align-items: center; }
     .dl-label { font-size: 12px; color: var(--text-muted); }
@@ -656,7 +672,8 @@
           </div>
           <p id="bookSummary" class="hint" aria-live="polite"></p>
           <progress id="bookBar" class="book-bar" max="1" value="0" hidden></progress>
-          <p class="hint">Cada página deriva su propia semilla de la tuya: el libro se puede regenerar idéntico.</p>
+          <button id="btnBookReview" type="button" class="link-btn" hidden>👁 Ver las páginas del libro</button>
+          <p class="hint">Primero ves todas las páginas: cambia con ↻ las que no te gusten y luego descarga el PDF. Cada página deriva su semilla de la tuya, así que el libro se puede regenerar idéntico.</p>
         </section>
 
         <!-- Ajustes finos (planos: sin desplegables anidados) -->
@@ -897,7 +914,7 @@
       </div>
 
       <div class="actions-bar">
-        <button id="btnBook" class="btn btn-primary btn-lg">📖 Crear libro (PDF para KDP)</button>
+        <button id="btnBook" class="btn btn-primary btn-lg">📖 Preparar libro (revisar páginas)</button>
         <div class="dl-row" role="group" aria-label="Descargar esta página">
           <span class="dl-label">Esta página:</span>
           <button id="btnDownloadPDF" class="btn btn-secondary" title="Esta página como PDF">PDF</button>
