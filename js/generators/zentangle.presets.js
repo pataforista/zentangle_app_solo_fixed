@@ -860,4 +860,49 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 2.0,
     sketchy: 0.2,
   },
+
+  // ========== COMPOSICIONES DE PÁGINA COMPLETA ==========
+  // Mandala de iconos: uno al centro y anillos de copias giradas hacia afuera.
+  icon_mandala: {
+    cellLayout: "icon_mandala",
+    cellCount: 1,
+    samplerSolids: false,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.55,
+    minGapMm: 2.0,
+    sketchy: 0.15,
+  },
+  // Estrella subdividida como string: sus triángulos (más finos hacia las
+  // puntas) y el fondo entre las puntas son las secciones a rellenar con tangles.
+  zen_star: {
+    cellLayout: "star",
+    cellCount: 30,
+    cellBorderWidthMm: 0.8,
+    patternStrokeMm: 0.38,
+    minStrokeMm: 0.28,
+    minGapMm: 2.0,
+    maxPatternPassesPerCell: 1,
+    patternSkipProb: 0.04,
+    whiteSpaceMm: 1.6,
+    rotatePatterns: true,
+    rotationSet: "ergonomic",
+    innerOrganicBorderEnabled: false,
+    enableDrawBehind: false,
+    organicBorder: false,
+    patternFamily: "mixed",
+    paletteSize: 10,
+    focusMode: false,
+    borderStrokeMultiplier: 1.5,
+  },
+  // Pétalos facetados (cristal) en espiral áurea, encimados; cada faceta es una
+  // sección con su tangle y el fondo lleva un tangle amplio.
+  facet_spiral: {
+    cellLayout: "facet_spiral",
+    cellCount: 12,
+    samplerSolids: false,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.5,
+    minGapMm: 1.8,
+    sketchy: 0,
+  },
 };

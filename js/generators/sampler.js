@@ -391,4 +391,4 @@ export async function generateSampler(doc, opts) {
 
   if (!useDocDefs && localDefs.length) doc.body.unshift(`<defs>${localDefs.join("")}</defs>`);
 }
-export { POOLS };
+export { POOLS, REPEATABLE };

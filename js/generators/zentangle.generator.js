@@ -2,6 +2,7 @@
 import { ZENTANGLE_PRESETS } from "./zentangle.presets.js";
 import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
+import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   if (!areaMm || typeof areaMm !== "object") {
@@ -33,6 +34,13 @@ export async function generateZentangle(doc, {
     seed,
     areaMm: area,
   };
+
+  // Composiciones de página completa (mandala de iconos, pétalos facetados).
+  const ORNAMENTS = { icon_mandala: generateIconMandala, facet_spiral: generateFacetSpiral };
+  if (ORNAMENTS[finalOpts.cellLayout]) {
+    await ORNAMENTS[finalOpts.cellLayout](doc, finalOpts);
+    return;
+  }
 
   // Muestrario: retícula de círculos/cuadros con un motivo por unidad.
   if (finalOpts.cellLayout === "sampler") {

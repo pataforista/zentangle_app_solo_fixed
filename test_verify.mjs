@@ -239,6 +239,24 @@ async function runTests() {
       assert.ok(!/fill="#000"/.test(d.body.join("")), `ERROR: samplerLayout=${layout} rellena de negro para colorear.`);
     }
 
+    // Zentangle con figura: estrella como string, mandala de iconos y pétalos
+    // facetados. Deterministas, sin coordenadas inválidas y renderizables (un
+    // recorte vacío anidado en otro hacía fallar a resvg).
+    const { Resvg } = await import("@resvg/resvg-js");
+    for (const name of ["zen_star", "icon_mandala", "facet_spiral"]) {
+      for (const seed of [3, 8, 21, 77]) {
+        const d1 = { body: [], defs: [] }, d2 = { body: [], defs: [] };
+        await generateZentangle(d1, { seed, presetName: name, areaMm: area });
+        await generateZentangle(d2, { seed, presetName: name, areaMm: area });
+        const out = d1.body.join("") + d1.defs.join("");
+        assert.strictEqual(out, d2.body.join("") + d2.defs.join(""), `ERROR: ${name} no es determinista.`);
+        assert.ok(!/NaN|Infinity|undefined/.test(out), `ERROR: ${name} produce coordenadas inválidas (seed ${seed}).`);
+        assert.ok(!/fill="#000"/.test(d1.body.join("")) || name === "zen_star", `ERROR: ${name} rellena de negro (seed ${seed}).`);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297"><defs>${d1.defs.join("")}</defs>${d1.body.join("")}</svg>`;
+        new Resvg(svg, { fitTo: { mode: "width", value: 200 } }).render();
+      }
+    }
+
     console.log(`✓ Muestrario verificado (${samplerNames.length} presets, ${MOTIFS.length + ICONS.length} motivos).`);
 
     console.log("\n==============================================");
