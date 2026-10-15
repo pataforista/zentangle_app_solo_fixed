@@ -23,6 +23,8 @@ const ui = {
   zPreset: $("zPreset"),
   samplerLayout: $("samplerLayout"),
   samplerLayoutRow: $("samplerLayoutRow"),
+  samplerEdge: $("samplerEdge"),
+  samplerIconMode: $("samplerIconMode"),
 
   cellCount: $("cellCount"),
   minCellSizeMm: $("minCellSizeMm"),
@@ -163,7 +165,11 @@ function buildOptsFromUI() {
   };
 
   // Distribución del muestrario (retícula o teselado); solo aplica a muestrarios.
-  if (zPreset.cellLayout === "sampler" && ui.samplerLayout) opts.samplerLayout = String(ui.samplerLayout.value || "grid");
+  if (zPreset.cellLayout === "sampler" && ui.samplerLayout) {
+    opts.samplerLayout = String(ui.samplerLayout.value || "grid");
+    opts.samplerEdge = String(ui.samplerEdge?.value || "fill");
+    opts.samplerIconMode = String(ui.samplerIconMode?.value || "single");
+  }
 
   // Familia de patrón: solo sobreescribe el preset si el usuario eligió una.
   const famVal = String(ui.patternFamily.value || "");
@@ -204,6 +210,8 @@ function applyPresetToUI(presetKey, { force = false } = {}) {
 
   set(ui.patternFamily, p.patternFamily || "");
   if (ui.samplerLayout) ui.samplerLayout.value = p.samplerLayout || "grid";
+  if (ui.samplerEdge) ui.samplerEdge.value = p.samplerEdge || "fill";
+  if (ui.samplerIconMode) ui.samplerIconMode.value = p.samplerIconMode || "single";
   if (ui.samplerLayoutRow) ui.samplerLayoutRow.hidden = p.cellLayout !== "sampler";
   set(ui.focalStrength, p.focalStrength != null ? p.focalStrength : 0.3);
   set(ui.rotationJitterDeg, p.rotationJitterDeg != null ? p.rotationJitterDeg : 2.5);
@@ -824,7 +832,7 @@ function bind() {
     ui.paper, ui.marginMm, ui.seed, ui.kdpBleedMm, ui.showSafeZone,
     ui.paperTextureEnabled, ui.cellShadowEnabled,
     // La distribución la define cada preset de muestrario: no se arrastra al cambiar.
-    ui.samplerLayout,
+    ui.samplerLayout, ui.samplerEdge, ui.samplerIconMode,
   ].forEach((el) => {
     if (!el) return;
     const evt = el.type === "checkbox" ? "change" : "input";

@@ -4,7 +4,7 @@
 // Contrasta con zentangleCells: allí las celdas son irregulares y los patrones
 // genéricos; aquí cada unidad es una idea reconocible (corazones, gotas, nubes,
 // tablero...) y la hoja mezcla negros sólidos, rayado y blancos.
-import { createRNG, hash, rFloat } from "../core/prng.js";
+import { createRNG, hash, rFloat, rInt } from "../core/prng.js";
 import { MOTIFS } from "./patterns/motifs.js";
 import { ICONS } from "./patterns/icons.js";
 import { fillCadent, fillFlorz, fillTipple, fillCrescentMoon } from "./patterns/tangles.js";
@@ -126,14 +126,132 @@ function gridUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, shape
   return units;
 }
 
+// Icono como patrón: en vez de una sola imagen al centro, el icono se repite en
+// copias más chicas que llenan la unidad, ordenadas según un grupo de simetría
+// del plano (wallpaper group; hay 17, se usan los que encajan en la retícula):
+//   p1  traslación          pm  espejo en columnas alternas
+//   pg  deslizamiento (espejo en filas alternas)
+//   p2  giro de 180° en damero   pmm espejos en ambos ejes
+//   p4  giros de 90° (retícula cuadrada)   p3/p6 giros de 120°/60° (alternada)
+// Los iconos con orientación (gato, cactus...) solo usan p1/pm/pg para no
+// quedar de cabeza. Las copias que tocan el borde se cortan contra la celda.
+// Solo los iconos de un objeto se repiten (los que ya son composiciones, como el
+// campo de estrellas o los hongos, se vuelven confeti), cada uno con un diámetro
+// mínimo por copia para que sus detalles sigan siendo coloreables.
+const REPEATABLE = { cat: 28, cactus: 24, umbrella: 24, lotus: 24, owl: 30, butterfly: 28, sun: 34, feather: 24 };
+const UPRIGHT = new Set(["cat", "cactus", "mushrooms", "umbrella", "tulips", "lotus", "owl"]);
+const GROUPS_UPRIGHT = ["p1", "pm", "pg"];
+const GROUPS_FREE = ["p1", "pm", "pg", "p2", "pmm", "p4", "p3", "p6"];
+const SQUARE_GROUPS = new Set(["p2", "pmm", "p4"]);
+
+function copyTransform(group, i, j) {
+  const odd = (v) => ((v % 2) + 2) % 2 === 1;
+  switch (group) {
+    case "pm": return { rot: 0, mirror: odd(i) };
+    case "pg": return { rot: 0, mirror: odd(j) };
+    case "p2": return { rot: odd(i + j) ? 180 : 0, mirror: false };
+    case "pmm": return { rot: odd(j) ? 180 : 0, mirror: odd(i + j) };
+    case "p4": return { rot: 90 * ((((i + 2 * j) % 4) + 4) % 4), mirror: false };
+    case "p3": return { rot: 120 * ((((i - j) % 3) + 3) % 3), mirror: false };
+    case "p6": return { rot: 60 * ((((i + 2 * j) % 6) + 6) % 6), mirror: false };
+    default: return { rot: 0, mirror: false };
+  }
+}
+
+function iconPattern(motif, rng, box, cfg) {
+  const minMm = REPEATABLE[motif.id];
+  if (!minMm) return null;
+  const side = Math.min(box.x1 - box.x0, box.y1 - box.y0);
+  const nMax = Math.floor(side / minMm);
+  if (nMax < 2) return null;
+  const groups = UPRIGHT.has(motif.id) ? GROUPS_UPRIGHT : GROUPS_FREE;
+  const group = groups[Math.floor(rng() * groups.length)];
+  const square = SQUARE_GROUPS.has(group);
+  const n = rInt(rng, 2, Math.min(4, nMax));
+  const p = side / n, py = square ? p : p * 0.88, half = p * 0.47;
+  const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+  const reach = Math.ceil(n / 2) + 2;
+  const layers = [];
+  let copies = 0;
+  for (let j = -reach; j <= reach; j++) {
+    for (let i = -reach; i <= reach; i++) {
+      const x = cx + (i + (!square && j & 1 ? 0.5 : 0)) * p, y = cy + j * py;
+      // Como en una tela estampada, las copias del borde se cortan contra la
+      // celda (el recorte de la unidad las limita); solo se omiten las que
+      // apenas asomarían.
+      if (!cfg.inside(x, y, half * 0.35)) continue;
+      const sub = { x0: x - half, y0: y - half, x1: x + half, y1: y + half };
+      // El giro/espejo es alrededor del centro de la copia: su círculo no cambia.
+      const subCfg = { ...cfg, minGapMm: cfg.minGapMm * 1.35, inside: (qx, qy, o) => Math.hypot(qx - x, qy - y) <= half + o };
+      const { rot, mirror } = copyTransform(group, i, j);
+      const tf = rot || mirror
+        ? `translate(${fmt(x)} ${fmt(y)})${rot ? ` rotate(${rot})` : ""}${mirror ? " scale(-1 1)" : ""} translate(${fmt(-x)} ${fmt(-y)})`
+        : null;
+      let ls = [];
+      try { ls = (motif.fn(rng, sub, subCfg) || []).filter((l) => l && l.d); } catch (e) { ls = []; }
+      if (!ls.length) continue;
+      copies++;
+      for (const l of ls) layers.push(tf ? { ...l, tf } : l);
+    }
+  }
+  // Con menos de 3 copias el patrón no se lee: mejor la imagen única grande.
+  return copies >= 3 ? layers : null;
+}
+
+// Icono fractal: una copia grande y, en los huecos, copias cada vez más chicas
+// (empaquetado voraz de círculos con radios en progresión geométrica, como un
+// tamiz de Apolonio truncado). Se detiene en el diámetro mínimo coloreable.
+function iconFractal(motif, rng, box, cfg) {
+  const minMm = REPEATABLE[motif.id];
+  if (!minMm) return null;
+  const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+  const sep = cfg.minGapMm * 1.5;
+  // Radio máximo en el centro: el círculo debe caber entero en la unidad.
+  let lo = 0, hi = (box.x1 - box.x0) / 2;
+  for (let it = 0; it < 24; it++) { const m = (lo + hi) / 2; if (cfg.inside(cx, cy, -m)) lo = m; else hi = m; }
+  // Solo el último nivel llega al mínimo, así que se tolera algo menos que en
+  // el patrón. La copia central es grande; las demás ocupan los huecos y las
+  // esquinas de la unidad.
+  const rMin = (minMm / 2) * 0.7;
+  const r0 = lo * rFloat(rng, 0.5, 0.58);
+  const circles = [{ x: cx, y: cy, r: r0 }];
+  // Las copias pueden asomar un poco fuera de la celda y quedar cortadas.
+  const fits = (x, y, r) => cfg.inside(x, y, -r * 0.45) && circles.every((c) => Math.hypot(x - c.x, y - c.y) >= c.r + r + sep);
+  for (let r = r0 * 0.6; r >= rMin; r *= 0.82) {
+    const step = Math.max(1, r / 3), pts = [];
+    for (let y = box.y0 + r; y <= box.y1 - r; y += step) for (let x = box.x0 + r; x <= box.x1 - r; x += step) pts.push({ x, y });
+    // Orden aleatorio pero determinista: distribuye las copias por toda la unidad.
+    for (let i = pts.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pts[i], pts[j]] = [pts[j], pts[i]]; }
+    for (const q of pts) if (fits(q.x, q.y, r)) circles.push({ x: q.x, y: q.y, r });
+  }
+  if (circles.length < 3) return null;
+  const upright = UPRIGHT.has(motif.id);
+  const layers = [];
+  circles.forEach((c, k) => {
+    // Los iconos dibujan a ~0.75 de su caja: se agranda para que llenen el círculo.
+    const h = c.r * 1.18;
+    const sub = { x0: c.x - h, y0: c.y - h, x1: c.x + h, y1: c.y + h };
+    const subCfg = { ...cfg, minGapMm: cfg.minGapMm * 1.35, inside: (qx, qy, o) => Math.hypot(qx - c.x, qy - c.y) <= c.r + o };
+    const rot = upright || k === 0 ? 0 : 30 * Math.floor(rng() * 12);
+    const mirror = k > 0 && rng() < 0.5;
+    const tf = rot || mirror
+      ? `translate(${fmt(c.x)} ${fmt(c.y)})${rot ? ` rotate(${rot})` : ""}${mirror ? " scale(-1 1)" : ""} translate(${fmt(-c.x)} ${fmt(-c.y)})`
+      : null;
+    let ls = [];
+    try { ls = (motif.fn(rng, sub, subCfg) || []).filter((l) => l && l.d); } catch (e) { ls = []; }
+    for (const l of ls) layers.push(tf ? { ...l, tf } : l);
+  });
+  return layers.length ? layers : null;
+}
+
 const polyD = (poly) => poly.map((p, i) => `${i ? "L" : "M"}${fmt(p.x)} ${fmt(p.y)}`).join(" ") + " Z";
 
 // Teselado periódico (hexágonos, 4.8², 4.6.12, Cairo, rombille). Cada celda es
 // un polígono convexo: el motivo recibe una caja cuadrada centrada en él. Los
 // iconos usan la caja inscrita (no se recortan); las texturas una mayor, para
 // llegar a las esquinas.
-function tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, layout) {
-  const cells = tileArea(layout, a, count).map((c) => ({ ...c, poly: insetConvex(c.poly, gap / 2) }))
+function tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, layout, edge, iconMode) {
+  const cells = tileArea(layout, a, count, edge).map((c) => ({ ...c, poly: insetConvex(c.poly, gap / 2) }))
     .filter((c) => c.poly.length >= 3 && Math.abs(polyArea(c.poly)) > 4).map((c) => {
     const poly = c.poly;
     const cen = polyCentroid(poly);
@@ -144,7 +262,9 @@ function tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, lay
   // Una tesela cortada por el borde puede llevar icono si conserva casi todo su
   // círculo inscrito; si no, recibe una textura como las teselas chicas.
   const refRi = Math.max(0, ...cells.filter((c) => !c.minor && !c.partial).map((c) => c.ri));
-  for (const c of cells) if (c.partial && (c.minor || c.ri < refRi * 0.8)) c.minor = true;
+  // En modo patrón el corte es parte del estilo: las teselas del borde también
+  // llevan iconos repetidos.
+  if (iconMode !== "pattern") for (const c of cells) if (c.partial && (c.minor || c.ri < refRi * 0.8)) c.minor = true;
 
   // Vecinas: celdas que comparten arista (centros a menos de la suma de radios).
   const near = (i, j) => Math.hypot(cells[i].cen.x - cells[j].cen.x, cells[i].cen.y - cells[j].cen.y) < (cells[i].rc + cells[j].rc) * 0.98 + gap;
@@ -175,6 +295,7 @@ function tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, lay
       motif: m,
       minor: c.minor,
       box: { x0: c.cen.x - h, y0: c.cen.y - h, x1: c.cen.x + h, y1: c.cen.y + h },
+      coverBox: { x0: c.cen.x - c.rc, y0: c.cen.y - c.rc, x1: c.cen.x + c.rc, y1: c.cen.y + c.rc },
       inside: (x, y, over) => (pointInPoly(x, y, c.poly) ? -distToEdges(x, y, c.poly) : distToEdges(x, y, c.poly)) <= over,
       clip: `<path d="${polyD(c.poly)}"/>`,
       border: `<path d="${polyD(inner)}" fill="none" stroke="#000" stroke-width="${fmt(borderMm)}" stroke-linejoin="round"/>`,
@@ -198,6 +319,7 @@ export async function generateSampler(doc, opts) {
   const heavyShare = clamp(opts.samplerHeavyShare, 0, 1, 0.3);
   const shapeOpt = opts.samplerShape || "circle"; // circle | square | rounded | mixed
   const pool = POOLS[opts.samplerSet] || POOLS.all;
+  const iconMode = ["pattern", "fractal", "mixed"].includes(opts.samplerIconMode) ? opts.samplerIconMode : "single";
 
   // createRNG (sfc32 sin calentar) da salidas muy parecidas con semillas
   // consecutivas: el sorteo de motivos dejaba fuera siempre a algunos (el cactus
@@ -216,7 +338,7 @@ export async function generateSampler(doc, opts) {
   const layout = TILINGS[opts.samplerLayout] ? opts.samplerLayout : "grid";
   const units = layout === "grid"
     ? gridUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, shapeOpt)
-    : tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, layout);
+    : tilingUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, layout, opts.samplerEdge === "whole" ? "whole" : "fill", iconMode);
 
   units.forEach((u, k) => {
     const trng = createRNG(hash(seed, 1000 + k));
@@ -224,7 +346,16 @@ export async function generateSampler(doc, opts) {
     const cfg = { minGapMm, patternStrokeMm: sw, sketchy, solids, inside: u.inside };
 
     let layers = [];
-    if (u.motif) {
+    // samplerIconMode: "single" (una imagen), "pattern" (repetida con simetría),
+    // "fractal" (copias de tamaño decreciente) o "mixed" (sorteo entre los tres).
+    // Se sortea con un generador aparte para no alterar los demás motivos.
+    let mode = "single";
+    if (u.motif && ICON_IDS.has(u.motif.id) && !u.minor) {
+      mode = iconMode === "mixed" ? ["single", "pattern", "fractal"][Math.floor(createRNG(hash(seed, 5000 + k))() * 3)] : iconMode;
+    }
+    if (mode === "pattern") layers = (iconPattern(u.motif, trng, u.coverBox || u.box, cfg) || []).filter((l) => l && l.d);
+    if (mode === "fractal") layers = (iconFractal(u.motif, trng, u.coverBox || u.box, cfg) || []).filter((l) => l && l.d);
+    if (u.motif && !layers.length) {
       try { layers = u.motif.fn(trng, u.box, cfg) || []; } catch (e) { layers = []; }
       layers = layers.filter((l) => l && l.d);
       if (!layers.length) {
@@ -243,10 +374,14 @@ export async function generateSampler(doc, opts) {
       const el = l.stroke === false
         ? `<path d="${l.d}" fill="${l.fill}" stroke="none"/>`
         : `<path d="${l.d}" fill="${l.fill}" stroke="#000" stroke-width="${fmt(sw * (l.w || 1))}" stroke-linecap="round" stroke-linejoin="round"/>`;
-      if (!l.clipD) return el;
-      const id = `${clipId}_${nClip++}`;
-      pushDef(`<clipPath id="${id}"><path d="${l.clipD}"/></clipPath>`);
-      return `<g clip-path="url(#${id})">${el}</g>`;
+      let out = el;
+      if (l.clipD) {
+        const id = `${clipId}_${nClip++}`;
+        pushDef(`<clipPath id="${id}"><path d="${l.clipD}"/></clipPath>`);
+        out = `<g clip-path="url(#${id})">${el}</g>`;
+      }
+      // l.tf: giro/espejo de la copia en los patrones de iconos.
+      return l.tf ? `<g transform="${l.tf}">${out}</g>` : out;
     });
     if (u.motif) {
       doc.body.push(`<g clip-path="url(#${clipId})" data-motif="${u.motif.id}"${u.minor ? ' data-minor="1"' : ""}>${paths.join("")}</g>`);

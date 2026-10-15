@@ -183,7 +183,7 @@ export function insetConvex(poly, d) {
 
 // ---------- colocación en la página ----------
 
-function place(t, s, area, phase) {
+function place(t, s, area, phase, whole) {
   const { v1, v2, tiles } = t;
   const cx = area.x + area.w / 2, cy = area.y + area.h / 2;
   const det = v1.x * v2.y - v1.y * v2.x;
@@ -202,7 +202,7 @@ function place(t, s, area, phase) {
         // Las teselas cortadas por el borde de la página se conservan si queda
         // al menos un tercio: así el teselado llena la hoja sin bordes dentados.
         const fullA = Math.abs(polyArea(full)), a = Math.abs(polyArea(poly));
-        if (a < fullA * 0.3) continue;
+        if (a < fullA * (whole ? 0.999 : 0.3)) continue;
         out.push({ poly, minor: !!tile.minor, partial: a < fullA * 0.999, frac: a / fullA });
       }
     }
@@ -210,9 +210,12 @@ function place(t, s, area, phase) {
   return out;
 }
 
-// Elige la escala para que entren ~count teselas en el área. Prueba varias fases de la retícula y se queda con la que mejor
-// llena la página.
-export function tileArea(name, area, count) {
+// Elige la escala para que entren ~count teselas en el área. Prueba varias
+// fases de la retícula y se queda con la que mejor llena la página.
+// edge: "fill" recorta las teselas del borde para cubrir toda la hoja; "whole"
+// usa solo teselas completas y centra el conjunto (contorno escalonado).
+export function tileArea(name, area, count, edge = "fill") {
+  const whole = edge === "whole";
   const t = TILINGS[name] || TILINGS.hex;
   const unitArea = Math.abs(t.v1.x * t.v2.y - t.v1.y * t.v2.x);
   // count se refiere a las teselas principales: las "minor" son acompañamiento.
@@ -223,7 +226,7 @@ export function tileArea(name, area, count) {
   for (let f = 0.7; f <= 1.15; f += 0.025) {
     const s = s0 * f;
     for (const phase of phases) {
-      const cells = place(t, s, area, phase);
+      const cells = place(t, s, area, phase, whole);
       if (!cells.length) continue;
       // Más cerca de count primero; a igualdad, mayor cobertura de la página.
       const cover = cells.reduce((acc, c) => acc + Math.abs(polyArea(c.poly)), 0) / (area.w * area.h);
@@ -235,6 +238,12 @@ export function tileArea(name, area, count) {
   }
   const cells = best ? best.cells : [];
   if (!cells.length) return cells;
+  if (whole) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const c of cells) for (const p of c.poly) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+    const dx = area.x + area.w / 2 - (x0 + x1) / 2, dy = area.y + area.h / 2 - (y0 + y1) / 2;
+    for (const c of cells) c.poly = c.poly.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+  }
   // Orden de lectura (filas, luego columnas) para un sorteo de motivos estable.
   const cen = (c) => polyCentroid(c.poly);
   const rowH = Math.max(1, Math.sqrt((area.w * area.h) / Math.max(1, cells.length)) * 0.5);

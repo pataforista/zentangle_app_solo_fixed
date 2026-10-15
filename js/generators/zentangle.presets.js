@@ -762,6 +762,7 @@ export const ZENTANGLE_PRESETS = {
   sampler_hex: {
     cellLayout: "sampler",
     samplerLayout: "hex",
+    samplerIconMode: "mixed",
     cellCount: 14,
     samplerSet: "iconic",
     samplerSolids: false,
@@ -775,6 +776,7 @@ export const ZENTANGLE_PRESETS = {
   sampler_octagons: {
     cellLayout: "sampler",
     samplerLayout: "octagons",
+    samplerIconMode: "mixed",
     cellCount: 12,
     samplerSet: "all",
     samplerSolids: false,
@@ -788,6 +790,7 @@ export const ZENTANGLE_PRESETS = {
   sampler_dodecagons: {
     cellLayout: "sampler",
     samplerLayout: "dodecagons",
+    samplerIconMode: "mixed",
     cellCount: 8,
     samplerSet: "iconic",
     samplerSolids: false,
@@ -801,6 +804,7 @@ export const ZENTANGLE_PRESETS = {
   sampler_cairo: {
     cellLayout: "sampler",
     samplerLayout: "cairo",
+    samplerIconMode: "mixed",
     cellCount: 14,
     samplerSet: "all",
     samplerSolids: false,
@@ -814,6 +818,7 @@ export const ZENTANGLE_PRESETS = {
   sampler_rhombille: {
     cellLayout: "sampler",
     samplerLayout: "rhombille",
+    samplerIconMode: "mixed",
     cellCount: 14,
     samplerSet: "iconic",
     samplerSolids: true,
@@ -821,6 +826,38 @@ export const ZENTANGLE_PRESETS = {
     cellBorderWidthMm: 0.9,
     patternStrokeMm: 0.5,
     minGapMm: 1.9,
+    sketchy: 0.2,
+  },
+
+  // Iconos convertidos en patrón: cada unidad repite su icono siguiendo un grupo
+  // de simetría del plano (traslación, espejo, deslizamiento o giros).
+  sampler_icon_patterns: {
+    cellLayout: "sampler",
+    samplerLayout: "hex",
+    samplerIconMode: "pattern",
+    cellCount: 6,
+    samplerSet: "icons",
+    samplerSolids: false,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.5,
+    minGapMm: 2.0,
+    sketchy: 0.2,
+  },
+
+  // Iconos fractales: una copia grande y copias cada vez más chicas en los
+  // huecos. Necesita unidades grandes para que la copia mínima sea coloreable.
+  sampler_icon_fractal: {
+    cellLayout: "sampler",
+    samplerLayout: "cairo",
+    samplerIconMode: "fractal",
+    cellCount: 5,
+    samplerSet: "icons",
+    samplerSolids: false,
+    samplerGapMm: 3,
+    cellBorderWidthMm: 0.9,
+    patternStrokeMm: 0.5,
+    minGapMm: 2.0,
     sketchy: 0.2,
   },
 };

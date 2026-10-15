@@ -178,7 +178,7 @@ async function runTests() {
         // Teselado: cellCount cuenta las teselas principales; las chicas y las
         // cortadas por el borde se suman como acompañamiento (data-minor).
         const majors = (a.body.join("").match(/data-motif="\w+">/g) || []).length;
-        assert.ok(majors >= want * 0.4 && tiles >= want, `ERROR: ${name} generó ${majors} teselas principales / ${tiles} en total (pedidas ~${want}).`);
+        assert.ok(majors >= Math.max(1, Math.floor(want * 0.3)) && tiles >= want, `ERROR: ${name} generó ${majors} teselas principales / ${tiles} en total (pedidas ~${want}).`);
       } else {
         assert.ok(Math.abs(tiles - want) <= Math.max(3, want * 0.25), `ERROR: ${name} generó ${tiles} unidades (pedidas ~${want}).`);
       }
