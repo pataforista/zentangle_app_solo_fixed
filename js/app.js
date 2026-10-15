@@ -6,6 +6,7 @@ import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry, gene
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
+import { RANDOM_STYLE_KEY, resolveRandomStyle } from "./generators/randomStyle.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -23,6 +24,7 @@ const ui = {
   zPreset: $("zPreset"),
   samplerLayout: $("samplerLayout"),
   samplerLayoutRow: $("samplerLayoutRow"),
+  randomHint: $("randomHint"),
   samplerEdge: $("samplerEdge"),
   samplerIconMode: $("samplerIconMode"),
 
@@ -130,6 +132,21 @@ const debounce = (fn, ms = 100) => {
 
 function buildOptsFromUI() {
   const zPresetKey = String(ui.zPreset.value || "editorial_airy");
+
+  // Aleatorio: cada semilla sortea su propio estilo (randomStyle.js), así que los
+  // ajustes finos de estilo no aplican; solo viajan las opciones globales.
+  if (zPresetKey === RANDOM_STYLE_KEY) {
+    const opts = {
+      seed: (int(ui.seed.value, 1) >>> 0),
+      kdpBleedMm: num(ui.kdpBleedMm.value, 0),
+      showSafeZone: ui.showSafeZone.checked,
+      paperTextureEnabled: bool01(ui.paperTextureEnabled.value),
+      cellShadowEnabled: bool01(ui.cellShadowEnabled.value),
+    };
+    if (touched.has("sketchy")) opts.sketchy = num(ui.sketchy.value, 0);
+    return { opts, zPresetKey };
+  }
+
   const zPreset = ZENTANGLE_PRESETS[zPresetKey] ?? ZENTANGLE_PRESETS.editorial_airy;
 
   const opts = {
@@ -178,6 +195,13 @@ function buildOptsFromUI() {
   return { opts, zPresetKey };
 }
 
+// Nombre legible de un estilo: el texto de su opción en el menú.
+const styleLabel = (key) => (ui.zPreset.querySelector(`option[value="${key}"]`)?.textContent || key).replace(/\s*\(.*?\)\s*$/, "").trim();
+
+// Margen mínimo según el estilo (sangrado KDP). En aleatorio no se sabe de
+// antemano qué estilo saldrá en cada página, así que se aplica el más estricto.
+const needsWideMargin = (key) => key === "commercial_print" || key === "bold_easy" || key === RANDOM_STYLE_KEY;
+
 // Controles que el usuario ha ajustado a mano. Al cambiar de preset se
 // conservan (para iterar diseños rápido sin re-tunear); el resto se sincroniza
 // con el preset. El botón "Reset" reaplica el preset completo (force).
@@ -187,8 +211,13 @@ const touched = new Set();
 // que el preset funcione como base de estilo real (antes los sliders pisaban
 // silenciosamente al preset). Respeta los controles tocados salvo force=true.
 function applyPresetToUI(presetKey, { force = false } = {}) {
+  const isRandom = presetKey === RANDOM_STYLE_KEY;
+  if (ui.randomHint) ui.randomHint.hidden = !isRandom;
   const p = ZENTANGLE_PRESETS[presetKey];
-  if (!p) return;
+  if (!p) {
+    if (isRandom && ui.samplerLayoutRow) ui.samplerLayoutRow.hidden = true;
+    return;
+  }
   const keep = (el) => !force && el && touched.has(el.id);
   const set = (el, v) => { if (el && v !== undefined && v !== null && !keep(el)) el.value = String(v); };
   const setBool = (el, v) => { if (el && v !== undefined && !keep(el)) el.value = v ? "1" : "0"; };
@@ -230,7 +259,7 @@ async function renderGallery(count = 8) {
   const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
   let marginMm = Math.max(0, num(ui.marginMm.value, 12.7));
   const { opts, zPresetKey } = buildOptsFromUI();
-  if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") {
+  if (needsWideMargin(zPresetKey)) {
     marginMm = Math.max(marginMm, 12.5);
   }
   const inner = { x: marginMm, y: marginMm, w: presetPaper.w - marginMm * 2, h: presetPaper.h - marginMm * 2 };
@@ -251,8 +280,10 @@ async function renderGallery(count = 8) {
   for (let i = 0; i < seeds.length; i++) {
     const seed = seeds[i];
     const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "zentangle" } });
-    await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner });
+    const used = await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner });
     const innerSvg = renderSvgToString(doc);
+    // En aleatorio cada variación es de un estilo distinto: se rotula.
+    const styleTag = zPresetKey === RANDOM_STYLE_KEY ? ` · ${styleLabel(used.presetName)}` : "";
 
     const item = document.createElement("button");
     item.type = "button";
@@ -260,7 +291,7 @@ async function renderGallery(count = 8) {
     item.title = `Usar semilla ${seed}`;
     item.innerHTML =
       `<div class="gallery-thumb"><div style="background:#fff">${innerSvg}</div></div>` +
-      `<span class="gallery-label">seed ${seed}</span>`;
+      `<span class="gallery-label">seed ${seed}${styleTag}</span>`;
     item.addEventListener("click", () => {
       ui.seed.value = String(seed);
       render();
@@ -292,7 +323,7 @@ function pageGeometry() {
   const paper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.LETTER;
   let marginMm = Math.max(0, num(ui.marginMm.value, 12.7));
   const { opts, zPresetKey } = buildOptsFromUI();
-  if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") marginMm = Math.max(marginMm, 12.5);
+  if (needsWideMargin(zPresetKey)) marginMm = Math.max(marginMm, 12.5);
   const inner = { x: marginMm, y: marginMm, w: paper.w - marginMm * 2, h: paper.h - marginMm * 2 };
   return { paperKey, paper, marginMm, inner, opts, zPresetKey };
 }
@@ -310,7 +341,7 @@ function updateBookSummary() {
   if (!ui.bookSummary) return;
   const { n, blank, total } = bookPlan();
   const g = pageGeometry();
-  const parts = [`${n} diseños${blank ? ` + ${n} hojas en blanco` : ""} = <strong>${total} páginas</strong> · ${PAPER_LABELS[g.paperKey] || g.paperKey} · margen ${g.marginMm} mm`];
+  const parts = [`${n} diseños${blank ? ` + ${n} hojas en blanco` : ""} = <strong>${total} páginas</strong> · ${PAPER_LABELS[g.paperKey] || g.paperKey} · margen ${g.marginMm} mm${g.zPresetKey === RANDOM_STYLE_KEY ? " · 🎲 un estilo distinto en cada página" : ""}`];
   let cls = "hint ok";
   if (total < KDP_MIN_PAGES) { parts.push(`⚠ KDP pide mínimo ${KDP_MIN_PAGES} páginas: sube a ${blank ? KDP_MIN_PAGES / 2 : KDP_MIN_PAGES} diseños.`); cls = "hint warn"; }
   const w = kdpWarning(g.marginMm, g.opts.kdpBleedMm).replace(/^ \| /, "");
@@ -391,7 +422,7 @@ async function render() {
   const { opts, zPresetKey } = buildOptsFromUI();
 
   // KDP Bleed Safety: Amazon KDP requiere ~12.5mm si hay sangrado
-  if (zPresetKey === "commercial_print" || zPresetKey === "bold_easy") {
+  if (needsWideMargin(zPresetKey)) {
     marginMm = Math.max(marginMm, 12.5);
   }
 
@@ -419,12 +450,14 @@ async function render() {
     },
   });
 
-  await generateZentangle(doc, {
+  const used = await generateZentangle(doc, {
     seed: opts.seed,
     presetName: zPresetKey,
     overrides: opts,
     areaMm: inner,
   });
+  // En aleatorio, el estilo realmente dibujado (para estado, nombre de archivo y JSON).
+  const shownKey = zPresetKey === RANDOM_STYLE_KEY ? used.presetName : zPresetKey;
 
   const svg = renderSvgToString(doc);
   ui.previewInner.innerHTML = svg;
@@ -448,11 +481,12 @@ async function render() {
     kdp_geometric_art: "KDP Geométrico",
     kdp_dense_meditative: "KDP Meditativo",
     kdp_masterpiece: "KDP Masterpiece",
-  }[zPresetKey] || zPresetKey;
+  }[shownKey] || styleLabel(shownKey);
 
   const kdpWarn = kdpWarning(marginMm, opts.kdpBleedMm);
-  ui.status.textContent = `✓ ${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready${kdpWarn}`;
-  return { svg, opts, paperKey, zPresetKey };
+  const dice = zPresetKey === RANDOM_STYLE_KEY ? "🎲 " : "";
+  ui.status.textContent = `✓ ${dice}${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready${kdpWarn}`;
+  return { svg, opts, paperKey, zPresetKey: shownKey };
 }
 
 async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
@@ -510,11 +544,14 @@ async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
   doc.body.push(`  <image x="${inner.x}" y="${inner.y}" width="${inner.w}" height="${inner.h}" href="${imgDataUrl}" preserveAspectRatio="xMidYMid slice" opacity="${imageOpacity}"/>`);
 
   // --- 3) Generate zentangle patterns on top ---
+  // Sobre una imagen solo tienen sentido los estilos de celdas: el aleatorio
+  // excluye muestrarios y composiciones de página completa.
   await generateZentangle(doc, {
     seed: opts.seed,
     presetName: zPresetKey,
     overrides: opts,
     areaMm: inner,
+    cellsOnly: true,
   });
 
   const svg = renderSvgToString(doc);

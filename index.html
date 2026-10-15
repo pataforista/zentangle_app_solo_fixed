@@ -148,6 +148,9 @@
       display: block;
     }
 
+    /* display:grid de .form-row anulaba el atributo hidden. */
+    [hidden] { display: none !important; }
+
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -499,6 +502,9 @@
                   style="font-size:11px; padding:1px 6px; cursor:pointer; background:none; border:1px solid var(--border, #ccc); border-radius:4px; color:var(--text-muted);">↺ Reset</button>
               </label>
               <select id="zPreset">
+                <optgroup label="🎲 Aleatorio">
+                  <option value="random_all">🎲 Aleatorio — mezcla todos los estilos</option>
+                </optgroup>
                 <optgroup label="📚 KDP Profesionales">
                   <option value="kdp_balanced" selected>🎨 KDP Balanceado (Intermedio)</option>
                   <option value="kdp_tangles_classic">🌀 KDP Tangles Clásicos (Cadent, Florz...)</option>
@@ -552,6 +558,7 @@
               </select>
             </div>
           </div>
+          <p id="randomHint" class="hint" hidden>🎲 Cada diseño usa un estilo distinto de toda la biblioteca (y en los muestrarios también sortea distribución, bordes e iconos). «Otro diseño», «8 variaciones» y cada página del libro cambian de estilo. Los ajustes finos de estilo no aplican.</p>
           <div class="form-row" id="samplerLayoutRow" hidden>
             <div style="grid-column: span 2">
               <label for="samplerLayout">Distribución del muestrario</label>
