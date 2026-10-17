@@ -615,14 +615,23 @@ async function runTests() {
       const ids = Object.keys(TANGLE_INFO);
       const geo = { w: W, h: H, m: M };
       const guide = tangleGuidePages(ids, geo);
-      assert.strictEqual(guide.length, Math.ceil(ids.length / 3), "ERROR: número de páginas de la guía.");
+      assert.strictEqual(guide.length, Math.ceil(ids.length / 3) + 2, "ERROR: número de páginas de la guía (introducción + fichas + «Combina»).");
+      assert.ok(/Antes de empezar/.test(guide[0]) && /marca registrada de Zentangle/.test(guide[0]), "ERROR: falta la introducción con el origen y el crédito de la marca.");
+      for (const id of ids) assert.ok(guide.join("").includes(TANGLE_INFO[id].combo.slice(0, 20).replace("'", "'")), `ERROR: falta cómo combinar ${id}.`);
+      // Complejidad creciente: el nivel de cada ficha nunca baja respecto a la anterior.
+      const order = [...guide.slice(1, -1).join("").matchAll(/font-size="5.2" font-weight="bold">([^<]+)</g)].map((mm) => mm[1]);
+      const lvOf = (name) => Object.values(TANGLE_INFO).find((t) => t.name.replace("'", "&#39;") === name || t.name === name)?.level;
+      for (let k = 1; k < order.length; k++) assert.ok(lvOf(order[k]) >= lvOf(order[k - 1]), `ERROR: la guía baja de nivel en ${order[k]}.`);
+      assert.strictEqual(lvOf(order[0]), 1, "ERROR: la guía no empieza por un tangle básico.");
+      assert.strictEqual(lvOf(order[order.length - 1]), 3, "ERROR: la guía no termina con un tangle avanzado.");
+      assert.ok(/Combina/.test(guide[guide.length - 1]) && (guide[guide.length - 1].match(/Tu práctica/g) || []).length === 3, "ERROR: falta la página «Combina» con sus 3 prácticas.");
       const all = guide.join("");
       for (const id of ids) assert.ok(all.includes(TANGLE_INFO[id].name.replace("'", "'")), `ERROR: la guía no explica ${id}.`);
-      assert.strictEqual((all.match(/Tu práctica/g) || []).length, ids.length, "ERROR: falta un recuadro de práctica.");
+      assert.strictEqual((all.match(/Tu práctica/g) || []).length, ids.length + 3, "ERROR: falta un recuadro de práctica.");
       const pass = tanglePassportPage(ids, geo);
       for (const id of ids) assert.ok(pass.includes(TANGLE_INFO[id].name), `ERROR: el pasaporte no incluye ${id}.`);
       // Los pasos crecen: cada paso tiene más trazo que el anterior.
-      const g0 = guide[0];
+      const g0 = guide[1];
       const groups = [...g0.matchAll(/<g clip-path="url\(#g_0_0_(\d)\)">(.*?)<\/g>/g)].map((m) => m[2].length);
       assert.ok(groups[0] < groups[1] && groups[1] <= groups[2] && groups[2] <= groups[3], `ERROR: los pasos de la guía no crecen (${groups.join(", ")}).`);
       assert.deepStrictEqual(tanglesInSvgs(['<g data-tangle="paradox"/><g data-tangle="tipple"/><g data-tangle="paradox"/><g data-tangle="nope"/>']), ["paradox", "tipple"]);

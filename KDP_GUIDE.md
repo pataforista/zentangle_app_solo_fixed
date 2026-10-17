@@ -302,3 +302,26 @@ En **③ Tu libro**:
 | ✏️ **«Tu turno»** | Al final, figuras con las secciones vacías para que quien colorea dibuje sus propios tangles. |
 
 El tiempo por página es una estimación por nivel, no una medición.
+
+### Guía de tangles: niveles, origen y combinaciones
+
+- La guía abre con **«Antes de empezar»**: de dónde vienen los nombres
+  (varios son tangles oficiales del método Zentangle®, creado por Rick
+  Roberts y Maria Thomas; se marcan con una estrella ✦ solo los verificados),
+  cómo leer los niveles y 5 reglas para combinar tangles.
+- Las fichas van de **básico (●○○)** a **intermedio (●●○)** y **avanzado
+  (●●●)**; cada una trae «Combina: …» con qué tangle ponerlo al lado.
+- Cierra con **«Combina» (nivel 4)**: el mismo cuadro dividido en 2, 3 y 4
+  secciones, con ejemplo y práctica.
+- Crédito incluido: «Libro inspirado en el método Zentangle®. Zentangle® es
+  una marca registrada de Zentangle, Inc.». Zentangle, Inc. pide **no** usar
+  su nombre ni su logo en el título o la portada de productos de terceros.
+
+### Libros grandes
+
+- Por defecto 50 diseños; hasta 300. El resumen avisa si se pasa de las 828
+  páginas que admite KDP en blanco y negro.
+- La revisión guarda miniaturas; los SVG completos solo mientras caben en
+  memoria y el resto se regenera idéntico al crear el PDF.
+- Cada página del PDF pesa ~0.5 MB: un libro de 300 diseños ronda los
+  350–400 MB (KDP admite hasta 650 MB).
