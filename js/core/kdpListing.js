@@ -73,6 +73,8 @@ export function kdpListingText(opts) {
     "DESCRIPCIÓN:",
     l.description,
     "",
+    `FRASE OFICIAL EN INGLÉS (si publicas también en Amazon.com en inglés): ${ATTRIBUTION_EN}`,
+    "",
     "PALABRAS CLAVE (7 casillas de KDP):",
     ...l.keywords.map((k) => `  - ${k}`),
     "",

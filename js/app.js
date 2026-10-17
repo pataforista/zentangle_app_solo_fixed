@@ -8,9 +8,9 @@ import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
 import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey, isColoringSafe } from "./generators/randomStyle.js";
 import { createStylePicker } from "./ui/stylePicker.js";
-import { designUnits, planSequence, difficultyAt } from "./core/bookPlan.js";
-import { generateSpread } from "./generators/spread.js";
-import { figureForPage } from "./generators/figure.js";
+import { designUnits, planSequence, difficultyAt, kdpInsideMarginMm } from "./core/bookPlan.js";
+import { generateSpread, SPREAD_FIGURES } from "./generators/spread.js";
+import { figureForPage, FIGURE_IDS } from "./generators/figure.js";
 import { kdpListingText } from "./core/kdpListing.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
 
@@ -381,11 +381,6 @@ const KDP_MIN_PAGES = 24;
 // Máximo de páginas de un libro de tapa blanda en blanco y negro en KDP.
 const KDP_MAX_PAGES = 828;
 const MAX_DESIGNS = 300;
-// Margen interior (lomo) mínimo de KDP en tapa blanda, según páginas totales.
-function kdpInsideMarginMm(pages) {
-  const inches = pages <= 150 ? 0.375 : pages <= 300 ? 0.5 : pages <= 500 ? 0.625 : pages <= 700 ? 0.75 : 0.875;
-  return Math.round(inches * 25.4 * 10) / 10;
-}
 // Memoria para guardar los SVG completos de la revisión (~1.5–3.5 MB por
 // figura). Pasado el tope, la página guarda solo su miniatura y su semilla, y
 // el SVG se regenera idéntico al armar el PDF (los diseños son deterministas).
@@ -507,17 +502,21 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true }
   const lv = difficulty === null ? null : levelInfo(difficulty);
   const footer = lv ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min`, level: lv.level }) : "";
   if (kind === "spread") {
-    const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, rasterize: rasterizeSvg });
+    // Las dobles páginas recorren sus figuras en orden (la n-ésima doble de
+    // este libro), en vez de sortearlas: así no se repiten seguidas.
+    const nth = plan.units.slice(0, pageIndex).filter((u) => u.kind === "spread").length;
+    const figureName = SPREAD_FIGURES[(nth + (bookSeed >>> 0)) % SPREAD_FIGURES.length];
+    const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, figureName, rasterize: rasterizeSvg });
     const right = appendToSvg(sp.right, footer);
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
-    return { kind, seed, svg: sp.wide, left: sp.left, right, url, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]) };
+    return { kind, seed, svg: sp.wide, left: sp.left, right, url, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure };
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
   const overrides = { ...g.opts, seed, ...(difficulty === null ? {} : { difficulty }) };
   const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides, areaMm: g.inner, pageIndex, bookSeed, rasterize: rasterizeSvg });
   const svg = appendToSvg(renderSvgToString(d), footer);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
-  return { kind, seed, svg, url, presetName: used.presetName, tangles: tanglesInSvgs([svg]) };
+  return { kind, seed, svg, url, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null };
 }
 
 // Páginas que no son diseños: guía y pasaporte (con los tangles que de
@@ -532,10 +531,13 @@ async function buildBookExtras(review) {
     out.guide = tangleGuidePages(ids, geo);
     out.passport = tanglePassportPage(ids, geo);
   }
+  // «Tu turno» usa figuras que no salen en el libro (si quedan).
+  const usedFigs = new Set(review.pages.map((p) => p.figure).filter(Boolean));
+  const freshFigs = FIGURE_IDS.filter((f) => !usedFigs.has(f));
   for (let k = 0; k < turnPages; k++) {
     const seed = pageSeed(baseSeed, 1000 + k, 0);
     const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
-    await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: figureForPage(baseSeed ^ 0x7777, k) }, areaMm: g.inner });
+    await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: freshFigs.length ? freshFigs[k % freshFigs.length] : figureForPage(baseSeed ^ 0x7777, k) }, areaMm: g.inner });
     const text = flags.guide ? "Tu turno: dibuja en cada sección un tangle de la guía" : "Tu turno: dibuja tus propios tangles en cada sección";
     out.turn.push(appendToSvg(renderSvgToString(d), footerSvg(geo, { text })));
   }

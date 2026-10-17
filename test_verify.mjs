@@ -544,7 +544,9 @@ async function runTests() {
 
     console.log("\nPrueba 12: Libro con dificultad progresiva, guía, dobles páginas y «Tu turno»...");
     {
-      const { designUnits, planSequence, difficultyAt } = await import("./js/core/bookPlan.js");
+      const { designUnits, planSequence, difficultyAt, kdpInsideMarginMm } = await import("./js/core/bookPlan.js");
+      // Margen interior mínimo de KDP por número de páginas (pulgadas → mm).
+      for (const [pages, mm] of [[24, 9.6], [150, 9.6], [151, 12.7], [300, 12.7], [301, 15.9], [500, 15.9], [700, 19.1], [828, 22.3]]) assert.strictEqual(kdpInsideMarginMm(pages), mm, `ERROR: margen interior KDP para ${pages} páginas.`);
       const { generateSpread } = await import("./js/generators/spread.js");
       const { TANGLE_INFO, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, tanglesInSvgs } = await import("./js/generators/bookExtras.js");
       const { Resvg } = await import("@resvg/resvg-js");

@@ -53,3 +53,12 @@ export function planSequence(units, { blank = true, guidePages = 0, passport = f
 
 // Dificultad del diseño i (0 fácil … 1 difícil) en un libro progresivo.
 export const difficultyAt = (i, n) => (n <= 1 ? 0.5 : i / (n - 1));
+
+// Margen interior (lomo) mínimo de KDP en tapa blanda, en mm, según el número
+// de páginas: 0.375" hasta 150, 0.5" hasta 300, 0.625" hasta 500, 0.75" hasta
+// 700 y 0.875" hasta 828.
+export function kdpInsideMarginMm(pages) {
+  const inches = pages <= 150 ? 0.375 : pages <= 300 ? 0.5 : pages <= 500 ? 0.625 : pages <= 700 ? 0.75 : 0.875;
+  // Redondeo hacia arriba: el mínimo nunca debe quedar corto.
+  return Math.ceil(inches * 254 - 1e-9) / 10;
+}
