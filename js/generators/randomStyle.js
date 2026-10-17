@@ -28,10 +28,12 @@ export const isRandomKey = (key) => key === RANDOM_STYLE_KEY || key === RANDOM_C
 // no el "bold & easy" de figuras grandes que se vende con ese nombre),
 // botanical_zen (sin plantas reales), kdp_relaxed (denso) y facet_spiral
 // (la peor colorabilidad de la biblioteca).
+// La figura zentangle (zen_figure) lleva casi la mitad del libro: es el
+// formato de los títulos líderes del nicho (figura grande llena de tangles).
+// Los muestrarios bajan: se leen más como libro infantil que como zentangle.
 export const BESTSELLERS = [
-  ["icon_mandala", 3], ["sampler_icons", 3], ["sampler_hex", 3],
-  ["sampler_cairo", 2], ["sampler_icon_fractal", 2], ["zen_star", 2], ["sampler_octagons", 2],
-  ["sampler_dodecagons", 1], ["classic_z_string", 1], ["eye_focus", 1],
+  ["zen_figure", 8], ["icon_mandala", 2], ["zen_star", 2], ["classic_z_string", 2],
+  ["sampler_icons", 2], ["eye_focus", 1], ["sampler_hex", 1], ["sampler_icon_fractal", 1], ["sampler_cairo", 1],
 ];
 
 // Mazo del libro: las 20 cartas de BESTSELLERS barajadas con la semilla del
@@ -56,14 +58,44 @@ function bestSellerDeck(bookSeed) {
   return deck;
 }
 
+// Estilos de un libro página a página: cada vuelta de 20 páginas usa su propio
+// mazo barajado. Si una vuelta empezaría con el estilo con que acabó la
+// anterior, se adelanta la primera carta que no rompa la regla de no repetir.
+function bookStyles(bookSeed) {
+  const decks = [];
+  const deckAt = (c) => {
+    while (decks.length <= c) {
+      const k = decks.length;
+      const d = bestSellerDeck(k === 0 ? bookSeed : hash(bookSeed >>> 0, 0x5eed + k));
+      const prevLast = k > 0 ? decks[k - 1][decks[k - 1].length - 1] : null;
+      if (prevLast && d[0] === prevLast) {
+        for (let j = 1; j < d.length; j++) {
+          if (d[j] === prevLast || (j + 1 < d.length && d[j - 1] === d[j + 1])) continue;
+          d.unshift(d.splice(j, 1)[0]);
+          break;
+        }
+      }
+      decks.push(d);
+    }
+    return decks[c];
+  };
+  return (i) => { const len = deckAt(0).length; return deckAt(Math.floor(i / len))[i % len]; };
+}
+
 // Estilo de la página: con pageIndex sigue el mazo del libro (proporciones
 // exactas y sin repeticiones seguidas); sin él, sorteo ponderado por semilla.
 export function resolveBestSeller(seed, { pageIndex = null, bookSeed = null } = {}) {
   let presetName;
   if (Number.isInteger(pageIndex) && pageIndex >= 0) {
-    const deck = bestSellerDeck(bookSeed ?? seed);
-    // Al dar la vuelta al mazo, se desplaza para no empezar donde terminó.
-    presetName = deck[(pageIndex + Math.floor(pageIndex / deck.length)) % deck.length];
+    const styleAt = bookStyles(bookSeed ?? seed);
+    presetName = styleAt(pageIndex);
+    // Páginas de figura anteriores a esta: fija qué figura le toca (recorre
+    // todas antes de repetir; ver figureForPage).
+    if (ZENTANGLE_PRESETS[presetName]?.cellLayout === "zen_figure") {
+      let n = 0;
+      for (let i = 0; i < pageIndex; i++) if (ZENTANGLE_PRESETS[styleAt(i)]?.cellLayout === "zen_figure") n++;
+      return { presetName, overrides: { figurePage: n }, group: "bestseller" };
+    }
   } else {
     const rng = createRNG(hash(seed >>> 0, 0xb358));
     for (let w = 0; w < 12; w++) rng();
@@ -77,7 +109,7 @@ export function resolveBestSeller(seed, { pageIndex = null, bookSeed = null } = 
 }
 
 // Presets que no dibujan en celdas del motor (página completa o muestrario).
-const NON_CELL = new Set(["sampler", "icon_mandala", "facet_spiral"]);
+const NON_CELL = new Set(["sampler", "icon_mandala", "facet_spiral", "zen_figure"]);
 
 const groupOf = (name, p) => {
   if (p.cellLayout === "sampler") return "sampler";

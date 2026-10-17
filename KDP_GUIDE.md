@@ -83,6 +83,20 @@
 
 ---
 
+### 9. **Figura zentangle** ⭐⭐ (el formato de los libros líderes)
+- **Estilos:** `zen_figure` (fondo con tangles) y `zen_figure_light` (fondo ligero)
+- **Qué es:** una figura grande a página completa (búho, gato, pez, mariposa,
+  corazón, tortuga, flor u hoja). Strings curvos dividen su interior en
+  secciones y cada una lleva un tangle clásico denso (Hollibaugh, Printemps,
+  Purk, Bales, 'Nzeppel, Cubine, Paradox, Keeko, Cadent, Florz…). Auras de
+  eco la rodean y el fondo lleva secciones con tangles más abiertos; algunas
+  quedan lisas para colorear con calma.
+- **Sin negros:** todo es contorno, apto para marcadores y lápices.
+- **En un libro:** recorre las 8 figuras antes de repetir ninguna.
+- **Más vendidos** dedica 8 de cada 20 páginas a este estilo.
+
+---
+
 ## 🎲 Controles de Variedad del Motor
 
 El motor incluye mecanismos anti-repetición aplicables a CUALQUIER preset:

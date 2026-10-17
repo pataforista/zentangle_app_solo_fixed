@@ -12,7 +12,8 @@ export function fillCadent(rng, r, cfg) {
   const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
   const w = r.x1 - r.x0, h = r.y1 - r.y0;
   const minDim = Math.min(w, h);
-  const g = Math.max(cfg.minGapMm * 2.6, minDim / rInt(rng, 4, 6));
+  // cfg.cellMm fija el paso (figuras grandes); si no, escala con la celda.
+  const g = cfg.cellMm || Math.max(cfg.minGapMm * 2.6, minDim / rInt(rng, 4, 6));
   const cols = Math.max(2, Math.round(w / g));
   const rows = Math.max(2, Math.round(h / g));
   const dx = w / cols, dy = h / rows;
@@ -104,7 +105,8 @@ export function fillPrintemps(rng, r, cfg) {
 function _spiral(b, cx, cy, maxR, a0, dir) {
   const turns = 2.6;
   const total = turns * Math.PI * 2;
-  const steps = Math.max(18, Math.round(maxR * 6));
+  // Muestreo fino: con ~20 tramos las espirales chicas salían poligonales.
+  const steps = Math.max(40, Math.round(maxR * 16));
   b.moveTo(cx, cy);
   for (let s = 1; s <= steps; s++) {
     const t = s / steps;
@@ -121,7 +123,7 @@ export function fillCrescentMoon(rng, r, cfg) {
   const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
   const w = r.x1 - r.x0, h = r.y1 - r.y0;
   const minDim = Math.min(w, h);
-  const rowH = Math.max(cfg.minGapMm * 4.0, minDim / rInt(rng, 3, 5));
+  const rowH = cfg.cellMm || Math.max(cfg.minGapMm * 4.0, minDim / rInt(rng, 3, 5));
   const bump = rowH * 0.42;            // radio del bulto
   // Cada aura deja una franja >= 1 hueco y el núcleo un semicírculo coloreable
   const auraGap = Math.max(cfg.minGapMm, bump * 0.3);
@@ -156,7 +158,7 @@ export function fillFlorz(rng, r, cfg) {
   const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
   const w = r.x1 - r.x0, h = r.y1 - r.y0;
   const minDim = Math.min(w, h);
-  const g = Math.max(cfg.minGapMm * 3.2, 7, minDim / rInt(rng, 4, 6));
+  const g = cfg.cellMm || Math.max(cfg.minGapMm * 3.2, 7, minDim / rInt(rng, 4, 6));
   const cols = Math.max(2, Math.round(w / g));
   const rows = Math.max(2, Math.round(h / g));
   const dx = w / cols, dy = h / rows;

@@ -863,6 +863,33 @@ export const ZENTANGLE_PRESETS = {
   },
 
   // ========== COMPOSICIONES DE PÁGINA COMPLETA ==========
+  // Figura zentangle (figure.js): búho, gato, pez, mariposa, corazón, tortuga,
+  // flor u hoja a página completa; el interior se divide con strings y cada
+  // sección lleva un tangle clásico denso. Auras alrededor y fondo de
+  // secciones con tangles más abiertos. Es el formato de los libros de
+  // zentangle más vendidos.
+  zen_figure: {
+    cellLayout: "zen_figure",
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+  // La misma figura con fondo ligero (anillos sueltos): más rápida de colorear.
+  zen_figure_light: {
+    cellLayout: "zen_figure",
+    figureBackground: "airy",
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.38,
+    stringStrokeMm: 0.75,
+    minGapMm: 2.2,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
   // Mandala de iconos: uno al centro y anillos de copias giradas hacia afuera.
   icon_mandala: {
     cellLayout: "icon_mandala",

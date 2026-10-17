@@ -481,6 +481,67 @@ async function runTests() {
       console.log(`✓ Relleno aplicado en ${filled} estilos sin alterar el diseño ni acercarse a menos de 1.2 mm de una línea.`);
     }
 
+    console.log("\nPrueba 11: Figura zentangle (figura grande con tangles clásicos)...");
+    {
+      const { Resvg } = await import("@resvg/resvg-js");
+      const { FIGURE_IDS, figureForPage } = await import("./js/generators/figure.js");
+      const { CLASSIC_TANGLES } = await import("./js/generators/patterns/classicTangles.js");
+      const page = { x: 12.7, y: 12.7, w: 190.5, h: 254 };
+      // Tinta por cuadrante del marco: un fondo o una figura que pierda media
+      // página (recortes anidados que resvg descarta) deja un cuadrante vacío.
+      const quadrantInk = (d) => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${d.body.join("")}</svg>`;
+        const img = new Resvg(svg, { fitTo: { mode: "width", value: 432 } }).render();
+        const px = img.pixels, q = [0, 0, 0, 0], n = [0, 0, 0, 0];
+        const s = img.width / 215.9;
+        for (let y = Math.ceil(page.y * s) + 2; y < (page.y + page.h) * s - 2; y++) for (let x = Math.ceil(page.x * s) + 2; x < (page.x + page.w) * s - 2; x++) {
+          const k = (x < (page.x + page.w / 2) * s ? 0 : 1) + (y < (page.y + page.h / 2) * s ? 0 : 2);
+          n[k]++; if (px[(y * img.width + x) * 4] < 128) q[k]++;
+        }
+        return q.map((v, i) => v / n[i]);
+      };
+      for (const fig of FIGURE_IDS) {
+        for (const bgKind of ["rays", "strings", "airy"]) {
+          const opts = { seed: 11, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig, figureBackground: bgKind } };
+          const d1 = { body: [], defs: [] }, d2 = { body: [], defs: [] };
+          await generateZentangle(d1, opts);
+          await generateZentangle(d2, opts);
+          const html = d1.body.join("");
+          assert.strictEqual(html, d2.body.join(""), `ERROR: la figura ${fig} no es determinista.`);
+          assert.ok(html.includes(`data-figure="${fig}"`), `ERROR: no se dibujó la figura ${fig}.`);
+          assert.ok(!/fill="#000"/.test(html), `ERROR: la figura ${fig} tiene rellenos negros (no apta para colorear).`);
+          const tangles = html.match(/data-tangle="[^"]+"/g) || [];
+          assert.ok(tangles.length >= 6, `ERROR: la figura ${fig} (fondo ${bgKind}) tiene solo ${tangles.length} tangles.`);
+          const ink = quadrantInk(d1);
+          for (const v of ink) assert.ok(v > 0.04, `ERROR: la figura ${fig} (fondo ${bgKind}) deja un cuadrante casi vacío (tinta ${ink.map((x) => (x * 100).toFixed(1)).join("/")} %).`);
+        }
+      }
+      // Cada tangle clásico produce líneas en cajas chicas y grandes.
+      for (const t of CLASSIC_TANGLES) for (const side of [20, 120]) {
+        const layers = t.fn(createRNG(5), { x0: 0, y0: 0, x1: side, y1: side * 0.8 }, { gap: 1.9, stroke: 0.35, sketchy: 0.3 });
+        assert.ok(layers.some((l) => l.d && l.d.length > 40), `ERROR: el tangle ${t.id} quedó vacío en una caja de ${side} mm.`);
+      }
+      // En un libro, las figuras se recorren todas antes de repetir y nunca
+      // sale la misma en dos páginas de figura seguidas.
+      for (const bs of [1, 42]) {
+        const seq = Array.from({ length: FIGURE_IDS.length * 3 }, (_, i) => figureForPage(bs, i));
+        assert.strictEqual(new Set(seq.slice(0, FIGURE_IDS.length)).size, FIGURE_IDS.length, "ERROR: las primeras figuras del libro se repiten.");
+        for (let i = 1; i < seq.length; i++) assert.notStrictEqual(seq[i], seq[i - 1], `ERROR: figura ${seq[i]} repetida en páginas de figura seguidas (libro ${bs}).`);
+      }
+      // Más vendidos: las páginas de figura de un libro llevan figuras distintas.
+      const figs = [];
+      for (let i = 0; i < 20; i++) {
+        const r = resolveBestSeller(0, { pageIndex: i, bookSeed: 42 });
+        if (ZENTANGLE_PRESETS[r.presetName].cellLayout !== "zen_figure") continue;
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 100 + i, presetName: BESTSELLER_KEY, areaMm: page, pageIndex: i, bookSeed: 42 });
+        figs.push(d.body.join("").match(/data-figure="([^"]+)"/)[1]);
+      }
+      assert.ok(figs.length >= 6, "ERROR: Más vendidos tiene pocas páginas de figura.");
+      assert.strictEqual(new Set(figs).size, Math.min(figs.length, FIGURE_IDS.length), `ERROR: Más vendidos repite figuras antes de agotarlas (${figs.join(", ")}).`);
+      console.log(`✓ ${FIGURE_IDS.length} figuras × 3 fondos completas, sin negros y deterministas; ${CLASSIC_TANGLES.length} tangles clásicos; figuras sin repetir en el libro.`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");
