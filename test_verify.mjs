@@ -596,7 +596,6 @@ async function runTests() {
 
       // Doble página: dos SVG de una página cada uno; la figura continúa a
       // ambos lados del lomo (hay tinta junto al margen interior de las dos).
-      const { CROSSOVER_MM } = await import("./js/generators/spread.js");
       const pageInk = (svg) => {
         const img = new Resvg(svg, { fitTo: { mode: "width", value: Math.round(W * 4) } }).render();
         return { px: img.pixels, w: img.width, h: img.height, s: img.width / W };
@@ -608,22 +607,9 @@ async function runTests() {
         return ink / n;
       };
       for (const fig of ["fish", "butterfly", "leaf", "heart"]) {
-        // Continua: el dibujo llega al lomo en las dos páginas y la franja de
-        // solape (CROSSOVER_MM) es idéntica al final de una y al principio de la otra.
-        const sp = await generateSpread({ paper: { w: W, h: H }, marginMm: M, seed: 9, figureName: fig });
-        assert.ok(sp.continuous && sp.left.includes(`viewBox="0 0 ${W} ${H}"`) && sp.right.includes(`viewBox="${W - CROSSOVER_MM} 0 ${W} ${H}"`), `ERROR: la doble página continua (${fig}) no se partió bien.`);
-        const L = pageInk(sp.left), R = pageInk(sp.right);
-        assert.ok(inkNear(L, W - 4, W - 0.3) > 0.03, `ERROR: la doble página (${fig}) no llega al lomo por la izquierda.`);
-        assert.ok(inkNear(R, 0.3, 4) > 0.03, `ERROR: la doble página (${fig}) no llega al lomo por la derecha.`);
-        let diff = 0, cnt = 0;
-        const o = Math.round(CROSSOVER_MM * L.s), x0L = L.w - o;
-        for (let y = Math.round((M + 5) * L.s); y < (H - M - 5) * L.s; y += 2) for (let x = 1; x < o - 1; x++) {
-          cnt++;
-          if ((L.px[(y * L.w + x0L + x) * 4] < 128) !== (R.px[(y * R.w + x) * 4] < 128)) diff++;
-        }
-        assert.ok(diff / cnt < 0.02, `ERROR: el solape del lomo no coincide entre páginas (${fig}: ${(100 * diff / cnt).toFixed(1)} % distinto).`);
         // Segura: franja blanca en el lomo y un marco por página.
-        const safe = await generateSpread({ paper: { w: W, h: H }, marginMm: M, seed: 9, figureName: fig, continuous: false });
+        const safe = await generateSpread({ paper: { w: W, h: H }, marginMm: M, seed: 9, figureName: fig });
+        assert.ok(safe.left.includes(`viewBox="0 0 ${W} ${H}"`) && safe.right.includes(`viewBox="${W} 0 ${W} ${H}"`), `ERROR: la doble página (${fig}) no se partió en dos páginas.`);
         const SL = pageInk(safe.left), SR = pageInk(safe.right);
         assert.ok(inkNear(SL, W - M + 1, W - 1) < 0.001 && inkNear(SR, 1, M - 1) < 0.001, `ERROR: la doble página segura (${fig}) invade el margen interior.`);
         assert.ok(inkNear(SL, W - M - 6, W - M - 1.5) > 0.03 && inkNear(SR, M + 1.5, M + 6) > 0.03, `ERROR: la doble página segura (${fig}) no llega a su margen interior.`);
@@ -657,7 +643,7 @@ async function runTests() {
       // Pie: dentro del margen inferior y nunca con margen < 10 mm.
       assert.ok(footerSvg(geo, { text: "Nivel 1", level: 1 }).includes("Nivel 1"));
       assert.strictEqual(footerSvg({ w: W, h: H, m: 8 }, { text: "x", level: 1 }), "");
-      console.log(`✓ Secuencia de páginas correcta, dificultad ${easy} → ${hard} tangles, «Tu turno» vacío, dobles páginas continuas y seguras, guía de ${guide.length} páginas y pasaporte.`);
+      console.log(`✓ Secuencia de páginas correcta, dificultad ${easy} → ${hard} tangles, «Tu turno» vacío, dobles páginas con franja segura, guía de ${guide.length} páginas y pasaporte.`);
     }
 
     console.log("\nPrueba 13: Propiedad intelectual (marca, nombres de patrones y ficha KDP)...");

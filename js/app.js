@@ -9,7 +9,7 @@ import { generateZentangle } from "./generators/zentangle.generator.js";
 import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey } from "./generators/randomStyle.js";
 import { createStylePicker } from "./ui/stylePicker.js";
 import { designUnits, planSequence, difficultyAt } from "./core/bookPlan.js";
-import { generateSpread, CROSSOVER_MM } from "./generators/spread.js";
+import { generateSpread } from "./generators/spread.js";
 import { figureForPage } from "./generators/figure.js";
 import { kdpListingText } from "./core/kdpListing.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
@@ -79,7 +79,6 @@ const ui = {
   bookProgressive: $("bookProgressive"),
   bookGuide: $("bookGuide"),
   bookSpreads: $("bookSpreads"),
-  bookSpreadStyle: $("bookSpreadStyle"),
   bookTurn: $("bookTurn"),
   bookSummary: $("bookSummary"),
   bookBar: $("bookBar"),
@@ -415,7 +414,6 @@ function bookPlan() {
     progressive: !!ui.bookProgressive?.checked,
     guide: !!ui.bookGuide?.checked,
     spreads: !!ui.bookSpreads?.checked,
-    spreadStyle: ui.bookSpreadStyle?.value === "safe" ? "safe" : "continuous",
     turn: !!ui.bookTurn?.checked,
   };
   const units = designUnits(n, { spreads: flags.spreads });
@@ -440,7 +438,6 @@ function updateBookSummary() {
   const needIn = kdpInsideMarginMm(total);
   if (g.marginMm < needIn) { parts.push(`⚠ Con ${total} páginas KDP pide un margen interior de al menos ${needIn} mm: sube el margen a ${Math.ceil(needIn)} mm.`); cls = "hint warn"; }
   if (!blank) parts.push("📄 Sin hojas en blanco: en KDP elige «Tinta y papel: color prémium», el papel más grueso de KDP (60–71 lb frente a 50–61 lb del blanco y negro). Cuesta más por página y aun así prueba tus rotuladores: el papel grueso reduce el traspaso, no lo elimina.");
-  if (flags.spreads && flags.spreadStyle === "continuous") parts.push("↔️ Dobles páginas continuas: el dibujo cruza el margen interior. KDP puede marcarlo al revisar el archivo; si lo rechaza, elige «Con franja segura».");
   if (total > KDP_MAX_PAGES) { parts.push(`⚠ KDP admite hasta ${KDP_MAX_PAGES} páginas en blanco y negro: quita diseños o usa «Otro diseño» como reverso.`); cls = "hint warn"; }
   if (n >= 120) parts.push(`⏱ Libro grande: preparar ${n} diseños lleva varios minutos (≈ 1–2 s por diseño).`);
   const w = kdpWarning(g.marginMm, g.opts.kdpBleedMm).replace(/^ \| /, "");
@@ -510,9 +507,9 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true }
   const lv = difficulty === null ? null : levelInfo(difficulty);
   const footer = lv ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min`, level: lv.level }) : "";
   if (kind === "spread") {
-    const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, rasterize: rasterizeSvg, continuous: plan?.flags?.spreadStyle !== "safe" });
+    const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, rasterize: rasterizeSvg });
     const right = appendToSvg(sp.right, footer);
-    const url = thumb ? await thumbUrl(sp.wide, sp.continuous ? g.paper.w * 2 - CROSSOVER_MM : g.paper.w * 2, g.paper.h) : null;
+    const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
     return { kind, seed, svg: sp.wide, left: sp.left, right, url, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]) };
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
@@ -773,7 +770,7 @@ async function createBook() {
 
 // ---------- Recordar ajustes entre sesiones (uso personal) ----------
 const SETTINGS_KEY = "zentangle.settings.v1";
-const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookSpreadStyle", "bookTurn", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
+const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || {}; } catch { return {}; }
 }
@@ -1221,7 +1218,7 @@ function bind() {
   });
 
   // Resumen del libro en vivo (páginas totales, tamaño, avisos KDP).
-  const bookOptEls = [ui.bookProgressive, ui.bookGuide, ui.bookSpreads, ui.bookSpreadStyle, ui.bookTurn];
+  const bookOptEls = [ui.bookProgressive, ui.bookGuide, ui.bookSpreads, ui.bookTurn];
   [ui.bookPages, ui.bookBlank, ui.paper, ui.marginMm, ui.kdpBleedMm, ui.zPreset, ...bookOptEls].forEach((el) => {
     if (el) { el.addEventListener("input", updateBookSummary); el.addEventListener("change", updateBookSummary); }
   });

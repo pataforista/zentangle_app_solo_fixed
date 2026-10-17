@@ -345,12 +345,9 @@ No es asesoría legal: ante la duda, consulta a Zentangle, Inc. o a un abogado d
 
 ## ↔️ Dobles páginas y 📄 papel grueso
 
-- **Dobles páginas continuas** (por defecto): el dibujo llega hasta el lomo y
-  se repiten 3 mm a cada lado (solape) para que, al abrir el libro, las
-  líneas empalmen aunque la encuadernación esconda un poco. Fuentes no
-  oficiales indican que KDP puede rechazar arte en el margen interior: si
-  pasa, elige **«Con franja segura»** (franja blanca en el lomo y un marco
-  por página). Revisa siempre el archivo en el previsualizador de KDP.
+- **Dobles páginas**: siempre con franja segura en el lomo (blanca, del
+  ancho de los dos márgenes interiores) y un marco por página: el dibujo
+  sigue en la página de enfrente sin tocar el margen interior que pide KDP.
 - **Sin hojas en blanco**: «Reverso de cada diseño → Otro diseño (papel
   grueso)». En KDP elige *Tinta y papel: color prémium*, el papel más
   grueso que ofrece (60–71 lb frente a 50–61 lb del blanco y negro). Cuesta
