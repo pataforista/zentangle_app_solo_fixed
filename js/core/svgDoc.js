@@ -22,7 +22,7 @@ export function createSvgDoc({ wMm, hMm, meta = {} }) {
     defs: [],
     body: [],
     meta: {
-      title: meta.title ?? "Zentangle Cells",
+      title: meta.title ?? "Diseño para colorear",
       generator: meta.generator ?? "zentangle",
       ...meta,
     },

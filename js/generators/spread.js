@@ -29,7 +29,7 @@ export async function generateSpread({ paper, marginMm, seed, difficulty = null,
   const gutter = `<rect x="${fmt(W - m)}" y="0" width="${fmt(2 * m)}" height="${fmt(H)}" fill="#fff"/>`;
   const frame = (x) => `<rect x="${fmt(x + m)}" y="${fmt(m)}" width="${fmt(W - 2 * m)}" height="${fmt(H - 2 * m)}" fill="none" stroke="#000" stroke-width="${fmt(border)}" stroke-linejoin="round"/>`;
   const svg = (vx, vw, frames) => `<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(vw)}mm" height="${fmt(H)}mm" viewBox="${fmt(vx)} 0 ${fmt(vw)} ${fmt(H)}">`
-    + `<metadata>generator=zentangle-spread; seed=${seed}</metadata>${defs}<rect x="${fmt(vx)}" y="0" width="${fmt(vw)}" height="${fmt(H)}" fill="#fff"/>${content}${gutter}${frames}</svg>`;
+    + `<metadata>generator=patrones-doble; seed=${seed}</metadata>${defs}<rect x="${fmt(vx)}" y="0" width="${fmt(vw)}" height="${fmt(H)}" fill="#fff"/>${content}${gutter}${frames}</svg>`;
   return {
     figure: fig,
     left: svg(0, W, frame(0)),

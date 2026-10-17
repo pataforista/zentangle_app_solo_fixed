@@ -11,6 +11,7 @@ import { createStylePicker } from "./ui/stylePicker.js";
 import { designUnits, planSequence, difficultyAt } from "./core/bookPlan.js";
 import { generateSpread } from "./generators/spread.js";
 import { figureForPage } from "./generators/figure.js";
+import { kdpListingText } from "./core/kdpListing.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
 
 const $ = (id) => document.getElementById(id);
@@ -318,7 +319,7 @@ async function renderGallery(count = 8) {
 
   for (let i = 0; i < seeds.length; i++) {
     const seed = seeds[i];
-    const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "zentangle" } });
+    const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "patrones" } });
     const used = await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner, rasterize: rasterizeSvg });
     const innerSvg = renderSvgToString(doc);
     // En aleatorio cada variación es de un estilo distinto: se rotula.
@@ -362,7 +363,7 @@ const THUMB_SEED = 7;
 const THUMB_OVERRIDES = { zen_figure: { figureName: "owl" }, zen_figure_light: { figureName: "cat" } };
 async function renderThumb(key) {
   const p = PAPER_SIZES_MM.LETTER, m = 10;
-  const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "zentangle" } });
+  const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "patrones" } });
   await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, overrides: THUMB_OVERRIDES[key] || {}, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m }, rasterize: rasterizeSvg });
   return renderSvgToString(doc);
 }
@@ -502,7 +503,7 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true }
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
     return { kind, seed, svg: sp.wide, left: sp.left, right, url, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]) };
   }
-  const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "zentangle" } });
+  const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
   const overrides = { ...g.opts, seed, ...(difficulty === null ? {} : { difficulty }) };
   const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides, areaMm: g.inner, pageIndex, bookSeed, rasterize: rasterizeSvg });
   const svg = appendToSvg(renderSvgToString(d), footer);
@@ -524,7 +525,7 @@ async function buildBookExtras(review) {
   }
   for (let k = 0; k < turnPages; k++) {
     const seed = pageSeed(baseSeed, 1000 + k, 0);
-    const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "zentangle" } });
+    const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
     await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: figureForPage(baseSeed ^ 0x7777, k) }, areaMm: g.inner });
     const text = flags.guide ? "Tu turno: dibuja en cada sección un tangle de la guía" : "Tu turno: dibuja tus propios tangles en cada sección";
     out.turn.push(appendToSvg(renderSvgToString(d), footerSvg(geo, { text })));
@@ -805,8 +806,8 @@ async function render() {
     wMm: presetPaper.w,
     hMm: presetPaper.h,
     meta: {
-      title: "Zentangle Cells",
-      generator: "zentangle",
+      title: "Diseño para colorear",
+      generator: "patrones",
       seed: opts.seed,
       preset: paperKey,
       zPreset: zPresetKey,
@@ -1189,6 +1190,22 @@ function bind() {
   ui.btnRender?.addEventListener("click", () => withBusy(render));
   ui.btnBook.addEventListener("click", onBookButton);
   $("btnBookReview")?.addEventListener("click", showBookReview);
+  // Ficha de KDP con el libro tal como está configurado (o revisado).
+  $("btnKdpListing")?.addEventListener("click", () => {
+    const plan = bookPlan();
+    const g = pageGeometry();
+    const fresh = reviewIsFresh();
+    const text = kdpListingText({
+      designs: plan.n,
+      pages: fresh ? bookReview.total : plan.total,
+      paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
+      flags: plan.flags,
+      spreads: plan.units.filter((u) => u.kind === "spread").length,
+      turnPages: plan.turnPages,
+    });
+    downloadTextFile(`ficha_kdp_${plan.n}disenos.txt`, text, "text/plain;charset=utf-8");
+    ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción y palabras clave sin marcas ajenas";
+  });
 
   // Resumen del libro en vivo (páginas totales, tamaño, avisos KDP).
   const bookOptEls = [ui.bookProgressive, ui.bookGuide, ui.bookSpreads, ui.bookTurn];
@@ -1261,7 +1278,7 @@ function bind() {
     try {
       ui.status.innerText = "Preparando SVG...";
       const { svg, paperKey, zPresetKey } = await render();
-      downloadTextFile(`zentangle_${paperKey}_${zPresetKey}.svg`, svg);
+      downloadTextFile(`diseno_${paperKey}_${zPresetKey}.svg`, svg);
       ui.status.innerText = "✓ Descargado SVG";
     } catch (err) {
       ui.status.innerText = `✗ Error al descargar SVG: ${err.message}`;
@@ -1274,7 +1291,7 @@ function bind() {
       const { svg, paperKey, zPresetKey } = await render();
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Preparando PNG...";
-      await downloadPng(`zentangle_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
+      await downloadPng(`diseno_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
       ui.status.innerText = "✓ Descargado PNG";
     } catch (err) {
       ui.status.innerText = `✗ Error al descargar PNG: ${err.message}`;
@@ -1287,7 +1304,7 @@ function bind() {
       const { svg, paperKey, zPresetKey } = await render();
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Generando PDF (KDP)...";
-      await downloadPdf(`zentangle_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);
+      await downloadPdf(`diseno_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);
       ui.status.innerText = "✓ Descargado PDF";
     } catch (err) {
       ui.status.innerText = `✗ Error al descargar PDF: ${err.message}`;
@@ -1300,7 +1317,7 @@ function bind() {
       ui.status.innerText = "Preparando JSON...";
       const { opts, paperKey, zPresetKey } = await render();
       downloadTextFile(
-        `zentangle_${paperKey}_${zPresetKey}_opts.json`,
+        `diseno_${paperKey}_${zPresetKey}_opts.json`,
         JSON.stringify(opts, null, 2)
       );
       ui.status.innerText = "✓ Descargado JSON";

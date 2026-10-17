@@ -1,6 +1,6 @@
 // js/core/export.js
-export function downloadTextFile(filename, text) {
-  const blob = new Blob([text], { type: "image/svg+xml;charset=utf-8" });
+export function downloadTextFile(filename, text, type = "image/svg+xml;charset=utf-8") {
+  const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

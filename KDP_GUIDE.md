@@ -325,3 +325,18 @@ El tiempo por página es una estimación por nivel, no una medición.
   memoria y el resto se regenera idéntico al crear el PDF.
 - Cada página del PDF pesa ~0.5 MB: un libro de 300 diseños ronda los
   350–400 MB (KDP admite hasta 650 MB).
+
+---
+
+## ⚖️ Propiedad intelectual (cómo lo cumple la app)
+
+| Regla | Cómo se cumple |
+|---|---|
+| «Zentangle» es marca registrada: no en título, subtítulo, portada ni palabras clave | Las páginas del libro solo la nombran en «Antes de empezar», con ®, como atribución: «Inspirado en el método Zentangle® de dibujo de patrones (zentangle.com)… no es un producto oficial ni está afiliado». El botón **📝 Texto para la ficha de KDP** genera títulos, subtítulo y 7 palabras clave sin marcas ajenas y pone la atribución en la descripción. |
+| Sin logotipos | La app no dibuja ningún logotipo. |
+| Los tangles oficiales no tienen copyright | Se nombran 10 tangles oficiales verificados (✦): Tipple, Keeko, Static, Crescent Moon, Printemps, 'Nzeppel, Hollibaugh, Bales, Paradox, Cadent. |
+| Tangles creados por artistas concretos: no publicar su nombre ni sus pasos sin permiso | Los patrones de autoría individual o no verificada llevan nombres propios del libro: Anillos, Cubos, Perlas en ondas, Rombos en red, Escamas. |
+| No copiar páginas ni «paso a paso» de otros | Todo el arte lineal y los pasos de la guía los genera la app; no hay imágenes ni textos de terceros. |
+| Evitar nombres de series ajenas | Ni «Zendoodle» (serie de otra editorial) ni «Zendala» (marca de Zentangle, Inc.). |
+
+No es asesoría legal: ante la duda, consulta a Zentangle, Inc. o a un abogado de propiedad intelectual.

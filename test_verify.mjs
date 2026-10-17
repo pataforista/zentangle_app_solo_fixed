@@ -641,6 +641,38 @@ async function runTests() {
       console.log(`✓ Secuencia de páginas correcta, dificultad ${easy} → ${hard} tangles, «Tu turno» vacío, 4 dobles páginas continuas, guía de ${guide.length} páginas y pasaporte.`);
     }
 
+    console.log("\nPrueba 13: Propiedad intelectual (marca, nombres de patrones y ficha KDP)...");
+    {
+      const { TANGLE_INFO, tangleGuidePages, tanglePassportPage, footerSvg } = await import("./js/generators/bookExtras.js");
+      const { kdpListing, kdpListingText, containsBlocked, ATTRIBUTION_ES } = await import("./js/core/kdpListing.js");
+      const geo = { w: 215.9, h: 279.4, m: 12.7 };
+      const ids = Object.keys(TANGLE_INFO);
+      const printed = (svg) => [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((mm) => mm[1]).join(" ");
+      const guide = tangleGuidePages(ids, geo), pass = tanglePassportPage(ids, geo);
+      // «Zentangle» solo en la página de introducción, siempre con ®, y con el
+      // crédito de la marca y la aclaración de que no es un producto oficial.
+      guide.slice(1).concat([pass]).forEach((svg) => assert.ok(!/zentangle/i.test(printed(svg)), "ERROR: «Zentangle» aparece fuera de la introducción."));
+      const intro = printed(guide[0]);
+      for (const mm of intro.matchAll(/Zentangle(?!, Inc)(.)/g)) assert.strictEqual(mm[1], "®", "ERROR: «Zentangle» sin ® en la introducción.");
+      assert.ok(/marca registrada de Zentangle, Inc/.test(intro) && /no es un producto oficial/.test(intro) && /Rick Roberts y Maria Thomas/.test(intro), "ERROR: falta la atribución completa.");
+      // Patrones de autor individual o sin verificar: nunca con su nombre de la comunidad.
+      const all = guide.map(printed).join(" ") + printed(pass);
+      for (const bad of ["Beadlines", "Purk", "Cubine", "Florz", "Scallops"]) assert.ok(!all.includes(bad), `ERROR: el libro imprime el nombre «${bad}».`);
+      // La estrella de oficial solo en los verificados.
+      assert.strictEqual(Object.values(TANGLE_INFO).filter((t) => t.official).length, 10);
+      // Pies de página y «Tu turno» sin la marca.
+      assert.ok(!/zentangle/i.test(footerSvg(geo, { text: "Tu turno: dibuja tus propios tangles en cada sección" })));
+      // Ficha KDP: sin marcas en título, subtítulo ni palabras clave; atribución en la descripción.
+      for (const flags of [{}, { progressive: true, guide: true }]) {
+        const l = kdpListing({ designs: 50, pages: 120, flags, spreads: 6, turnPages: 2 });
+        for (const t of [...l.titles, l.subtitle, ...l.keywords]) assert.strictEqual(containsBlocked(t), null, `ERROR: término de marca en la ficha: «${t}».`);
+        assert.ok(l.description.includes(ATTRIBUTION_ES), "ERROR: falta la atribución en la descripción.");
+        assert.ok(l.keywords.length <= 7, "ERROR: KDP admite 7 palabras clave.");
+      }
+      assert.ok(kdpListingText({ designs: 50, pages: 120 }).includes("REGLAS DE PROPIEDAD INTELECTUAL"));
+      console.log("✓ Marca solo como atribución (con ®), patrones de autoría no verificada con nombre propio, ficha KDP sin marcas ajenas.");
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

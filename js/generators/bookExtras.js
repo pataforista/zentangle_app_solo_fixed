@@ -13,21 +13,21 @@ const FONT = `font-family="Helvetica, Arial, sans-serif"`;
 
 // Nombre y cómo se dibuja, en una o dos frases (lo que leerá quien colorea).
 export const TANGLE_INFO = {
-  hollibaugh: { name: "Hollibaugh", level: 3, official: true, combo: "Rellena los huecos entre cintas con Tipple o Purk: el contraste recto/curvo hace flotar las cintas.", how: "Dibuja cintas de dos líneas paralelas. Cada cinta nueva pasa por detrás: se interrumpe al llegar a las anteriores." },
+  hollibaugh: { name: "Hollibaugh", level: 3, official: true, combo: "Rellena los huecos entre cintas con Tipple o Anillos: el contraste recto/curvo hace flotar las cintas.", how: "Dibuja cintas de dos líneas paralelas. Cada cinta nueva pasa por detrás: se interrumpe al llegar a las anteriores." },
   printemps: { name: "Printemps", level: 2, official: true, combo: "Ponlo junto a Static o Keeko: sus rectas calman el remolino de espirales.", how: "Traza una espiral pequeña y ciérrala con un círculo. Llena el espacio con rollos de distintos tamaños." },
-  tipple: { name: "Tipple", level: 1, combo: "Es el comodín: llena huecos de Hollibaugh o separa dos tangles muy cargados.", how: "Burbujas de muchos tamaños, apretadas sin tocarse. Empieza por las grandes y rellena con las pequeñas." },
-  purk: { name: "Purk", level: 1, combo: "Al lado de Paradox o Cubine: círculos amplios frente a ángulos.", how: "Círculos con uno o dos anillos dentro (auras). Agrúpalos como piedras de río." },
+  tipple: { name: "Tipple", level: 1, official: true, combo: "Es el comodín: llena huecos de Hollibaugh o separa dos tangles muy cargados.", how: "Burbujas de muchos tamaños, apretadas sin tocarse. Empieza por las grandes y rellena con las pequeñas." },
+  purk: { name: "Anillos", level: 1, combo: "Al lado de Paradox o Cubos: círculos amplios frente a ángulos.", how: "Círculos con uno o dos anillos dentro (auras). Agrúpalos como piedras de río." },
   nzeppel: { name: "'Nzeppel", level: 2, official: true, combo: "Rompe su retícula con algo curvo, como Printemps o Crescent Moon.", how: "Imagina una cuadrícula en diagonal y dibuja en cada casilla una almohadilla de esquinas redondeadas." },
   bales: { name: "Bales", level: 3, official: true, combo: "Equilíbralo con Static o Keeko, que son lineales y rápidos.", how: "Sobre una cuadrícula, une cada par de puntos vecinos con una hoja (dos arcos). Alterna cuál pasa por encima." },
-  cubine: { name: "Cubine", level: 2, combo: "Contrasta con Tipple o Purk; evita ponerlo junto a Paradox: dos tangles angulosos compiten.", how: "Dibuja hexágonos en panal y une el centro de cada uno con tres vértices alternos: aparecen cubos." },
-  paradox: { name: "Paradox", level: 3, official: true, combo: "Rodéalo de algo tranquilo, como Purk o Scallops: Paradox ya atrae la mirada.", how: "En un cuadrado, traza una recta de un lado al siguiente, siempre en el mismo sentido y un poco más adentro. La espiral aparece sola." },
-  beadlines: { name: "Beadlines", level: 2, combo: "Junto a Cubine o Florz: ondas frente a cuadrícula.", how: "Líneas onduladas paralelas; entre cada par, ensarta perlas alternando grandes y pequeñas." },
+  cubine: { name: "Cubos", level: 2, combo: "Contrasta con Tipple o Anillos; evita ponerlo junto a Paradox: dos tangles angulosos compiten.", how: "Dibuja hexágonos en panal y une el centro de cada uno con tres vértices alternos: aparecen cubos." },
+  paradox: { name: "Paradox", level: 3, official: true, combo: "Rodéalo de algo tranquilo, como Anillos o Escamas: Paradox ya atrae la mirada.", how: "En un cuadrado, traza una recta de un lado al siguiente, siempre en el mismo sentido y un poco más adentro. La espiral aparece sola." },
+  beadlines: { name: "Perlas en ondas", level: 2, combo: "Junto a Cubos o Rombos en red: ondas frente a cuadrícula.", how: "Líneas onduladas paralelas; entre cada par, ensarta perlas alternando grandes y pequeñas." },
   keeko: { name: "Keeko", level: 1, official: true, combo: "Va bien al lado de Printemps o Tipple, que aportan curvas.", how: "Grupos de 3 o 4 líneas cortas. Alterna horizontal y vertical, como un tejido de cesta." },
-  static: { name: "Static", level: 1, combo: "Úsalo como pausa entre tangles curvos como Cadent o Bales.", how: "Líneas en zigzag paralelas, todas con el mismo ritmo." },
+  static: { name: "Static", level: 1, official: true, combo: "Úsalo como pausa entre tangles curvos como Cadent o Bales.", how: "Líneas en zigzag paralelas, todas con el mismo ritmo." },
   cadent: { name: "Cadent", level: 3, official: true, combo: "Contrasta con Static o Hollibaugh.", how: "Una retícula de perlas. Une cada perla con su vecina mediante una curva en S." },
-  florz: { name: "Florz", level: 2, combo: "Suaviza su cuadrícula con Beadlines o Purk al lado.", how: "Una cuadrícula de líneas con un pequeño rombo en cada cruce." },
-  crescent: { name: "Crescent Moon", level: 1, combo: "Ideal en el borde de una sección; el centro, con Keeko o Florz.", how: "Semicírculos en fila sobre una línea. Repite las filas para formar escamas." },
-  scallops: { name: "Scallops", level: 1, combo: "Junto a Paradox o Cubine; repítelo en dos secciones alejadas para dar unidad.", how: "Arcos en fila; cada fila se desplaza media escama, como tejas o escamas de pez." },
+  florz: { name: "Rombos en red", level: 2, combo: "Suaviza su cuadrícula con Perlas en ondas o Anillos al lado.", how: "Una cuadrícula de líneas con un pequeño rombo en cada cruce." },
+  crescent: { name: "Crescent Moon", level: 1, official: true, combo: "Ideal en el borde de una sección; el centro, con Keeko o Rombos en red.", how: "Semicírculos en fila sobre una línea. Repite las filas para formar escamas." },
+  scallops: { name: "Escamas", level: 1, combo: "Junto a Paradox o Cubos; repítelo en dos secciones alejadas para dar unidad.", how: "Arcos en fila; cada fila se desplaza media escama, como tejas o escamas de pez." },
 };
 
 const byId = new Map(FIGURE_TANGLES.map((t) => [t.id, t]));
@@ -147,8 +147,8 @@ export function guideIntroPage(ids, { w, h, m }) {
     y += 6;
     para(off.join(" · "));
   }
-  para("Los demás son patrones de repetición sencillos que conviene conocer: combinan bien con los oficiales.");
-  para("Libro inspirado en el método Zentangle®. Zentangle® es una marca registrada de Zentangle, Inc.; este libro no está afiliado a la empresa.", 3.6);
+  para("Los demás llevan nombres propios de este libro: son patrones de repetición sencillos, dibujados para esta colección.");
+  para("Inspirado en el método Zentangle® de dibujo de patrones (zentangle.com). Zentangle® es una marca registrada de Zentangle, Inc.; este libro no es un producto oficial ni está afiliado a la empresa. Todas las ilustraciones son originales.", 3.6);
   title("Los niveles");
   [[1, "Básico: una sola forma repetida (burbujas, zigzag, líneas)."], [2, "Intermedio: una retícula con una forma encima."], [3, "Avanzado: cruces, tejidos o capas que pasan unas por detrás de otras."]].forEach(([lv, t]) => {
     out.push(levelDots(m + 1.3, y - 1.1, lv));
