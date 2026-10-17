@@ -340,3 +340,21 @@ El tiempo por página es una estimación por nivel, no una medición.
 | Evitar nombres de series ajenas | Ni «Zendoodle» (serie de otra editorial) ni «Zendala» (marca de Zentangle, Inc.). |
 
 No es asesoría legal: ante la duda, consulta a Zentangle, Inc. o a un abogado de propiedad intelectual.
+
+---
+
+## ↔️ Dobles páginas y 📄 papel grueso
+
+- **Dobles páginas continuas** (por defecto): el dibujo llega hasta el lomo y
+  se repiten 3 mm a cada lado (solape) para que, al abrir el libro, las
+  líneas empalmen aunque la encuadernación esconda un poco. Fuentes no
+  oficiales indican que KDP puede rechazar arte en el margen interior: si
+  pasa, elige **«Con franja segura»** (franja blanca en el lomo y un marco
+  por página). Revisa siempre el archivo en el previsualizador de KDP.
+- **Sin hojas en blanco**: «Reverso de cada diseño → Otro diseño (papel
+  grueso)». En KDP elige *Tinta y papel: color prémium*, el papel más
+  grueso que ofrece (60–71 lb frente a 50–61 lb del blanco y negro). Cuesta
+  más por página y reduce el traspaso, pero no lo elimina.
+- **Margen interior**: el resumen avisa si el margen es menor que el mínimo
+  de KDP para el número de páginas (0.375" hasta 150 págs, 0.5" hasta 300,
+  0.625" hasta 500, 0.75" hasta 700, 0.875" hasta 828).

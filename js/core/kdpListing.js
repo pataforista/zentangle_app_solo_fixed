@@ -17,7 +17,7 @@ export const containsBlocked = (text) => BLOCKED_TERMS.find((t) => String(text).
 export const ATTRIBUTION_ES = "Inspirado en el método Zentangle® de dibujo de patrones. Zentangle® es una marca registrada de Zentangle, Inc. (zentangle.com); este libro no es un producto oficial ni está afiliado a la empresa.";
 export const ATTRIBUTION_EN = "Inspired by the Zentangle® Method of pattern drawing.";
 
-export function kdpListing({ designs, pages, paperLabel = "8.5×11 in", flags = {}, spreads = 0, turnPages = 0 }) {
+export function kdpListing({ designs, pages, paperLabel = "8.5×11 in", flags = {}, spreads = 0, turnPages = 0, blank = true }) {
   const titles = [
     "Figuras con patrones: libro para colorear para adultos",
     "Patrones intrincados para colorear: búhos, gatos, mariposas y más",
@@ -29,12 +29,14 @@ export function kdpListing({ designs, pages, paperLabel = "8.5×11 in", flags = 
   const extras = [];
   if (flags.progressive) extras.push("• Dificultad progresiva: cada página indica su nivel (1 a 5) y un tiempo aproximado.");
   if (flags.guide) extras.push("• Guía paso a paso al inicio, de patrones básicos a avanzados, con recuadros para practicar y un pasaporte para marcar los que ya coloreaste.");
-  if (spreads) extras.push(`• ${spreads} ilustraciones a doble página que cruzan el lomo.`);
+  if (spreads) extras.push(`• ${spreads} ilustraciones a doble página que continúan de una página a la otra.`);
   if (turnPages) extras.push(`• ${turnPages} página${turnPages > 1 ? "s" : ""} «Tu turno» para dibujar tus propios patrones.`);
   const description = [
     `${designs} ilustraciones originales para colorear: figuras grandes (búho, gato, pez, mariposa, tortuga, flor, hoja, corazón) llenas de patrones de líneas, curvas y círculos, más mandalas y composiciones geométricas.`,
     "",
-    "• Impreso por una sola cara: cada diseño lleva el reverso en blanco para que los rotuladores no traspasen.",
+    blank
+      ? "• Impreso por una sola cara: cada diseño lleva el reverso en blanco para que los rotuladores no traspasen."
+      : "• Diseños por ambas caras en papel grueso, sin hojas en blanco: más ilustraciones por libro. Con rotuladores al agua, prueba antes en una esquina.",
     "• Líneas limpias, sin rellenos negros: espacio para lápices, rotuladores o gel.",
     ...extras,
     `• ${pages} páginas, tamaño ${paperLabel}.`,
