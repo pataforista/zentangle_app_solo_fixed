@@ -26,14 +26,25 @@ export function planSequence(units, { blank = true, guidePages = 0, passport = f
   // La guía abre el libro (se ve en «Leer muestra» de Amazon): es lo que
   // distingue al libro. Son páginas de texto: no necesitan reverso en blanco.
   for (let k = 0; k < guidePages; k++) seq.push({ type: "guide", i: k });
-  units.forEach((u, i) => {
-    if (u.kind !== "spread") return single({ type: "design", i });
+  // Sin hojas en blanco, una doble página que caería en página derecha espera
+  // al siguiente diseño simple (así no hace falta meter una página en blanco).
+  const pending = [];
+  const spread = (i) => {
     if (blank) { toRecto(); seq.push(null); } // reverso en blanco de la izquierda
     toVerso();
     seq.push({ type: "spreadL", i }, { type: "spreadR", i });
     if (blank) seq.push(null);
+  };
+  units.forEach((u, i) => {
+    if (u.kind === "spread") {
+      if (!blank && isRecto()) pending.push(i); else spread(i);
+      return;
+    }
+    single({ type: "design", i });
+    while (!blank && pending.length && !isRecto()) spread(pending.shift());
   });
-  if (passport) { toRecto(); seq.push({ type: "passport", i: 0 }); if (blank) seq.push(null); }
+  pending.forEach(spread);
+  if (passport) { if (blank) toRecto(); seq.push({ type: "passport", i: 0 }); if (blank) seq.push(null); }
   for (let k = 0; k < turnPages; k++) single({ type: "turn", i: k });
   // Sin páginas en blanco sobrantes al final.
   while (seq.length && seq[seq.length - 1] === null) seq.pop();

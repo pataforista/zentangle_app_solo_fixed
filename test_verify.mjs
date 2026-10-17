@@ -571,6 +571,7 @@ async function runTests() {
           }
         });
         assert.strictEqual(seq.filter((e) => e && e.type === "design").length, 26, "ERROR: faltan diseños en la secuencia.");
+        if (!blank) assert.ok(!seq.some((e) => e === null), "ERROR: el libro sin hojas en blanco tiene páginas en blanco.");
         assert.deepStrictEqual(seq.slice(0, 4).map((e) => e && e.type), ["guide", "guide", "guide", "guide"], "ERROR: la guía no abre el libro.");
       }
 
@@ -675,6 +676,11 @@ async function runTests() {
         assert.ok(l.keywords.length <= 7, "ERROR: KDP admite 7 palabras clave.");
       }
       assert.ok(kdpListingText({ designs: 50, pages: 120 }).includes("REGLAS DE PROPIEDAD INTELECTUAL"));
+      // La ficha no promete lo que el libro no trae.
+      const figOnly = kdpListing({ designs: 30, pages: 60, content: "figures" }).description;
+      assert.ok(!/mandalas/.test(figOnly), "ERROR: la ficha promete mandalas en un libro solo de figuras.");
+      assert.ok(!/sin rellenos negros/.test(kdpListing({ designs: 30, pages: 60, noBlack: false }).description), "ERROR: la ficha promete «sin negros» en un libro con tinta.");
+      assert.ok(/Impreso por una sola cara/.test(kdpListing({ designs: 30, pages: 60 }).description) && !/una sola cara/.test(kdpListing({ designs: 30, pages: 60, blank: false }).description));
       console.log("✓ Marca solo como atribución (con ®), patrones de autoría no verificada con nombre propio, ficha KDP sin marcas ajenas.");
     }
 

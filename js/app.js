@@ -6,7 +6,7 @@ import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry, gene
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
-import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey } from "./generators/randomStyle.js";
+import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey, isColoringSafe } from "./generators/randomStyle.js";
 import { createStylePicker } from "./ui/stylePicker.js";
 import { designUnits, planSequence, difficultyAt } from "./core/bookPlan.js";
 import { generateSpread } from "./generators/spread.js";
@@ -1212,6 +1212,10 @@ function bind() {
       spreads: plan.units.filter((u) => u.kind === "spread").length,
       turnPages: plan.turnPages,
       blank: plan.blank,
+      // Qué describe la ficha: solo figuras, mezcla o estilos sin figura; y si
+      // hay rellenos negros (aleatorio con todo o muestrarios de tinta).
+      content: /^zen_figure/.test(g.zPresetKey) ? "figures" : g.zPresetKey === BESTSELLER_KEY || isRandomKey(g.zPresetKey) ? "mixed" : "other",
+      noBlack: g.zPresetKey === BESTSELLER_KEY || g.zPresetKey === RANDOM_COLOR_KEY || (!isRandomKey(g.zPresetKey) && isColoringSafe(ZENTANGLE_PRESETS[g.zPresetKey] || {})),
     });
     downloadTextFile(`ficha_kdp_${plan.n}disenos.txt`, text, "text/plain;charset=utf-8");
     ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción y palabras clave sin marcas ajenas";
