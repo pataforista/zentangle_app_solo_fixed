@@ -89,16 +89,29 @@ function spiral(b, cx, cy, R, gap, a0, dir) {
 function hollibaugh(rng, r, cfg) {
   const { w, h, cx, cy } = dims(r);
   const D = Math.hypot(w, h);
+  const g = cfg.gap;
+  // Dos orientaciones exactamente perpendiculares (con un giro común): cintas
+  // casi paralelas se acercaban a lo largo de la página y dejaban franjas de
+  // menos de 1 mm entre bordes.
   const a0 = rFloat(rng, 0, Math.PI);
-  const n = Math.max(8, Math.min(90, Math.round(D / (cfg.gap * 2.6))));
+  const n = Math.max(8, Math.min(90, Math.round(D / (g * 2.6))));
+  const placed = [[], []]; // por orientación: [lo, hi] en la coordenada normal
   const layers = [];
-  for (let i = 0; i < n; i++) {
-    // Dos orientaciones dominantes casi perpendiculares: los cruces en ángulo
-    // agudo dejarían cuñas imposibles de colorear.
-    const ang = a0 + (i % 2 ? Math.PI / 2 : 0) + rFloat(rng, -0.22, 0.22);
-    const bw = cfg.gap * rFloat(rng, 2.2, 3.6);
-    const px = cx + rFloat(rng, -0.5, 0.5) * w, py = cy + rFloat(rng, -0.5, 0.5) * h;
-    const dx = Math.cos(ang), dy = Math.sin(ang), nx = -dy * bw / 2, ny = dx * bw / 2;
+  for (let i = 0, tries = 0; layers.length < n * 2 && tries < n * 6; tries++) {
+    const o = i % 2;
+    const ang = a0 + (o ? Math.PI / 2 : 0);
+    const bw = g * rFloat(rng, 2.4, 3.6);
+    const dx = Math.cos(ang), dy = Math.sin(ang), nxu = -dy, nyu = dx;
+    const off = rFloat(rng, -0.55, 0.55) * D;
+    const lo = off - bw / 2, hi = off + bw / 2;
+    // Bordes de cintas paralelas: o se separan un hueco coloreable o la
+    // nueva cinta tapa por completo a la vieja (sin franjas finas).
+    const ok = placed[o].every(([l, u]) => lo >= u + g * 1.1 || hi <= l - g * 1.1 || (lo <= l - g * 1.1 && hi >= u + g * 1.1));
+    if (!ok) continue;
+    placed[o].push([lo, hi]);
+    i++;
+    const px = cx + nxu * off, py = cy + nyu * off;
+    const nx = nxu * bw / 2, ny = nyu * bw / 2;
     const A = { x: px - dx * D, y: py - dy * D }, B = { x: px + dx * D, y: py + dy * D };
     const fill = mk(rng, { sketchy: 0 }), edge = mk(rng, cfg);
     fill.moveTo(A.x + nx, A.y + ny).lineTo(B.x + nx, B.y + ny).lineTo(B.x - nx, B.y - ny).lineTo(A.x - nx, A.y - ny).close();
@@ -117,7 +130,9 @@ function printemps(rng, r, cfg) {
   const b = mk(rng, cfg);
   for (const c of cs) {
     b.circle(c.x, c.y, c.r);
-    spiral(b, c.x, c.y, c.r - g * 0.15, g * 1.05, rFloat(rng, 0, TAU), rng() < 0.5 ? 1 : -1);
+    // La espiral no toca el círculo: queda un canal continuo (si lo tocaba
+    // en tangente dejaba una astilla imposible de colorear).
+    if (c.r > g * 2.2) spiral(b, c.x, c.y, c.r - g * 1.05, g * 1.1, rFloat(rng, 0, TAU), rng() < 0.5 ? 1 : -1);
   }
   return [{ d: b.d, fill: "none" }];
 }
@@ -238,9 +253,13 @@ function cubine(rng, r, cfg) {
 function paradox(rng, r, cfg) {
   const g = cfg.gap;
   const { w, h } = dims(r);
-  const s = g * rFloat(rng, 8, 10.5);
-  const t = rFloat(rng, 0.2, 0.24);
-  const b = mk(rng, cfg);
+  // Paso amplio (t ≈ 0.3): con t = 0.2 los triángulos eran agujas de 13°
+  // cuya punta ningún marcador alcanza.
+  const s = g * rFloat(rng, 10, 12.5);
+  const t = rFloat(rng, 0.29, 0.33);
+  // Trazo limpio: el temblor "a mano" prolonga las líneas más allá de cada
+  // vértice y en Paradox cada vértice es un cruce (astillas de tinta).
+  const b = mk(rng, { sketchy: 0 });
   const cols = Math.ceil(w / s) + 1, rows = Math.ceil(h / s) + 1;
   const ox = r.x0 - (cols * s - w) / 2, oy = r.y0 - (rows * s - h) / 2;
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
@@ -252,7 +271,7 @@ function paradox(rng, r, cfg) {
     for (let it = 0; it < 30; it++) {
       const q = p.map((a, k) => { const c2 = p[(k + 1) % 4]; return { x: a.x + (c2.x - a.x) * t, y: a.y + (c2.y - a.y) * t }; });
       const side = Math.hypot(q[1].x - q[0].x, q[1].y - q[0].y);
-      if (side * t < g * 0.85 || side < g * 3) break;
+      if (side * t < g * 1.1 || side < g * 3.5) break;
       b.moveTo(q[0].x, q[0].y); for (let k = 1; k <= 4; k++) b.lineTo(q[k % 4].x, q[k % 4].y);
       p = q;
     }

@@ -349,10 +349,13 @@ function kdpWarning(marginMm, bleedMm = 0) {
 // Miniatura de un estilo con sus valores propios (sin los ajustes finos del
 // usuario) y una semilla fija, para comparar estilos entre sí.
 const THUMB_SEED = 7;
+// Con la misma semilla, las tarjetas de figura mostraban la misma hoja: cada
+// una enseña una figura distinta y reconocible.
+const THUMB_OVERRIDES = { zen_figure: { figureName: "owl" }, zen_figure_light: { figureName: "cat" } };
 async function renderThumb(key) {
   const p = PAPER_SIZES_MM.LETTER, m = 10;
   const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "zentangle" } });
-  await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m }, rasterize: rasterizeSvg });
+  await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, overrides: THUMB_OVERRIDES[key] || {}, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m }, rasterize: rasterizeSvg });
   return renderSvgToString(doc);
 }
 
