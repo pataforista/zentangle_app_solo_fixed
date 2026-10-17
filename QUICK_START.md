@@ -1,3 +1,5 @@
+> ⚠️ **Documento histórico.** Describe un plan antiguo (editor Electron) que no se construyó; la app actual está en `README.md`.
+
 # Quick Start - Zentangle Editor Electron
 
 ## En 5 minutos: Configuración inicial

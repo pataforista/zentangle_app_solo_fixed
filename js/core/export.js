@@ -1,6 +1,6 @@
 // js/core/export.js
-export function downloadTextFile(filename, text) {
-  const blob = new Blob([text], { type: "image/svg+xml;charset=utf-8" });
+export function downloadTextFile(filename, text, type = "image/svg+xml;charset=utf-8") {
+  const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -9,48 +9,6 @@ export function downloadTextFile(filename, text) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-}
-
-// Flatten SVG: convierte <use> en copias reales del contenido referenciado,
-// removiendo IDs duplicados para mantener SVG válido.
-export function flattenSvgElement(svgEl) {
-  if (!svgEl) return null;
-
-  const svg = svgEl.cloneNode(true);
-
-  const idMap = new Map();
-  svg.querySelectorAll("[id]").forEach((el) => idMap.set(el.getAttribute("id"), el));
-
-  const uses = Array.from(svg.querySelectorAll("use"));
-  for (const use of uses) {
-    const href = use.getAttribute("href") || use.getAttribute("xlink:href");
-    if (!href || !href.startsWith("#")) continue;
-
-    const ref = idMap.get(href.slice(1));
-    if (!ref) continue;
-
-    const clone = ref.cloneNode(true);
-
-    // Evita IDs duplicados (MUY importante para impresión/conversión)
-    stripIdsDeep(clone);
-
-    // Aplica transform del <use>
-    const tUse = use.getAttribute("transform");
-    const tClone = clone.getAttribute("transform");
-    if (tUse && tClone) clone.setAttribute("transform", `${tUse} ${tClone}`);
-    else if (tUse) clone.setAttribute("transform", tUse);
-
-    use.replaceWith(clone);
-  }
-
-  return svg;
-}
-
-function stripIdsDeep(node) {
-  if (node.nodeType !== 1) return;
-  if (node.hasAttribute("id")) node.removeAttribute("id");
-  const all = node.querySelectorAll?.("[id]");
-  if (all && all.length) all.forEach(el => el.removeAttribute("id"));
 }
 
 /**
@@ -125,7 +83,9 @@ export async function downloadPdf(filename, svgString, widthMm, heightMm) {
  * - isCancelled(): si devuelve true se aborta y se retorna null.
  * El caller guarda el resultado con doc.save(nombre).
  */
-export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = true, title = "Libro para colorear", getSvg, onProgress, isCancelled }) {
+// Con `sequence` (ver core/bookPlan.js) cada entrada es una página: null = en
+// blanco; si no, getEntrySvg(entrada) da su SVG. Sin ella, el modo clásico.
+export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = true, title = "Libro para colorear", getSvg, onProgress, isCancelled, sequence = null, getEntrySvg = null }) {
   if (typeof window === "undefined" || !window.jspdf || !window.jspdf.jsPDF) {
     throw new Error("La librería jsPDF no está cargada. Verifica tu conexión a internet y recarga.");
   }
@@ -133,6 +93,21 @@ export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = tr
   const doc = new jsPDF(widthMm > heightMm ? "l" : "p", "mm", [widthMm, heightMm]);
   doc.setProperties({ title });
 
+  const orient = widthMm > heightMm ? "l" : "p";
+  if (sequence) {
+    for (let i = 0; i < sequence.length; i++) {
+      if (isCancelled && isCancelled()) return null;
+      if (i > 0) doc.addPage([widthMm, heightMm], orient);
+      const e = sequence[i];
+      if (e) {
+        const png = await generatePngDataUrl(await getEntrySvg(e), widthMm, heightMm);
+        doc.addImage(png, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+      }
+      if (onProgress) onProgress(i + 1, sequence.length);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    return doc;
+  }
   let first = true;
   for (let i = 0; i < count; i++) {
     if (isCancelled && isCancelled()) return null;

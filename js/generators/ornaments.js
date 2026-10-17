@@ -71,7 +71,9 @@ function tangleRegion(motif, seedRng, box, inside, clipD, o, defs, id, evenodd =
   return `<g clip-path="url(#${id})" data-tangle="${motif.id}"><path d="${clipD}" fill="#fff" stroke="none"${evenodd ? ' fill-rule="evenodd"' : ""}/>${iconLayers(layers, o.strokeMm * 0.85, null, defs, id)}</g>`;
 }
 
-const ringTangles = () => MOTIFS.filter((m) => ["polka", "wavesDots", "bubbles", "asterisks"].includes(m.id));
+// Sin asteriscos: tapados a medias por los discos de los iconos quedaban como
+// rayitas sueltas flotando entre las copias.
+const ringTangles = () => MOTIFS.filter((m) => ["polka", "wavesDots", "bubbles"].includes(m.id));
 
 // ---------------------------------------------------------------------------
 // Mandala de iconos

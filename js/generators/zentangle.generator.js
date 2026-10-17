@@ -4,6 +4,7 @@ import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
 import { fillDeadSpace } from "./deadSpace.js";
+import { generateZenFigure, figureForPage } from "./figure.js";
 import { RANDOM_STYLE_KEY, BESTSELLER_KEY, isRandomKey, resolveRandomStyle, resolveBestSeller } from "./randomStyle.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
@@ -58,9 +59,22 @@ export async function generateZentangle(doc, {
     seed,
     areaMm: area,
   };
+  // Dificultad progresiva (0 fácil … 1 difícil) en estilos que no son figura:
+  // el hueco mínimo se abre al principio del libro y se cierra al final.
+  if (Number.isFinite(finalOpts.difficulty) && finalOpts.cellLayout !== "zen_figure") {
+    const dl = Math.min(1, Math.max(0, finalOpts.difficulty));
+    finalOpts.minGapMm = (Number(finalOpts.minGapMm) || 1.4) * (1.25 - 0.4 * dl);
+  }
+  // Figura zentangle dentro de un libro: cada página de figura toma la
+  // siguiente figura del libro (no se repite hasta agotar todas).
+  if (finalOpts.cellLayout === "zen_figure" && !finalOpts.figureName && Number.isInteger(pageIndex) && pageIndex >= 0) {
+    finalOpts.figureName = figureForPage(bookSeed ?? seed, Number.isInteger(randomOverrides.figurePage) ? randomOverrides.figurePage : pageIndex);
+  }
 
   await drawStyle(doc, finalOpts);
-  if (rasterize && finalOpts.fillDeadSpace !== false) {
+  // La figura deja secciones lisas a propósito (respiro para colorear): el
+  // relleno de huecos con burbujas no aplica.
+  if (rasterize && finalOpts.fillDeadSpace !== false && finalOpts.cellLayout !== "zen_figure") {
     await fillDeadSpace(doc, {
       areaMm: area, seed, rasterize,
       gapMm: Math.max(1.8, Number(finalOpts.minGapMm) || 0),
@@ -72,7 +86,7 @@ export async function generateZentangle(doc, {
 
 async function drawStyle(doc, finalOpts) {
   // Composiciones de página completa (mandala de iconos, pétalos facetados).
-  const ORNAMENTS = { icon_mandala: generateIconMandala, facet_spiral: generateFacetSpiral };
+  const ORNAMENTS = { icon_mandala: generateIconMandala, facet_spiral: generateFacetSpiral, zen_figure: generateZenFigure };
   if (ORNAMENTS[finalOpts.cellLayout]) return ORNAMENTS[finalOpts.cellLayout](doc, finalOpts);
   // Muestrario: retícula de círculos/cuadros con un motivo por unidad.
   if (finalOpts.cellLayout === "sampler") return generateSampler(doc, finalOpts);

@@ -6,8 +6,13 @@ import { applySobelEdgeDetection, loadImageFromFile, drawImageWithSymmetry, gene
 
 import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
-import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey } from "./generators/randomStyle.js";
+import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey, isColoringSafe } from "./generators/randomStyle.js";
 import { createStylePicker } from "./ui/stylePicker.js";
+import { designUnits, planSequence, difficultyAt, kdpInsideMarginMm } from "./core/bookPlan.js";
+import { generateSpread, SPREAD_FIGURES } from "./generators/spread.js";
+import { figureForPage, FIGURE_IDS } from "./generators/figure.js";
+import { kdpListingText } from "./core/kdpListing.js";
+import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -71,6 +76,10 @@ const ui = {
   // Libro completo
   bookPages: $("bookPages"),
   bookBlank: $("bookBlank"),
+  bookProgressive: $("bookProgressive"),
+  bookGuide: $("bookGuide"),
+  bookSpreads: $("bookSpreads"),
+  bookTurn: $("bookTurn"),
   bookSummary: $("bookSummary"),
   bookBar: $("bookBar"),
   btnBook: $("btnBook"),
@@ -310,7 +319,7 @@ async function renderGallery(count = 8) {
 
   for (let i = 0; i < seeds.length; i++) {
     const seed = seeds[i];
-    const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "zentangle" } });
+    const doc = createSvgDoc({ wMm: presetPaper.w, hMm: presetPaper.h, meta: { seed, generator: "patrones" } });
     const used = await generateZentangle(doc, { seed, presetName: zPresetKey, overrides: opts, areaMm: inner, rasterize: rasterizeSvg });
     const innerSvg = renderSvgToString(doc);
     // En aleatorio cada variación es de un estilo distinto: se rotula.
@@ -349,10 +358,13 @@ function kdpWarning(marginMm, bleedMm = 0) {
 // Miniatura de un estilo con sus valores propios (sin los ajustes finos del
 // usuario) y una semilla fija, para comparar estilos entre sí.
 const THUMB_SEED = 7;
+// Con la misma semilla, las tarjetas de figura mostraban la misma hoja: cada
+// una enseña una figura distinta y reconocible.
+const THUMB_OVERRIDES = { zen_figure: { figureName: "owl" }, zen_figure_light: { figureName: "cat" } };
 async function renderThumb(key) {
   const p = PAPER_SIZES_MM.LETTER, m = 10;
-  const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "zentangle" } });
-  await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m }, rasterize: rasterizeSvg });
+  const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "patrones" } });
+  await generateZentangle(doc, { seed: THUMB_SEED, presetName: key, overrides: THUMB_OVERRIDES[key] || {}, areaMm: { x: m, y: m, w: p.w - 2 * m, h: p.h - 2 * m }, rasterize: rasterizeSvg });
   return renderSvgToString(doc);
 }
 
@@ -366,6 +378,14 @@ function showCurrentStyle() {
 
 // ---------- Libro completo ----------
 const KDP_MIN_PAGES = 24;
+// Máximo de páginas de un libro de tapa blanda en blanco y negro en KDP.
+const KDP_MAX_PAGES = 828;
+const MAX_DESIGNS = 300;
+// Memoria para guardar los SVG completos de la revisión (~1.5–3.5 MB por
+// figura). Pasado el tope, la página guarda solo su miniatura y su semilla, y
+// el SVG se regenera idéntico al armar el PDF (los diseños son deterministas).
+const SVG_BUDGET = (Number(globalThis.ZT_SVG_BUDGET_MB) || 160) * 1024 * 1024; // ZT_SVG_BUDGET_MB: solo para pruebas
+const THUMB_PX = 640;
 let bookJob = null; // { cancelled: boolean } mientras se genera un libro
 
 function pageGeometry() {
@@ -378,10 +398,23 @@ function pageGeometry() {
   return { paperKey, paper, marginMm, inner, opts, zPresetKey };
 }
 
+// Páginas de guía previstas antes de generar (la cifra real depende de los
+// tangles que salgan; 3 por página).
+const GUIDE_PAGES_EST = Math.ceil(Object.keys(TANGLE_INFO).length / 3) + 2; // + «Antes de empezar» y «Combina»
+
 function bookPlan() {
-  const n = Math.min(150, Math.max(1, int(ui.bookPages.value, 30)));
+  const n = Math.min(MAX_DESIGNS, Math.max(1, int(ui.bookPages.value, 50)));
   const blank = ui.bookBlank.value === "1";
-  return { n, blank, total: blank ? n * 2 : n };
+  const flags = {
+    progressive: !!ui.bookProgressive?.checked,
+    guide: !!ui.bookGuide?.checked,
+    spreads: !!ui.bookSpreads?.checked,
+    turn: !!ui.bookTurn?.checked,
+  };
+  const units = designUnits(n, { spreads: flags.spreads });
+  const turnPages = flags.turn ? (n >= 20 ? 2 : 1) : 0;
+  const total = planSequence(units, { blank, guidePages: flags.guide ? GUIDE_PAGES_EST : 0, passport: flags.guide, turnPages }).length;
+  return { n, blank, flags, units, turnPages, total };
 }
 
 // Semillas reproducibles: la seed del usuario + el índice de página.
@@ -389,14 +422,22 @@ const bookSeed = (base, i) => ((base >>> 0) + Math.imul(i, 0x9e3779b1)) >>> 0;
 
 function updateBookSummary() {
   if (!ui.bookSummary) return;
-  const { n, blank, total } = bookPlan();
+  const { n, blank, total, flags, units, turnPages } = bookPlan();
   const g = pageGeometry();
-  const parts = [`${n} diseños${blank ? ` + ${n} hojas en blanco` : ""} = <strong>${total} páginas</strong> · ${PAPER_LABELS[g.paperKey] || g.paperKey} · margen ${g.marginMm} mm${g.zPresetKey === BESTSELLER_KEY ? " · 💰 estilos más rentables, repartidos" : isRandomKey(g.zPresetKey) ? " · 🎲 un estilo distinto en cada página" : ""}`];
+  const spreads = units.filter((u) => u.kind === "spread").length;
+  const extras = [spreads ? `${spreads} doble${spreads > 1 ? "s" : ""} página${spreads > 1 ? "s" : ""}` : "", flags.guide ? "guía y pasaporte" : "", turnPages ? `${turnPages} «Tu turno»` : "", flags.progressive ? "dificultad progresiva" : ""].filter(Boolean);
+  const parts = [`${n} diseños${blank ? " con reverso en blanco" : ""}${extras.length ? ` · ${extras.join(" · ")}` : ""} = <strong>${flags.guide ? "≈ " : ""}${total} páginas</strong> · ${PAPER_LABELS[g.paperKey] || g.paperKey} · margen ${g.marginMm} mm${g.zPresetKey === BESTSELLER_KEY ? " · 💰 estilos más rentables, repartidos" : isRandomKey(g.zPresetKey) ? " · 🎲 un estilo distinto en cada página" : ""}`];
   let cls = "hint ok";
-  if (total < KDP_MIN_PAGES) { parts.push(`⚠ KDP pide mínimo ${KDP_MIN_PAGES} páginas: sube a ${blank ? KDP_MIN_PAGES / 2 : KDP_MIN_PAGES} diseños.`); cls = "hint warn"; }
+  if (total < KDP_MIN_PAGES) { parts.push(`⚠ KDP pide mínimo ${KDP_MIN_PAGES} páginas: añade diseños.`); cls = "hint warn"; }
+  // Margen interior mínimo de KDP según el número de páginas.
+  const needIn = kdpInsideMarginMm(total);
+  if (g.marginMm < needIn) { parts.push(`⚠ Con ${total} páginas KDP pide un margen interior de al menos ${needIn} mm: sube el margen a ${Math.ceil(needIn)} mm.`); cls = "hint warn"; }
+  if (!blank) parts.push("📄 Sin hojas en blanco: en KDP elige «Tinta y papel: color prémium», el papel más grueso de KDP (60–71 lb frente a 50–61 lb del blanco y negro). Cuesta más por página y aun así prueba tus rotuladores: el papel grueso reduce el traspaso, no lo elimina.");
+  if (total > KDP_MAX_PAGES) { parts.push(`⚠ KDP admite hasta ${KDP_MAX_PAGES} páginas en blanco y negro: quita diseños o usa «Otro diseño» como reverso.`); cls = "hint warn"; }
+  if (n >= 120) parts.push(`⏱ Libro grande: preparar ${n} diseños lleva varios minutos (≈ 1–2 s por diseño).`);
   const w = kdpWarning(g.marginMm, g.opts.kdpBleedMm).replace(/^ \| /, "");
   if (w) { parts.push(w); cls = "hint warn"; }
-  else if (total >= KDP_MIN_PAGES) parts.push("✓ Cumple lo mínimo de KDP");
+  else if (cls !== "hint warn" && total >= KDP_MIN_PAGES && total <= KDP_MAX_PAGES) parts.push("✓ Cumple los límites de KDP");
   ui.bookSummary.className = cls;
   ui.bookSummary.innerHTML = parts.join("<br>");
   updateBookButton();
@@ -405,11 +446,11 @@ function updateBookSummary() {
 // Revisión del libro: primero se generan todas las páginas en una cuadrícula;
 // cada una se puede cambiar por otro diseño al instante (↻) y el PDF se arma
 // después con exactamente las páginas aprobadas, sin volver a generarlas.
-// bookReview = { key, g, n, blank, baseSeed, pages: [{ seed, tries, svg, url, presetName }] }
+// bookReview = { key, g, n, blank, flags, units, turnPages, baseSeed, pages: [{ kind, seed, tries, svg, url, presetName, left?, right? }], extras }
 let bookReview = null;
 
 // Huella de todo lo que define el libro: si cambia, la revisión queda vieja.
-const bookKey = (g, n, blank) => JSON.stringify({ p: g.paperKey, i: g.inner, k: g.zPresetKey, o: g.opts, n, blank });
+const bookKey = (g, plan) => JSON.stringify({ p: g.paperKey, i: g.inner, k: g.zPresetKey, o: g.opts, n: plan.n, blank: plan.blank, f: plan.flags });
 
 // Semilla del reemplazo número `tries` de la página i. tries = 0 es la semilla
 // original del libro (misma seed = mismo libro); los reemplazos derivan de ella.
@@ -420,22 +461,106 @@ const pageSeed = (base, i, tries) => {
 
 // pageIndex + bookSeed: en "Más vendidos" fijan el estilo de cada página del
 // libro (un reemplazo con ↻ cambia el diseño, no el estilo).
-async function makeBookPage(g, seed, pageIndex, bookSeed) {
-  const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "zentangle" } });
-  const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides: { ...g.opts, seed }, areaMm: g.inner, pageIndex, bookSeed, rasterize: rasterizeSvg });
-  const svg = renderSvgToString(d);
-  return { seed, svg, url: URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })), presetName: used.presetName };
+// plan: { n, units, flags } del libro; fija si la página es doble y su dificultad.
+// Miniatura PNG de una página (o de una doble página) para la revisión: pesa
+// ~50–150 KB frente a los MB del SVG, así un libro de 300 diseños cabe en memoria.
+async function thumbUrl(svg, wMm, hMm) {
+  const w = Math.round(THUMB_PX * (wMm / Math.min(wMm, hMm * 0.78)));
+  const h = Math.round(w * (hMm / wMm));
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("No se pudo dibujar la miniatura")); img.src = url; });
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((res) => c.toBlob(res, "image/png"));
+    c.width = 0; c.height = 0;
+    return URL.createObjectURL(blob);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
+
+const svgSize = (p) => (p.svg?.length || 0) + (p.left?.length || 0) + (p.right?.length || 0);
+
+// Guarda los SVG de la página si caben en el presupuesto; si no, los suelta
+// (se regeneran al armar el PDF).
+function keepOrDropSvg(review, page, freed = 0) {
+  review.svgBytes = Math.max(0, (review.svgBytes || 0) - freed);
+  const size = svgSize(page);
+  if (review.svgBytes + size <= SVG_BUDGET) { review.svgBytes += size; return; }
+  page.svg = page.left = page.right = null;
+}
+
+async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true } = {}) {
+  const geo = { w: g.paper.w, h: g.paper.h, m: g.marginMm };
+  const kind = plan?.units?.[pageIndex]?.kind || "single";
+  const difficulty = plan?.flags?.progressive ? difficultyAt(pageIndex, plan.n) : null;
+  const lv = difficulty === null ? null : levelInfo(difficulty);
+  const footer = lv ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min`, level: lv.level }) : "";
+  if (kind === "spread") {
+    // Las dobles páginas recorren sus figuras en orden (la n-ésima doble de
+    // este libro), en vez de sortearlas: así no se repiten seguidas.
+    const nth = plan.units.slice(0, pageIndex).filter((u) => u.kind === "spread").length;
+    const figureName = SPREAD_FIGURES[(nth + (bookSeed >>> 0)) % SPREAD_FIGURES.length];
+    const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, figureName, rasterize: rasterizeSvg });
+    const right = appendToSvg(sp.right, footer);
+    const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
+    return { kind, seed, svg: sp.wide, left: sp.left, right, url, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure };
+  }
+  const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
+  const overrides = { ...g.opts, seed, ...(difficulty === null ? {} : { difficulty }) };
+  const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides, areaMm: g.inner, pageIndex, bookSeed, rasterize: rasterizeSvg });
+  const svg = appendToSvg(renderSvgToString(d), footer);
+  const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
+  return { kind, seed, svg, url, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null };
+}
+
+// Páginas que no son diseños: guía y pasaporte (con los tangles que de
+// verdad salen en el libro) y «Tu turno» (figuras con secciones vacías).
+async function buildBookExtras(review) {
+  const { g, flags, turnPages, baseSeed } = review;
+  const geo = { w: g.paper.w, h: g.paper.h, m: g.marginMm };
+  const out = { guide: [], passport: null, turn: [] };
+  if (flags.guide) {
+    const found = [...new Set(review.pages.flatMap((p) => p.tangles || []))];
+    const ids = found.length >= 3 ? found : Object.keys(TANGLE_INFO);
+    out.guide = tangleGuidePages(ids, geo);
+    out.passport = tanglePassportPage(ids, geo);
+  }
+  // «Tu turno» usa figuras que no salen en el libro (si quedan).
+  const usedFigs = new Set(review.pages.map((p) => p.figure).filter(Boolean));
+  const freshFigs = FIGURE_IDS.filter((f) => !usedFigs.has(f));
+  for (let k = 0; k < turnPages; k++) {
+    const seed = pageSeed(baseSeed, 1000 + k, 0);
+    const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
+    await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: freshFigs.length ? freshFigs[k % freshFigs.length] : figureForPage(baseSeed ^ 0x7777, k) }, areaMm: g.inner });
+    const text = flags.guide ? "Tu turno: dibuja en cada sección un tangle de la guía" : "Tu turno: dibuja tus propios tangles en cada sección";
+    out.turn.push(appendToSvg(renderSvgToString(d), footerSvg(geo, { text })));
+  }
+  return out;
+}
+
+const extrasList = (ex) => [
+  ...ex.guide.map((svg, i) => ({ svg, label: `Guía ${i + 1}` })),
+  ...(ex.passport ? [{ svg: ex.passport, label: "Pasaporte" }] : []),
+  ...ex.turn.map((svg, i) => ({ svg, label: `Tu turno ${i + 1}` })),
+];
+
+const bookSequence = (review, ex) => planSequence(review.units, { blank: review.blank, guidePages: ex.guide.length, passport: !!ex.passport, turnPages: ex.turn.length });
 
 function freeBookReview() {
   bookReview?.pages.forEach((p) => p && URL.revokeObjectURL(p.url));
+  bookReview?.extraUrls?.forEach((u) => URL.revokeObjectURL(u));
   bookReview = null;
 }
 
 const reviewIsFresh = () => {
   if (!bookReview) return false;
-  const { n, blank } = bookPlan();
-  return bookReview.key === bookKey(pageGeometry(), n, blank);
+  return bookReview.key === bookKey(pageGeometry(), bookPlan());
 };
 
 function updateBookButton() {
@@ -444,7 +569,7 @@ function updateBookButton() {
   const view = $("btnBookReview");
   if (view) view.hidden = !fresh;
   ui.btnBook.textContent = fresh
-    ? `⬇ Descargar libro (PDF · ${bookReview.blank ? bookReview.n * 2 : bookReview.n} págs)`
+    ? `⬇ Descargar libro (PDF · ${bookReview.total} págs)`
     : (bookReview ? "📖 Preparar libro de nuevo (cambiaste ajustes)" : "📖 Preparar libro (revisar páginas)");
   ui.btnBook.dataset.mode = fresh ? "download" : "prepare";
 }
@@ -470,6 +595,23 @@ function showBookReview() {
   const grid = document.createElement("div");
   grid.className = "gallery-grid book-grid";
   bookReview.pages.forEach((page, i) => grid.append(bookTile(i)));
+  // Guía, pasaporte y «Tu turno»: se ven aquí y se regeneran al descargar
+  // (la guía refleja los tangles de las páginas finales).
+  extrasList(bookReview.extras).forEach((x, k) => {
+    const tile = document.createElement("figure");
+    tile.className = "gallery-item book-tile extra";
+    const img = document.createElement("img");
+    img.src = bookReview.extraUrls[k];
+    img.alt = x.label;
+    img.addEventListener("click", () => tile.classList.toggle("zoomed"));
+    const cap = document.createElement("figcaption");
+    const label = document.createElement("span");
+    label.className = "gallery-label";
+    label.textContent = x.label;
+    cap.append(label);
+    tile.append(img, cap);
+    grid.append(tile);
+  });
   wrap.append(head, grid);
   ui.previewInner.replaceChildren(wrap);
 }
@@ -477,7 +619,7 @@ function showBookReview() {
 function bookTile(i) {
   const page = bookReview.pages[i];
   const tile = document.createElement("figure");
-  tile.className = "gallery-item book-tile";
+  tile.className = `gallery-item book-tile${page.kind === "spread" ? " spread" : ""}`;
   tile.dataset.index = String(i);
   const img = document.createElement("img");
   img.src = page.url;
@@ -488,7 +630,8 @@ function bookTile(i) {
   const label = document.createElement("span");
   label.className = "gallery-label";
   const style = isRandomKey(bookReview.g.zPresetKey) ? ` · ${styleLabel(page.presetName)}` : "";
-  label.textContent = `${i + 1}${page.tries ? ` · cambio ${page.tries}` : ""}${style}`;
+  const lv = bookReview.flags?.progressive ? ` · nivel ${levelInfo(difficultyAt(i, bookReview.n)).level}` : "";
+  label.textContent = `${i + 1}${page.kind === "spread" ? " · doble página" : ""}${page.tries ? ` · cambio ${page.tries}` : ""}${style}${lv}`;
   const redo = document.createElement("button");
   redo.type = "button";
   redo.className = "btn btn-secondary tile-redo";
@@ -510,9 +653,10 @@ async function replaceBookPage(i, tile) {
   tile.classList.add("busy");
   try {
     const tries = (old.tries || 0) + 1;
-    const page = await makeBookPage(review.g, pageSeed(review.baseSeed, i, tries), i, review.baseSeed);
+    const page = await makeBookPage(review.g, pageSeed(review.baseSeed, i, tries), i, review.baseSeed, review);
     if (bookReview !== review) { URL.revokeObjectURL(page.url); return; } // se descartó mientras tanto
     page.tries = tries;
+    keepOrDropSvg(review, page, svgSize(old));
     review.pages[i] = page;
     URL.revokeObjectURL(old.url);
     tile.replaceWith(bookTile(i));
@@ -526,30 +670,35 @@ async function replaceBookPage(i, tile) {
 }
 
 async function prepareBook() {
-  const { n, blank } = bookPlan();
+  const plan = bookPlan();
+  const { n, blank } = plan;
   const g = pageGeometry();
   const baseSeed = g.opts.seed >>> 0;
   const job = (bookJob = { cancelled: false });
   const others = busyButtons().filter((b) => b && b !== ui.btnBook);
   others.forEach((b) => (b.disabled = true));
   freeBookReview();
-  const review = { key: bookKey(g, n, blank), g, n, blank, baseSeed, pages: [] };
+  const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0 };
   ui.btnBook.textContent = "✖ Cancelar";
   ui.bookBar.hidden = false; ui.bookBar.value = 0;
   try {
     for (let i = 0; i < n; i++) {
       if (job.cancelled) { review.pages.forEach((p) => URL.revokeObjectURL(p.url)); ui.status.textContent = "Preparación cancelada"; return; }
-      const page = await makeBookPage(g, pageSeed(baseSeed, i, 0), i, baseSeed);
+      const page = await makeBookPage(g, pageSeed(baseSeed, i, 0), i, baseSeed, review);
       page.tries = 0;
+      keepOrDropSvg(review, page);
       review.pages.push(page);
       ui.bookBar.value = (i + 1) / n;
       ui.btnBook.textContent = `✖ Cancelar (${i + 1}/${n})`;
       ui.status.textContent = `Preparando libro… diseño ${i + 1} de ${n}`;
       await new Promise((r) => setTimeout(r, 0)); // deja respirar a la UI
     }
+    review.extras = await buildBookExtras(review);
+    review.extraUrls = extrasList(review.extras).map((x) => URL.createObjectURL(new Blob([x.svg], { type: "image/svg+xml" })));
+    review.total = bookSequence(review, review.extras).length;
     bookReview = review;
     showBookReview();
-    ui.status.textContent = `✓ ${n} diseños listos para revisar · cambia los que no te gusten y descarga el PDF`;
+    ui.status.textContent = `✓ ${n} diseños listos para revisar (${review.total} páginas) · cambia los que no te gusten y descarga el PDF`;
   } catch (err) {
     review.pages.forEach((p) => URL.revokeObjectURL(p.url));
     ui.status.textContent = `✗ No se pudo preparar el libro: ${err.message}`;
@@ -571,8 +720,7 @@ async function onBookButton() {
 
 async function createBook() {
   if (bookJob || !bookReview) return;
-  const { g, n, blank, baseSeed, pages } = bookReview;
-  const total = blank ? n * 2 : n;
+  const { g, n, baseSeed, pages } = bookReview;
   const job = (bookJob = { cancelled: false });
   const others = busyButtons().filter((b) => b && b !== ui.btnBook);
   others.forEach((b) => (b.disabled = true));
@@ -581,8 +729,22 @@ async function createBook() {
   ui.bookBar.hidden = false; ui.bookBar.value = 0;
   try {
     const title = `Libro para colorear (${n} diseños)`;
+    // Guía con los tangles de las páginas finales (tras los ↻) y orden de páginas.
+    const extras = await buildBookExtras(bookReview);
+    const sequence = bookSequence(bookReview, extras);
+    const total = sequence.length;
+    // Páginas sin SVG guardado (libros grandes): se regeneran con su semilla.
+    // Se recuerda la última para no generar dos veces las dos mitades de una doble.
+    let regen = null;
+    const full = async (i) => {
+      if (pages[i].svg) return pages[i];
+      if (regen?.i !== i) regen = { i, page: await makeBookPage(g, pages[i].seed, i, baseSeed, bookReview, { thumb: false }) };
+      return regen.page;
+    };
+    const svgOf = async (e) => ({ design: async () => (await full(e.i)).svg, spreadL: async () => (await full(e.i)).left, spreadR: async () => (await full(e.i)).right,
+      guide: async () => extras.guide[e.i], passport: async () => extras.passport, turn: async () => extras.turn[e.i] })[e.type]();
     const doc = await buildBookPdf({
-      widthMm: g.paper.w, heightMm: g.paper.h, count: n, blankBetween: blank, title,
+      widthMm: g.paper.w, heightMm: g.paper.h, sequence, getEntrySvg: async (e) => svgOf(e), title,
       isCancelled: () => job.cancelled,
       onProgress: (i, count) => {
         ui.bookBar.value = i / count;
@@ -610,7 +772,7 @@ async function createBook() {
 
 // ---------- Recordar ajustes entre sesiones (uso personal) ----------
 const SETTINGS_KEY = "zentangle.settings.v1";
-const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
+const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || {}; } catch { return {}; }
 }
@@ -655,8 +817,8 @@ async function render() {
     wMm: presetPaper.w,
     hMm: presetPaper.h,
     meta: {
-      title: "Zentangle Cells",
-      generator: "zentangle",
+      title: "Diseño para colorear",
+      generator: "patrones",
       seed: opts.seed,
       preset: paperKey,
       zPreset: zPresetKey,
@@ -1039,12 +1201,34 @@ function bind() {
   ui.btnRender?.addEventListener("click", () => withBusy(render));
   ui.btnBook.addEventListener("click", onBookButton);
   $("btnBookReview")?.addEventListener("click", showBookReview);
+  // Ficha de KDP con el libro tal como está configurado (o revisado).
+  $("btnKdpListing")?.addEventListener("click", () => {
+    const plan = bookPlan();
+    const g = pageGeometry();
+    const fresh = reviewIsFresh();
+    const text = kdpListingText({
+      designs: plan.n,
+      pages: fresh ? bookReview.total : plan.total,
+      paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
+      flags: plan.flags,
+      spreads: plan.units.filter((u) => u.kind === "spread").length,
+      turnPages: plan.turnPages,
+      blank: plan.blank,
+      // Qué describe la ficha: solo figuras, mezcla o estilos sin figura; y si
+      // hay rellenos negros (aleatorio con todo o muestrarios de tinta).
+      content: /^zen_figure/.test(g.zPresetKey) ? "figures" : g.zPresetKey === BESTSELLER_KEY || isRandomKey(g.zPresetKey) ? "mixed" : "other",
+      noBlack: g.zPresetKey === BESTSELLER_KEY || g.zPresetKey === RANDOM_COLOR_KEY || (!isRandomKey(g.zPresetKey) && isColoringSafe(ZENTANGLE_PRESETS[g.zPresetKey] || {})),
+    });
+    downloadTextFile(`ficha_kdp_${plan.n}disenos.txt`, text, "text/plain;charset=utf-8");
+    ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción y palabras clave sin marcas ajenas";
+  });
 
   // Resumen del libro en vivo (páginas totales, tamaño, avisos KDP).
-  [ui.bookPages, ui.bookBlank, ui.paper, ui.marginMm, ui.kdpBleedMm, ui.zPreset].forEach((el) => {
+  const bookOptEls = [ui.bookProgressive, ui.bookGuide, ui.bookSpreads, ui.bookTurn];
+  [ui.bookPages, ui.bookBlank, ui.paper, ui.marginMm, ui.kdpBleedMm, ui.zPreset, ...bookOptEls].forEach((el) => {
     if (el) { el.addEventListener("input", updateBookSummary); el.addEventListener("change", updateBookSummary); }
   });
-  [ui.bookPages, ui.bookBlank].forEach((el) => el && el.addEventListener("change", saveSettings));
+  [ui.bookPages, ui.bookBlank, ...bookOptEls].forEach((el) => el && el.addEventListener("change", saveSettings));
   updateBookSummary();
 
   if (ui.btnGallery) ui.btnGallery.addEventListener("click", () => withBusy(() => renderGallery(8)));
@@ -1110,7 +1294,7 @@ function bind() {
     try {
       ui.status.innerText = "Preparando SVG...";
       const { svg, paperKey, zPresetKey } = await render();
-      downloadTextFile(`zentangle_${paperKey}_${zPresetKey}.svg`, svg);
+      downloadTextFile(`diseno_${paperKey}_${zPresetKey}.svg`, svg);
       ui.status.innerText = "✓ Descargado SVG";
     } catch (err) {
       ui.status.innerText = `✗ Error al descargar SVG: ${err.message}`;
@@ -1123,7 +1307,7 @@ function bind() {
       const { svg, paperKey, zPresetKey } = await render();
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Preparando PNG...";
-      await downloadPng(`zentangle_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
+      await downloadPng(`diseno_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
       ui.status.innerText = "✓ Descargado PNG";
     } catch (err) {
       ui.status.innerText = `✗ Error al descargar PNG: ${err.message}`;
@@ -1136,7 +1320,7 @@ function bind() {
       const { svg, paperKey, zPresetKey } = await render();
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Generando PDF (KDP)...";
-      await downloadPdf(`zentangle_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);
+      await downloadPdf(`diseno_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);
       ui.status.innerText = "✓ Descargado PDF";
     } catch (err) {
       ui.status.innerText = `✗ Error al descargar PDF: ${err.message}`;
@@ -1149,7 +1333,7 @@ function bind() {
       ui.status.innerText = "Preparando JSON...";
       const { opts, paperKey, zPresetKey } = await render();
       downloadTextFile(
-        `zentangle_${paperKey}_${zPresetKey}_opts.json`,
+        `diseno_${paperKey}_${zPresetKey}_opts.json`,
         JSON.stringify(opts, null, 2)
       );
       ui.status.innerText = "✓ Descargado JSON";

@@ -490,6 +490,10 @@
     .book-tile:hover { transform: none; }
     .book-tile img { width: 100%; aspect-ratio: 8.5 / 11; object-fit: contain; background: #fff; display: block; cursor: zoom-in; }
     .book-tile.zoomed { grid-column: 1 / -1; }
+    .book-tile.spread { grid-column: span 2; }
+    .book-tile.spread img { aspect-ratio: 17 / 11; }
+    .book-tile.extra .gallery-label { font-style: italic; }
+    .book-extras { display: grid; gap: 4px; margin: 8px 0 4px; }
     .book-tile.zoomed img { cursor: zoom-out; max-height: 85vh; }
     .book-tile figcaption { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
     .book-tile .tile-redo { padding: 4px 8px; font-size: 12px; }
@@ -579,6 +583,8 @@
                   <option value="sampler_icon_fractal">🌀 Iconos fractales (grande → chico)</option>
                 </optgroup>
                 <optgroup label="✳️ Zentangle con figura">
+                  <option value="zen_figure">🦉 Figura zentangle (búho, gato, pez, mariposa...)</option>
+                  <option value="zen_figure_light">🦉 Figura zentangle — fondo ligero</option>
                   <option value="zen_star">⭐ Estrella subdividida (string)</option>
                   <option value="icon_mandala">🐱 Mandala de iconos con tangles</option>
                   <option value="facet_spiral">💎 Pétalos facetados en espiral</option>
@@ -666,19 +672,26 @@
           <div class="form-row">
             <div>
               <label for="bookPages">Nº de diseños</label>
-              <input id="bookPages" type="number" min="1" max="150" step="1" value="30" inputmode="numeric" />
+              <input id="bookPages" type="number" min="1" max="300" step="1" value="50" inputmode="numeric" />
             </div>
             <div>
               <label for="bookBlank">Reverso de cada diseño</label>
               <select id="bookBlank">
-                <option value="1">Hoja en blanco</option>
-                <option value="0">Otro diseño</option>
+                <option value="1">Hoja en blanco (papel estándar)</option>
+                <option value="0">Otro diseño, sin hojas en blanco (papel grueso)</option>
               </select>
             </div>
+          </div>
+          <div class="book-extras">
+            <label class="check"><input type="checkbox" id="bookProgressive" /> 📈 Dificultad progresiva: de fácil a difícil, con nivel y tiempo en cada página</label>
+            <label class="check"><input type="checkbox" id="bookGuide" /> 📘 Guía paso a paso de los tangles (al inicio) y pasaporte (al final)</label>
+            <label class="check"><input type="checkbox" id="bookSpreads" /> ↔️ Dobles páginas: 1 de cada 8 diseños sigue en la página de enfrente (con franja segura en el lomo)</label>
+            <label class="check"><input type="checkbox" id="bookTurn" /> ✏️ Páginas «Tu turno»: figura vacía para dibujar tus propios tangles</label>
           </div>
           <p id="bookSummary" class="hint" aria-live="polite"></p>
           <progress id="bookBar" class="book-bar" max="1" value="0" hidden></progress>
           <button id="btnBookReview" type="button" class="link-btn" hidden>👁 Ver las páginas del libro</button>
+          <button id="btnKdpListing" type="button" class="link-btn">📝 Texto para la ficha de KDP (sin marcas ajenas)</button>
           <p class="hint">Primero ves todas las páginas: cambia con ↻ las que no te gusten y luego descarga el PDF. Cada página deriva su semilla de la tuya, así que el libro se puede regenerar idéntico.</p>
         </section>
 

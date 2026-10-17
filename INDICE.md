@@ -1,3 +1,5 @@
+> ⚠️ **Documento histórico.** Describe un plan antiguo (editor Electron) que no se construyó; la app actual está en `README.md`.
+
 # Índice de Documentación - Zentangle Editor Electron
 
 ## 📚 Guías Principales (en orden de lectura)

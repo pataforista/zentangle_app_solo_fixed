@@ -481,6 +481,211 @@ async function runTests() {
       console.log(`✓ Relleno aplicado en ${filled} estilos sin alterar el diseño ni acercarse a menos de 1.2 mm de una línea.`);
     }
 
+    console.log("\nPrueba 11: Figura zentangle (figura grande con tangles clásicos)...");
+    {
+      const { Resvg } = await import("@resvg/resvg-js");
+      const { FIGURE_IDS, figureForPage } = await import("./js/generators/figure.js");
+      const { CLASSIC_TANGLES } = await import("./js/generators/patterns/classicTangles.js");
+      const page = { x: 12.7, y: 12.7, w: 190.5, h: 254 };
+      // Tinta por cuadrante del marco: un fondo o una figura que pierda media
+      // página (recortes anidados que resvg descarta) deja un cuadrante vacío.
+      const quadrantInk = (d) => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${d.body.join("")}</svg>`;
+        const img = new Resvg(svg, { fitTo: { mode: "width", value: 432 } }).render();
+        const px = img.pixels, q = [0, 0, 0, 0], n = [0, 0, 0, 0];
+        const s = img.width / 215.9;
+        for (let y = Math.ceil(page.y * s) + 2; y < (page.y + page.h) * s - 2; y++) for (let x = Math.ceil(page.x * s) + 2; x < (page.x + page.w) * s - 2; x++) {
+          const k = (x < (page.x + page.w / 2) * s ? 0 : 1) + (y < (page.y + page.h / 2) * s ? 0 : 2);
+          n[k]++; if (px[(y * img.width + x) * 4] < 128) q[k]++;
+        }
+        return q.map((v, i) => v / n[i]);
+      };
+      for (const fig of FIGURE_IDS) {
+        for (const bgKind of ["rays", "strings", "airy"]) {
+          const opts = { seed: 11, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig, figureBackground: bgKind } };
+          const d1 = { body: [], defs: [] }, d2 = { body: [], defs: [] };
+          await generateZentangle(d1, opts);
+          await generateZentangle(d2, opts);
+          const html = d1.body.join("");
+          assert.strictEqual(html, d2.body.join(""), `ERROR: la figura ${fig} no es determinista.`);
+          assert.ok(html.includes(`data-figure="${fig}"`), `ERROR: no se dibujó la figura ${fig}.`);
+          assert.ok(!/fill="#000"/.test(html), `ERROR: la figura ${fig} tiene rellenos negros (no apta para colorear).`);
+          const tangles = html.match(/data-tangle="[^"]+"/g) || [];
+          assert.ok(tangles.length >= 6, `ERROR: la figura ${fig} (fondo ${bgKind}) tiene solo ${tangles.length} tangles.`);
+          const ink = quadrantInk(d1);
+          for (const v of ink) assert.ok(v > 0.04, `ERROR: la figura ${fig} (fondo ${bgKind}) deja un cuadrante casi vacío (tinta ${ink.map((x) => (x * 100).toFixed(1)).join("/")} %).`);
+        }
+      }
+      // Cada tangle clásico produce líneas en cajas chicas y grandes.
+      for (const t of CLASSIC_TANGLES) for (const side of [20, 120]) {
+        const layers = t.fn(createRNG(5), { x0: 0, y0: 0, x1: side, y1: side * 0.8 }, { gap: 1.9, stroke: 0.35, sketchy: 0.3 });
+        assert.ok(layers.some((l) => l.d && l.d.length > 40), `ERROR: el tangle ${t.id} quedó vacío en una caja de ${side} mm.`);
+      }
+      // En un libro, las figuras se recorren todas antes de repetir y nunca
+      // sale la misma en dos páginas de figura seguidas.
+      for (const bs of [1, 42]) {
+        const seq = Array.from({ length: FIGURE_IDS.length * 3 }, (_, i) => figureForPage(bs, i));
+        assert.strictEqual(new Set(seq.slice(0, FIGURE_IDS.length)).size, FIGURE_IDS.length, "ERROR: las primeras figuras del libro se repiten.");
+        for (let i = 1; i < seq.length; i++) assert.notStrictEqual(seq[i], seq[i - 1], `ERROR: figura ${seq[i]} repetida en páginas de figura seguidas (libro ${bs}).`);
+      }
+      // Más vendidos: las páginas de figura de un libro llevan figuras distintas.
+      const figs = [];
+      for (let i = 0; i < 20; i++) {
+        const r = resolveBestSeller(0, { pageIndex: i, bookSeed: 42 });
+        if (ZENTANGLE_PRESETS[r.presetName].cellLayout !== "zen_figure") continue;
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 100 + i, presetName: BESTSELLER_KEY, areaMm: page, pageIndex: i, bookSeed: 42 });
+        figs.push(d.body.join("").match(/data-figure="([^"]+)"/)[1]);
+      }
+      assert.ok(figs.length >= 6, "ERROR: Más vendidos tiene pocas páginas de figura.");
+      assert.strictEqual(new Set(figs).size, Math.min(figs.length, FIGURE_IDS.length), `ERROR: Más vendidos repite figuras antes de agotarlas (${figs.join(", ")}).`);
+      console.log(`✓ ${FIGURE_IDS.length} figuras × 3 fondos completas, sin negros y deterministas; ${CLASSIC_TANGLES.length} tangles clásicos; figuras sin repetir en el libro.`);
+    }
+
+    console.log("\nPrueba 12: Libro con dificultad progresiva, guía, dobles páginas y «Tu turno»...");
+    {
+      const { designUnits, planSequence, difficultyAt, kdpInsideMarginMm } = await import("./js/core/bookPlan.js");
+      // Margen interior mínimo de KDP por número de páginas (pulgadas → mm).
+      for (const [pages, mm] of [[24, 9.6], [150, 9.6], [151, 12.7], [300, 12.7], [301, 15.9], [500, 15.9], [700, 19.1], [828, 22.3]]) assert.strictEqual(kdpInsideMarginMm(pages), mm, `ERROR: margen interior KDP para ${pages} páginas.`);
+      const { generateSpread } = await import("./js/generators/spread.js");
+      const { TANGLE_INFO, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, tanglesInSvgs } = await import("./js/generators/bookExtras.js");
+      const { Resvg } = await import("@resvg/resvg-js");
+      const W = 215.9, H = 279.4, M = 12.7, page = { x: M, y: M, w: W - 2 * M, h: H - 2 * M };
+
+      // Orden de páginas: en un libro de una cara cada diseño va a la derecha
+      // con su reverso en blanco; la doble página ocupa izquierda + derecha y
+      // sus dos reversos quedan en blanco.
+      const units = designUnits(30, { spreads: true });
+      assert.strictEqual(units.filter((u) => u.kind === "spread").length, 4, "ERROR: 30 diseños deberían llevar 4 dobles páginas.");
+      assert.strictEqual(units[0].kind, "single", "ERROR: el libro no debe abrir con una doble página.");
+      for (const blank of [true, false]) {
+        const seq = planSequence(units, { blank, guidePages: 4, passport: true, turnPages: 2 });
+        seq.forEach((e, k) => {
+          if (!e) return;
+          if (e.type === "spreadL") {
+            assert.strictEqual(k % 2, 1, "ERROR: la mitad izquierda de una doble página no cae en página izquierda.");
+            assert.deepStrictEqual(seq[k + 1], { type: "spreadR", i: e.i }, "ERROR: la doble página no sigue en la página de enfrente.");
+            if (blank) assert.ok(seq[k - 1] === null && (seq[k + 2] === null || seq[k + 2] === undefined), "ERROR: el reverso de una doble página no está en blanco.");
+          }
+          if (blank && (e.type === "design" || e.type === "turn")) {
+            assert.strictEqual(k % 2, 0, `ERROR: un diseño cae en página izquierda (página ${k + 1}).`);
+            assert.ok(seq[k + 1] === null || seq[k + 1] === undefined, "ERROR: un diseño no tiene el reverso en blanco.");
+          }
+        });
+        assert.strictEqual(seq.filter((e) => e && e.type === "design").length, 26, "ERROR: faltan diseños en la secuencia.");
+        if (!blank) assert.ok(!seq.some((e) => e === null), "ERROR: el libro sin hojas en blanco tiene páginas en blanco.");
+        assert.deepStrictEqual(seq.slice(0, 4).map((e) => e && e.type), ["guide", "guide", "guide", "guide"], "ERROR: la guía no abre el libro.");
+      }
+
+      // Dificultad: al final del libro hay más secciones con tangle y huecos más finos.
+      assert.strictEqual(difficultyAt(0, 30), 0); assert.strictEqual(difficultyAt(29, 30), 1);
+      assert.strictEqual(levelInfo(0).level, 1); assert.strictEqual(levelInfo(1).level, 5);
+      let easy = 0, hard = 0;
+      for (const seed of [1, 2, 3, 4]) for (const fig of ["owl", "cat", "heart"]) {
+        for (const [d, add] of [[0, (v) => (easy += v)], [1, (v) => (hard += v)]]) {
+          const doc = { body: [], defs: [] };
+          await generateZentangle(doc, { seed, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig, figureBackground: "airy", difficulty: d } });
+          const figPart = doc.body.join("").split('data-figure="')[1];
+          add((figPart.match(/data-tangle=/g) || []).length);
+        }
+      }
+      assert.ok(hard > easy * 1.4, `ERROR: la dificultad no cambia la densidad (fácil ${easy}, difícil ${hard}).`);
+
+      // «Tu turno»: la figura queda sin tangles, solo strings.
+      const turn = { body: [], defs: [] };
+      await generateZentangle(turn, { seed: 4, presetName: "zen_figure", areaMm: page, overrides: { figureName: "cat", emptySections: true } });
+      const turnFig = turn.body.join("").split('data-figure="')[1];
+      assert.ok(!/data-tangle=/.test(turnFig), "ERROR: «Tu turno» dejó tangles dentro de la figura.");
+
+      // Doble página: dos SVG de una página cada uno; la figura continúa a
+      // ambos lados del lomo (hay tinta junto al margen interior de las dos).
+      const pageInk = (svg) => {
+        const img = new Resvg(svg, { fitTo: { mode: "width", value: Math.round(W * 4) } }).render();
+        return { px: img.pixels, w: img.width, h: img.height, s: img.width / W };
+      };
+      // Tinta en la franja [x0, x1] mm (coordenadas locales de la página).
+      const inkNear = (pg, x0, x1) => {
+        let ink = 0, n = 0;
+        for (let y = Math.round((M + 5) * pg.s); y < (H - M - 5) * pg.s; y++) for (let x = Math.round(x0 * pg.s); x < x1 * pg.s; x++) { n++; if (pg.px[(y * pg.w + x) * 4] < 128) ink++; }
+        return ink / n;
+      };
+      for (const fig of ["fish", "butterfly", "leaf", "heart"]) {
+        // Segura: franja blanca en el lomo y un marco por página.
+        const safe = await generateSpread({ paper: { w: W, h: H }, marginMm: M, seed: 9, figureName: fig });
+        assert.ok(safe.left.includes(`viewBox="0 0 ${W} ${H}"`) && safe.right.includes(`viewBox="${W} 0 ${W} ${H}"`), `ERROR: la doble página (${fig}) no se partió en dos páginas.`);
+        const SL = pageInk(safe.left), SR = pageInk(safe.right);
+        assert.ok(inkNear(SL, W - M + 1, W - 1) < 0.001 && inkNear(SR, 1, M - 1) < 0.001, `ERROR: la doble página segura (${fig}) invade el margen interior.`);
+        assert.ok(inkNear(SL, W - M - 6, W - M - 1.5) > 0.03 && inkNear(SR, M + 1.5, M + 6) > 0.03, `ERROR: la doble página segura (${fig}) no llega a su margen interior.`);
+      }
+
+      // Guía y pasaporte: 3 tangles por página, cada uno con nombre, pasos y
+      // práctica; el pasaporte los lista todos.
+      const ids = Object.keys(TANGLE_INFO);
+      const geo = { w: W, h: H, m: M };
+      const guide = tangleGuidePages(ids, geo);
+      assert.strictEqual(guide.length, Math.ceil(ids.length / 3) + 2, "ERROR: número de páginas de la guía (introducción + fichas + «Combina»).");
+      assert.ok(/Antes de empezar/.test(guide[0]) && /marca registrada de Zentangle/.test(guide[0]), "ERROR: falta la introducción con el origen y el crédito de la marca.");
+      for (const id of ids) assert.ok(guide.join("").includes(TANGLE_INFO[id].combo.slice(0, 20).replace("'", "'")), `ERROR: falta cómo combinar ${id}.`);
+      // Complejidad creciente: el nivel de cada ficha nunca baja respecto a la anterior.
+      const order = [...guide.slice(1, -1).join("").matchAll(/font-size="5.2" font-weight="bold">([^<]+)</g)].map((mm) => mm[1]);
+      const lvOf = (name) => Object.values(TANGLE_INFO).find((t) => t.name.replace("'", "&#39;") === name || t.name === name)?.level;
+      for (let k = 1; k < order.length; k++) assert.ok(lvOf(order[k]) >= lvOf(order[k - 1]), `ERROR: la guía baja de nivel en ${order[k]}.`);
+      assert.strictEqual(lvOf(order[0]), 1, "ERROR: la guía no empieza por un tangle básico.");
+      assert.strictEqual(lvOf(order[order.length - 1]), 3, "ERROR: la guía no termina con un tangle avanzado.");
+      assert.ok(/Combina/.test(guide[guide.length - 1]) && (guide[guide.length - 1].match(/Tu práctica/g) || []).length === 3, "ERROR: falta la página «Combina» con sus 3 prácticas.");
+      const all = guide.join("");
+      for (const id of ids) assert.ok(all.includes(TANGLE_INFO[id].name.replace("'", "'")), `ERROR: la guía no explica ${id}.`);
+      assert.strictEqual((all.match(/Tu práctica/g) || []).length, ids.length + 3, "ERROR: falta un recuadro de práctica.");
+      const pass = tanglePassportPage(ids, geo);
+      for (const id of ids) assert.ok(pass.includes(TANGLE_INFO[id].name), `ERROR: el pasaporte no incluye ${id}.`);
+      // Los pasos crecen: cada paso tiene más trazo que el anterior.
+      const g0 = guide[1];
+      const groups = [...g0.matchAll(/<g clip-path="url\(#g_0_0_(\d)\)">(.*?)<\/g>/g)].map((m) => m[2].length);
+      assert.ok(groups[0] < groups[1] && groups[1] <= groups[2] && groups[2] <= groups[3], `ERROR: los pasos de la guía no crecen (${groups.join(", ")}).`);
+      assert.deepStrictEqual(tanglesInSvgs(['<g data-tangle="paradox"/><g data-tangle="tipple"/><g data-tangle="paradox"/><g data-tangle="nope"/>']), ["paradox", "tipple"]);
+      // Pie: dentro del margen inferior y nunca con margen < 10 mm.
+      assert.ok(footerSvg(geo, { text: "Nivel 1", level: 1 }).includes("Nivel 1"));
+      assert.strictEqual(footerSvg({ w: W, h: H, m: 8 }, { text: "x", level: 1 }), "");
+      console.log(`✓ Secuencia de páginas correcta, dificultad ${easy} → ${hard} tangles, «Tu turno» vacío, dobles páginas con franja segura, guía de ${guide.length} páginas y pasaporte.`);
+    }
+
+    console.log("\nPrueba 13: Propiedad intelectual (marca, nombres de patrones y ficha KDP)...");
+    {
+      const { TANGLE_INFO, tangleGuidePages, tanglePassportPage, footerSvg } = await import("./js/generators/bookExtras.js");
+      const { kdpListing, kdpListingText, containsBlocked, ATTRIBUTION_ES } = await import("./js/core/kdpListing.js");
+      const geo = { w: 215.9, h: 279.4, m: 12.7 };
+      const ids = Object.keys(TANGLE_INFO);
+      const printed = (svg) => [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((mm) => mm[1]).join(" ");
+      const guide = tangleGuidePages(ids, geo), pass = tanglePassportPage(ids, geo);
+      // «Zentangle» solo en la página de introducción, siempre con ®, y con el
+      // crédito de la marca y la aclaración de que no es un producto oficial.
+      guide.slice(1).concat([pass]).forEach((svg) => assert.ok(!/zentangle/i.test(printed(svg)), "ERROR: «Zentangle» aparece fuera de la introducción."));
+      const intro = printed(guide[0]);
+      for (const mm of intro.matchAll(/Zentangle(?!, Inc)(.)/g)) assert.strictEqual(mm[1], "®", "ERROR: «Zentangle» sin ® en la introducción.");
+      assert.ok(/marca registrada de Zentangle, Inc/.test(intro) && /no es un producto oficial/.test(intro) && /Rick Roberts y Maria Thomas/.test(intro), "ERROR: falta la atribución completa.");
+      // Patrones de autor individual o sin verificar: nunca con su nombre de la comunidad.
+      const all = guide.map(printed).join(" ") + printed(pass);
+      for (const bad of ["Beadlines", "Purk", "Cubine", "Florz", "Scallops"]) assert.ok(!all.includes(bad), `ERROR: el libro imprime el nombre «${bad}».`);
+      // La estrella de oficial solo en los verificados.
+      assert.strictEqual(Object.values(TANGLE_INFO).filter((t) => t.official).length, 10);
+      // Pies de página y «Tu turno» sin la marca.
+      assert.ok(!/zentangle/i.test(footerSvg(geo, { text: "Tu turno: dibuja tus propios tangles en cada sección" })));
+      // Ficha KDP: sin marcas en título, subtítulo ni palabras clave; atribución en la descripción.
+      for (const flags of [{}, { progressive: true, guide: true }]) {
+        const l = kdpListing({ designs: 50, pages: 120, flags, spreads: 6, turnPages: 2 });
+        for (const t of [...l.titles, l.subtitle, ...l.keywords]) assert.strictEqual(containsBlocked(t), null, `ERROR: término de marca en la ficha: «${t}».`);
+        assert.ok(l.description.includes(ATTRIBUTION_ES), "ERROR: falta la atribución en la descripción.");
+        assert.ok(l.keywords.length <= 7, "ERROR: KDP admite 7 palabras clave.");
+      }
+      assert.ok(kdpListingText({ designs: 50, pages: 120 }).includes("REGLAS DE PROPIEDAD INTELECTUAL"));
+      // La ficha no promete lo que el libro no trae.
+      const figOnly = kdpListing({ designs: 30, pages: 60, content: "figures" }).description;
+      assert.ok(!/mandalas/.test(figOnly), "ERROR: la ficha promete mandalas en un libro solo de figuras.");
+      assert.ok(!/sin rellenos negros/.test(kdpListing({ designs: 30, pages: 60, noBlack: false }).description), "ERROR: la ficha promete «sin negros» en un libro con tinta.");
+      assert.ok(/Impreso por una sola cara/.test(kdpListing({ designs: 30, pages: 60 }).description) && !/una sola cara/.test(kdpListing({ designs: 30, pages: 60, blank: false }).description));
+      console.log("✓ Marca solo como atribución (con ®), patrones de autoría no verificada con nombre propio, ficha KDP sin marcas ajenas.");
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

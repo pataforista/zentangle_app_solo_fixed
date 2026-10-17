@@ -11,7 +11,7 @@
 // Estilos con regiones amplias y sin masas negras: lo que más se pide en un
 // libro para colorear. El orden es el de las tarjetas.
 const COLORING = [
-  "best_sellers", "sampler_icons", "sampler_hex", "random_color", "sampler_coloring", "sampler_octagons",
+  "best_sellers", "zen_figure", "zen_figure_light", "sampler_icons", "sampler_hex", "random_color", "sampler_coloring", "sampler_octagons",
   "sampler_dodecagons", "sampler_cairo", "sampler_icon_patterns", "sampler_icon_fractal",
   "icon_mandala", "zen_star", "classic_z_string", "eye_focus", "bold_easy", "kdp_relaxed",
 ];

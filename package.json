@@ -9,9 +9,12 @@
     "trueprint": "node _samples/trueprint.mjs",
     "colorability": "node _samples/colorability.mjs",
     "verify": "node test_verify.mjs",
-    "test": "node test_verify.mjs"
+    "test": "node test_verify.mjs",
+    "e2e": "node _samples/e2e_book.mjs"
   },
   "devDependencies": {
-    "@resvg/resvg-js": "^2.6.2"
+    "@resvg/resvg-js": "^2.6.2",
+    "playwright": "1.56.1",
+    "jspdf": "2.5.1"
   }
 }
