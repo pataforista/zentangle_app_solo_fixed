@@ -125,7 +125,9 @@ export async function downloadPdf(filename, svgString, widthMm, heightMm) {
  * - isCancelled(): si devuelve true se aborta y se retorna null.
  * El caller guarda el resultado con doc.save(nombre).
  */
-export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = true, title = "Libro para colorear", getSvg, onProgress, isCancelled }) {
+// Con `sequence` (ver core/bookPlan.js) cada entrada es una página: null = en
+// blanco; si no, getEntrySvg(entrada) da su SVG. Sin ella, el modo clásico.
+export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = true, title = "Libro para colorear", getSvg, onProgress, isCancelled, sequence = null, getEntrySvg = null }) {
   if (typeof window === "undefined" || !window.jspdf || !window.jspdf.jsPDF) {
     throw new Error("La librería jsPDF no está cargada. Verifica tu conexión a internet y recarga.");
   }
@@ -133,6 +135,21 @@ export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = tr
   const doc = new jsPDF(widthMm > heightMm ? "l" : "p", "mm", [widthMm, heightMm]);
   doc.setProperties({ title });
 
+  const orient = widthMm > heightMm ? "l" : "p";
+  if (sequence) {
+    for (let i = 0; i < sequence.length; i++) {
+      if (isCancelled && isCancelled()) return null;
+      if (i > 0) doc.addPage([widthMm, heightMm], orient);
+      const e = sequence[i];
+      if (e) {
+        const png = await generatePngDataUrl(await getEntrySvg(e), widthMm, heightMm);
+        doc.addImage(png, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+      }
+      if (onProgress) onProgress(i + 1, sequence.length);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    return doc;
+  }
   let first = true;
   for (let i = 0; i < count; i++) {
     if (isCancelled && isCancelled()) return null;

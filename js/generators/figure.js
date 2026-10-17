@@ -45,6 +45,11 @@ const BG_POOL = ["tipple", "purk", "printemps", "beadlines", "static", "nzeppel"
 // Rellenos de detalle (alas, cola, aletas): de grano fino y direccional.
 const DETAIL_POOL = ["static", "keeko", "scallops", "beadlines", "nzeppel", "cubine", "tipple"];
 const byId = new Map(POOL.map((t) => [t.id, t]));
+// Para la guía de tangles del libro (bookExtras.js).
+export const FIGURE_TANGLES = POOL;
+// Tangles de trazo exigente (muchas líneas cortas o cruces): van al final de
+// un libro con dificultad progresiva.
+const HARD = new Set(["paradox", "hollibaugh", "bales", "cubine", "cadent", "florz", "printemps", "keeko"]);
 // El fondo usa una escala más abierta que la figura: así la figura destaca.
 const BG_GAP = 1.7;
 
@@ -316,7 +321,16 @@ export function figureForPage(bookSeed, n) {
 
 /* ====================== Secciones con strings ====================== */
 
-function makeSections(rng, rings, spec, gap) {
+// Nº de cortes de una familia: con `level` (0 fácil … 1 difícil) se recorre
+// el rango del string de menos a más cortes; sin él, al azar dentro del rango.
+function cutCount(rng, [lo, hi], level) {
+  if (!Number.isFinite(level)) return rInt(rng, lo, hi);
+  rng(); // consume igual que rInt: no descuadra el resto de la página
+  const min = lo > 0 ? Math.max(1, lo - 1) : 0;
+  return Math.round(min + (hi + 1 - min) * Math.min(1, Math.max(0, level)));
+}
+
+function makeSections(rng, rings, spec, gap, level) {
   const bb = bboxOf(rings);
   const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
   const th = spec.angle + rFloat(rng, -0.25, 0.25);
@@ -328,7 +342,7 @@ function makeSections(rng, rings, spec, gap) {
   const A = Math.max(1, amax - amin), U = Math.max(1, umax - umin);
 
   // Familia A: cortes a lo largo de u (curvas u = c + amp·w(a)).
-  const nA = rInt(rng, spec.a[0], spec.a[1]), nB = rInt(rng, spec.b[0], spec.b[1]);
+  const nA = cutCount(rng, spec.a, level), nB = cutCount(rng, spec.b, level);
   const spA = U / (nA + 1), spB = A / (nB + 1);
   const wave = (L) => {
     const l1 = L * rFloat(rng, 0.8, 1.4), l2 = L * rFloat(rng, 0.4, 0.6), p1 = rFloat(rng, 0, TAU), p2 = rFloat(rng, 0, TAU);
@@ -391,7 +405,13 @@ export async function generateZenFigure(doc, opts) {
   const rng = createRNG(hash(seed, 0xf16e));
   for (let w = 0; w < 10; w++) rng();
   const a = opts.areaMm;
-  const gap = Math.max(1.4, clampN(opts.minGapMm, 1, 5, 1.9));
+  // Dificultad (0 fácil … 1 difícil): huecos más amplios y menos secciones al
+  // principio del libro; más finos y numerosos al final.
+  const level = Number.isFinite(opts.difficulty) ? Math.min(1, Math.max(0, opts.difficulty)) : null;
+  const gap = Math.max(1.4, clampN(opts.minGapMm, 1, 5, 1.9) * (level === null ? 1 : 1.3 - 0.45 * level));
+  // «Tu turno»: la figura queda con sus secciones vacías para dibujar los
+  // tangles propios (el fondo, ligero).
+  const empty = opts.emptySections === true;
   const stroke = clampN(opts.patternStrokeMm, 0.15, 1.5, 0.35);
   const strStroke = clampN(opts.stringStrokeMm, 0.2, 2, 0.55);
   const outStroke = clampN(opts.cellBorderWidthMm, 0.3, 3, 1.0);
@@ -409,7 +429,8 @@ export async function generateZenFigure(doc, opts) {
 
   // Encaje: escala y centro a partir de la silueta girada.
   // Las figuras simétricas no se giran: el espejo se hace respecto a la vertical.
-  const rot = def.mirror ? 0 : (def.rot || 0) * (rng() < 0.5 ? 1 : -1) + rFloat(rng, -0.06, 0.06);
+  let rot = def.mirror ? 0 : (def.rot || 0) * (rng() < 0.5 ? 1 : -1) + rFloat(rng, -0.06, 0.06);
+  if (Number.isFinite(opts.figureRot) && !def.mirror) rot = opts.figureRot;
   const silCmds = def.silhouetteFromParts ? [...parts, ...back].map((p) => p.cmds) : def.silhouette;
   const unitRings = silCmds.flatMap((c) => flatten(c, (u, v) => [u * Math.cos(rot) - v * Math.sin(rot), u * Math.sin(rot) + v * Math.cos(rot)]));
   const ub = bboxOf(unitRings);
@@ -433,7 +454,13 @@ export async function generateZenFigure(doc, opts) {
   const pickTangle = (pool) => {
     const list = pool.map((t) => (typeof t === "string" ? byId.get(t) : t)).filter(Boolean);
     let tot = 0;
-    const ws = list.map((t) => { const w = last.includes(t.id) ? 0.05 : 1 / (1 + 3 * (used.get(t.id) || 0)); tot += w; return w; });
+    const ws = list.map((t) => {
+      let w = last.includes(t.id) ? 0.05 : 1 / (1 + 3 * (used.get(t.id) || 0));
+      // Con dificultad: los tangles sencillos dominan al principio y los
+      // complejos al final (nunca desaparece ninguno del todo).
+      if (level !== null) w *= HARD.has(t.id) ? 0.15 + level : 1.15 - level;
+      tot += w; return w;
+    });
     let r = rng() * tot, pick = list[list.length - 1];
     for (let i = 0; i < list.length; i++) { if ((r -= ws[i]) < 0) { pick = list[i]; break; } }
     used.set(pick.id, (used.get(pick.id) || 0) + 1);
@@ -455,7 +482,7 @@ export async function generateZenFigure(doc, opts) {
   /* ---- 1) Fondo ---- */
   const frame = { x0: a.x, y0: a.y, x1: a.x + a.w, y1: a.y + a.h };
   const frameD = polyD([{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]);
-  const bgKind = opts.figureBackground || (rng() < 0.45 ? "rays" : rng() < 0.65 ? "strings" : "airy");
+  const bgKind = opts.figureBackground || (empty ? "airy" : rng() < 0.45 ? "rays" : rng() < 0.65 ? "strings" : "airy");
   const frameRings = [[{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]];
   const frameClip = clipOf(frameD);
   const bg = [], bgLines = [];
@@ -539,7 +566,7 @@ export async function generateZenFigure(doc, opts) {
     const d = shapeD(cmds), dc = shapeD(cmds, 0);
     const rings = flatten(cmds, tf), bb = bboxOf(rings);
     let inner = "";
-    if (p.tangle) {
+    if (p.tangle && !empty) {
       const pool = p.tangle === "detail" ? DETAIL_POOL : p.tangle === "round" ? ["printemps", "purk", "tipple"] : POOL.map((t) => t.id);
       inner = `<g clip-path="url(#${clipOf(dc)})">${tangleIn(pickTangle(pool), bb, p.tangle === "detail" ? 0.9 : 1)}</g>`;
     }
@@ -553,13 +580,13 @@ export async function generateZenFigure(doc, opts) {
     const dc = shapeD(p.cmds, 0);
     const pc = clipOf(dc);
     // El ángulo de los strings es relativo a la figura: se suma su giro.
-    const sec = makeSections(rng, rings, { ...p.strings, angle: p.strings.angle + rot }, gap);
+    const sec = makeSections(rng, rings, { ...p.strings, angle: p.strings.angle + rot }, gap, level);
     let plainUsed = false;
     const totalArea = sec.sections.reduce((acc, q) => acc + q.area, 0);
     const out = [`<path d="${dc}" fill="#fff" stroke="none"/>`];
     const inner = [];
     for (const q of sec.sections) {
-      if (q.area < gap * gap * 14) continue; // astilla: queda lisa
+      if (empty || q.area < gap * gap * 14) continue; // «Tu turno» o astilla: queda lisa
       // Respiro: como mucho una sección lisa por parte, y nunca una grande
       // (una banda vacía de media figura se lee como un error).
       if (!plainUsed && q.area < Math.min(900, totalArea * 0.12) && rng() < 0.25) { plainUsed = true; continue; }

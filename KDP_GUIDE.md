@@ -287,3 +287,18 @@ Notas:
 - `npm run colorability -- sampler_icons` mide las regiones no coloreables; usa
   `SEEDS=20` para promediar más semillas (con 3 la cifra varía mucho).
 - Ajusta el slider **Sketchy** para más (o menos) trazo a mano.
+
+---
+
+## 📖 Opciones del libro que no ofrecen otros libros
+
+En **③ Tu libro**:
+
+| Opción | Qué hace |
+|---|---|
+| 📈 **Dificultad progresiva** | El primer diseño es el más fácil (huecos amplios, pocas secciones, tangles sencillos) y el último el más difícil. Cada página lleva en el margen inferior su nivel (1–5) y un tiempo aproximado de coloreado. |
+| 📘 **Guía y pasaporte** | Abre el libro con una guía paso a paso de los tangles que salen en él (3 pasos, el tangle terminado y un recuadro para practicar). Al final, un pasaporte para marcar cada tangle coloreado y dibujado. |
+| ↔️ **Dobles páginas** | 1 de cada 8 diseños es una figura que cruza el lomo: izquierda + derecha, con los strings empalmados. En libros de una cara sus dos reversos quedan en blanco. Junto al lomo queda una franja libre del ancho de los márgenes interiores. |
+| ✏️ **«Tu turno»** | Al final, figuras con las secciones vacías para que quien colorea dibuje sus propios tangles. |
+
+El tiempo por página es una estimación por nivel, no una medición.

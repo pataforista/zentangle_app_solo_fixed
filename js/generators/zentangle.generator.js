@@ -59,6 +59,12 @@ export async function generateZentangle(doc, {
     seed,
     areaMm: area,
   };
+  // Dificultad progresiva (0 fácil … 1 difícil) en estilos que no son figura:
+  // el hueco mínimo se abre al principio del libro y se cierra al final.
+  if (Number.isFinite(finalOpts.difficulty) && finalOpts.cellLayout !== "zen_figure") {
+    const dl = Math.min(1, Math.max(0, finalOpts.difficulty));
+    finalOpts.minGapMm = (Number(finalOpts.minGapMm) || 1.4) * (1.25 - 0.4 * dl);
+  }
   // Figura zentangle dentro de un libro: cada página de figura toma la
   // siguiente figura del libro (no se repite hasta agotar todas).
   if (finalOpts.cellLayout === "zen_figure" && !finalOpts.figureName && Number.isInteger(pageIndex) && pageIndex >= 0) {
