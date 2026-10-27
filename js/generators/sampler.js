@@ -317,6 +317,7 @@ export async function generateSampler(doc, opts) {
   const strokeVar = clamp(opts.samplerStrokeVar, 0, 0.6, 0.25);
   const minGapMm = Math.max(0.9, clamp(opts.minGapMm, 0.5, 10, 1.6));
   const sketchy = clamp(opts.sketchy, 0, 2, 0);
+  // Sin definir = tinta. Ojo: ornaments.js usa el default contrario (sin definir = contorno).
   const solids = opts.samplerSolids !== false;
   const heavyShare = clamp(opts.samplerHeavyShare, 0, 1, 0.3);
   const shapeOpt = opts.samplerShape || "circle"; // circle | square | rounded | mixed

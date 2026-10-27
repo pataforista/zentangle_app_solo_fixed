@@ -686,6 +686,24 @@ async function runTests() {
       console.log("✓ Marca solo como atribución (con ®), patrones de autoría no verificada con nombre propio, ficha KDP sin marcas ajenas.");
     }
 
+    console.log("\nPrueba 14: Defaults de solids y PRNG obligatorio...");
+    {
+      const { PathBuilder } = await import("./js/core/pathBuilder.js");
+      assert.throws(() => new PathBuilder({ sketchy: 0 }), /rng/, "ERROR: PathBuilder aceptó trabajar sin PRNG sembrado.");
+      const area14 = { x: 10, y: 10, w: 190, h: 260 };
+      const blacks = async (presetName, samplerSolids) => {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 3, presetName, areaMm: area14, overrides: { samplerSolids } });
+        return (d.body.join("").match(/fill="#000"/g) || []).length;
+      };
+      // Sin definir, el muestrario pinta tinta y los ornamentos contorno; fijarlo en un test evita que un refactor los unifique sin querer.
+      assert.ok(await blacks("sampler_icons", undefined) > 0, "ERROR: el muestrario sin samplerSolids ya no usa tinta por defecto.");
+      assert.strictEqual(await blacks("sampler_icons", false), 0, "ERROR: samplerSolids:false dejó masas negras en el muestrario.");
+      assert.strictEqual(await blacks("icon_mandala", undefined), 0, "ERROR: el mandala de iconos sin samplerSolids ya no es contorno por defecto.");
+      assert.ok(await blacks("icon_mandala", true) > 0, "ERROR: samplerSolids:true no produjo tinta en el mandala de iconos.");
+      console.log("✓ PathBuilder exige rng; defaults de solids: muestrario = tinta, ornamentos = contorno.");
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

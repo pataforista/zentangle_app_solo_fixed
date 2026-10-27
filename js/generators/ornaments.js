@@ -28,6 +28,7 @@ function baseOpts(opts) {
     borderMm: clampN(opts.cellBorderWidthMm, 0.1, 5, 0.9),
     minGapMm: Math.max(0.9, clampN(opts.minGapMm, 0.5, 10, 1.8)),
     sketchy: clampN(opts.sketchy, 0, 2, 0),
+    // Sin definir = contorno (coloreable). Ojo: sampler.js usa el default contrario (sin definir = tinta).
     solids: opts.samplerSolids === true,
     prefix: `o_${(seed % 1000000).toString(16)}_`,
   };
