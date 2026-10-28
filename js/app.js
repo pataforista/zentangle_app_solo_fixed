@@ -513,7 +513,11 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true }
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
   const overrides = { ...g.opts, seed, ...(difficulty === null ? {} : { difficulty }) };
-  const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides, areaMm: g.inner, pageIndex, bookSeed, rasterize: rasterizeSvg });
+  // En los modos aleatorios, la página original (tries 0) toma su estilo de la
+  // secuencia del libro, que evita vecinas repetidas. Un ↻ cambia la semilla:
+  // esa página sortea un estilo nuevo con ella (en «Más vendidos» sigue el mazo).
+  const rerolled = isRandomKey(g.zPresetKey) && g.zPresetKey !== BESTSELLER_KEY && seed !== pageSeed(bookSeed, pageIndex, 0);
+  const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides, areaMm: g.inner, pageIndex: rerolled ? null : pageIndex, bookSeed, rasterize: rasterizeSvg });
   const svg = appendToSvg(renderSvgToString(d), footer);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
   return { kind, seed, svg, url, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null };

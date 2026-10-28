@@ -28,6 +28,26 @@ const yieldToBrowser = () => {
   }
 };
 
+// Patrones del motor de celdas por "Familias" para reducir caos. A nivel de módulo
+// para que el auditor de colorabilidad (_samples/patternAudit.mjs) mida exactamente
+// los rellenos que el motor puede dibujar.
+export const CELL_PATTERN_FAMILIES = {
+  geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit, fillFlorz, fillCadent],
+  organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves, fillCrescentMoon, fillTipple, fillPrintemps],
+  // Sin fillStippling: los puntos no delimitan nada que colorear y en
+  // imprenta se leen como suciedad.
+  dense: [fillTipple, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
+  // Familia dedicada a tangles auténticos reconocibles (look Zentangle clásico)
+  tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
+};
+
+// Rellenos de rejilla (triángulos, perlas de Cadent, rollos de Printemps): solo a 0° o 90° y sin temblor (ver el bucle de celdas).
+// fillCrosses queda fuera: a 0° sus X dejan más manchitas que a 45°.
+export const AXIS_ALIGNED = new Set([fillTriangles, fillCadent, fillPrintemps]);
+// Rejillas que solo cierran bien contra bordes rectos: en una celda poligonal (hex, triángulo, voronoi,
+// strings) el borde oblicuo las corta con fase arbitraria (56 astillas en un hexágono de 12 mm con Cadent).
+export const RECT_ONLY = new Set([fillTriangles, fillCadent]);
+
 /**
  * Zentangle Cells — v5 (integrated)
  * - Soporta: rect_bsp (antes), hex, tri
@@ -97,6 +117,8 @@ export async function generateZentangleCells(doc, opts) {
   const showSafeZone = !!opts.showSafeZone;
 
   const rng = createRNG(seed >>> 0);
+  // overrides.seedScheme: 1 reproduce los libros hechos con el flujo único por página.
+  const seedScheme = opts.seedScheme === 1 ? 1 : 2;
   const renderPrefix = `z_${Math.floor(rng() * 1000000).toString(16)}_`;
 
   // --- Variabilidad por página ---
@@ -218,16 +240,8 @@ export async function generateZentangleCells(doc, opts) {
       fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
   }
 
-  // 4) Patrones disponibles por "Familias" para reducir caos
-  const families = {
-    geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit, fillFlorz, fillCadent],
-    organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves, fillCrescentMoon, fillTipple, fillPrintemps],
-    // Sin fillStippling: los puntos no delimitan nada que colorear y en
-    // imprenta se leen como suciedad.
-    dense: [fillTipple, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
-    // Familia dedicada a tangles auténticos reconocibles (look Zentangle clásico)
-    tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
-  };
+  // 4) Patrones disponibles por "Familias" para reducir caos (ver CELL_PATTERN_FAMILIES)
+  const families = CELL_PATTERN_FAMILIES;
 
   const familyKey = opts.patternFamily || pick(rng, ["geometric", "organic", "tangles"]);
 
@@ -306,8 +320,12 @@ export async function generateZentangleCells(doc, opts) {
       await yieldToBrowser();
     }
     const cell = cells[i];
+    // Esquema 2: cada celda tiene su propio flujo (hash del seed y del índice), así
+    // que un patrón que gaste más o menos llamadas no reordena las celdas siguientes.
+    // Esquema 1: un flujo compartido por toda la página (libros anteriores).
+    const crng = seedScheme >= 2 ? createRNG(hash(seed >>> 0, 0xce11 + i)) : rng;
 
-    const rot = _pickRotation(rng, rotatePatterns, rotationSet);
+    const rot = _pickRotation(crng, rotatePatterns, rotationSet);
     const margin = innerMarginMm + (rot !== 0 ? extraMarginWhenRotatedMm : 0);
 
     // Celdas poligonales: el contorno real (recortado a la página, densificado
@@ -359,8 +377,8 @@ export async function generateZentangleCells(doc, opts) {
         // Clip orgánico real (rect): opcional
         const cornerR = Math.min(3.2, Math.max(1.4, minDim * 0.10));
         const bulge = Math.min(2.4, Math.max(0.7, minDim * 0.06));
-        const lumps = (minDim < 22) ? 1 : (rng() < 0.55 ? 2 : 1);
-        clipD = _organicRectD(rng, box, { cornerR, bulge, lumps });
+        const lumps = (minDim < 22) ? 1 : (crng() < 0.55 ? 2 : 1);
+        clipD = _organicRectD(crng, box, { cornerR, bulge, lumps });
       } else {
         clipD = _rectPathD(box);
       }
@@ -398,7 +416,7 @@ export async function generateZentangleCells(doc, opts) {
     const focalBias = 1 + focalStrength * (0.5 - centerFactor);
 
     const simpleCellProb = (opts.focusMode ? 0.15 : 0.05); // Much lower prob of being 'simple'
-    const isSimpleCell = rng() < simpleCellProb;
+    const isSimpleCell = crng() < simpleCellProb;
 
     let layers;
     if (isSimpleCell) {
@@ -428,7 +446,7 @@ export async function generateZentangleCells(doc, opts) {
       // Skip probabilístico modulado por densidad de página y punto focal.
       // La celda escaparate nunca se salta: es el ancla visual de la página.
       const effSkip = Math.min(0.65, Math.max(0, patternSkipProb * airBias * focalBias));
-      if (rng() < effSkip && minDim < 35 && !(isShowcaseCell && L === 0)) continue;
+      if (crng() < effSkip && minDim < 35 && !(isShowcaseCell && L === 0)) continue;
 
       // Smart Selection Strategy + Anti-Repetition
       let available = patterns.filter(p => !last3Fns.includes(p));
@@ -450,6 +468,11 @@ export async function generateZentangleCells(doc, opts) {
         const spread = available.filter((p) => p !== fillFlux);
         if (spread.length) available = spread;
       }
+      // En celdas poligonales se evitan las rejillas que solo cierran contra bordes rectos.
+      if (cellPoly) {
+        const polyOk = available.filter((p) => !RECT_ONLY.has(p));
+        if (polyOk.length) available = polyOk;
+      }
       if (minDim < 13 && !(isShowcaseCell && L === 0)) {
         const smallSafe = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox, fillTipple, fillWaves];
         const smallAvail = smallSafe.filter(p => !last3Fns.includes(p));
@@ -458,7 +481,7 @@ export async function generateZentangleCells(doc, opts) {
 
       // Peso base (patternWeights del preset) dividido por los usos previos en
       // esta página: recorre toda la paleta antes de volver a repetir un tangle.
-      const fn = _weightedPick(rng, available, (p) => {
+      const fn = _weightedPick(crng, available, (p) => {
         const w = patternWeights ? (patternWeights[p.name] ?? 1) : 1;
         return w / (1 + (patternUseCount.get(p) || 0) * repetitionPenalty);
       });
@@ -490,9 +513,13 @@ export async function generateZentangleCells(doc, opts) {
 
       // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
       // Consumimos el rng siempre para no descuadrar la secuencia determinista.
-      const jr = (rng() - 0.5) * 2 * rotationJitterDeg;
-      const jitter = rotatePatterns ? jr : 0;
-      const totalRot = rot + jitter;
+      const jr = (crng() - 0.5) * 2 * rotationJitterDeg;
+      // Las rejillas (triángulos, Cadent, Printemps) no se giran 45° ni se tiemblan: cortan el borde de la
+      // celda con una fase cualquiera y dejan astillas de menos de 3 mm² (hasta 28
+      // por celda en el auditor, 0 sin giro). Quedan a 0° o 90°.
+      const aligned = AXIS_ALIGNED.has(fn);
+      const jitter = rotatePatterns && !aligned ? jr : 0;
+      const totalRot = aligned ? Math.floor(rot / 90) * 90 : rot + jitter;
 
       // El patrón se genera sobre el bbox que, tras aplicar la rotación, cubre
       // la celda completa (el clip recorta el sobrante). Sin esta expansión,
@@ -517,7 +544,7 @@ export async function generateZentangleCells(doc, opts) {
         r: focusPage.r,
       };
 
-      let d = fn(rng, genBox, cellCfg);
+      let d = fn(crng, genBox, cellCfg);
       // Un patrón puede no caber con su espaciado (devuelve vacío): la celda
       // quedaba en blanco. Se prueban otros de la paleta con un rng aparte
       // para no alterar la secuencia del resto de la página.
@@ -533,9 +560,9 @@ export async function generateZentangleCells(doc, opts) {
       // Meta-Patterns: Círculos invocan stippling en los huecos. Solo si se pide
       // (stipplingEnabled): en un libro para colorear los puntos estorban.
       // El rng se consume igual para no alterar la secuencia determinista.
-      const wantStipple = rng() < 0.30;
+      const wantStipple = crng() < 0.30;
       if (opts.stipplingEnabled === true && fn === fillCircles && wantStipple && minDim > 20) {
-        const stipD = fillStippling(rng, genBox, cellCfg, true);
+        const stipD = fillStippling(crng, genBox, cellCfg, true);
         if (stipD) d += " " + stipD;
       }
 
@@ -544,7 +571,7 @@ export async function generateZentangleCells(doc, opts) {
       const canCover = enableDrawBehind && (L > 0) && (allowDrawBehindOnLayer2 || L === 1);
       const coverP1 = Math.min(drawBehindProbability, (minDim >= 26 ? 0.30 : 0.22));
       const coverP2 = Math.min(drawBehindProbability, (minDim >= 30 ? 0.46 : 0.34));
-      const doCover = canCover && (rng() < (L === 1 ? coverP1 : coverP2));
+      const doCover = canCover && (crng() < (L === 1 ? coverP1 : coverP2));
       const fill = doCover ? "#fff" : "none";
 
       patternsGroup.push(

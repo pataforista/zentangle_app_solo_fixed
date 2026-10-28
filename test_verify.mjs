@@ -110,7 +110,9 @@ async function runTests() {
       cellCount: 10,
       minCellSizeMm: 15,
       patternFamily: "tangles",
-      innerOrganicBorderEnabled: true
+      innerOrganicBorderEnabled: true,
+      // Sin saltos al azar: así el conteo describe la estructura y no depende del flujo de cada celda.
+      patternSkipProb: 0
     };
 
     await generateZentangleCells(docReg, optsReg);
@@ -118,7 +120,7 @@ async function runTests() {
     // Contamos elementos basándonos en la estructura esperada:
     // - 1 path para el borde exterior (drawOuterBorder)
     // - 10 paths para los bordes de las celdas
-    // - 10 grupos para los patrones de las celdas (con seed 777 ninguna celda se salta)
+    // - 10 grupos para los patrones de las celdas (patternSkipProb: 0, ninguna celda se salta)
     // - 10 clipPaths en los defs
     const pathCount = docReg.body.filter(s => s.startsWith("<path")).length;
     const groupCount = docReg.body.filter(s => s.startsWith("<g")).length;
@@ -684,6 +686,152 @@ async function runTests() {
       assert.ok(!/sin rellenos negros/.test(kdpListing({ designs: 30, pages: 60, noBlack: false }).description), "ERROR: la ficha promete «sin negros» en un libro con tinta.");
       assert.ok(/Impreso por una sola cara/.test(kdpListing({ designs: 30, pages: 60 }).description) && !/una sola cara/.test(kdpListing({ designs: 30, pages: 60, blank: false }).description));
       console.log("✓ Marca solo como atribución (con ®), patrones de autoría no verificada con nombre propio, ficha KDP sin marcas ajenas.");
+    }
+
+    console.log("\nPrueba 14: Defaults de solids y PRNG obligatorio...");
+    {
+      const { PathBuilder } = await import("./js/core/pathBuilder.js");
+      assert.throws(() => new PathBuilder({ sketchy: 0 }), /rng/, "ERROR: PathBuilder aceptó trabajar sin PRNG sembrado.");
+      const area14 = { x: 10, y: 10, w: 190, h: 260 };
+      const blacks = async (presetName, samplerSolids) => {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 3, presetName, areaMm: area14, overrides: { samplerSolids } });
+        return (d.body.join("").match(/fill="#000"/g) || []).length;
+      };
+      // Sin definir, el muestrario pinta tinta y los ornamentos contorno; fijarlo en un test evita que un refactor los unifique sin querer.
+      assert.ok(await blacks("sampler_icons", undefined) > 0, "ERROR: el muestrario sin samplerSolids ya no usa tinta por defecto.");
+      assert.strictEqual(await blacks("sampler_icons", false), 0, "ERROR: samplerSolids:false dejó masas negras en el muestrario.");
+      assert.strictEqual(await blacks("icon_mandala", undefined), 0, "ERROR: el mandala de iconos sin samplerSolids ya no es contorno por defecto.");
+      assert.ok(await blacks("icon_mandala", true) > 0, "ERROR: samplerSolids:true no produjo tinta en el mandala de iconos.");
+      console.log("✓ PathBuilder exige rng; defaults de solids: muestrario = tinta, ornamentos = contorno.");
+    }
+
+    console.log("\nPrueba 15: Contratos de salida de los patrones (string vs capas)...");
+    {
+      // Los rellenos del motor de celdas devuelven un string `d`; los motivos,
+      // iconos y tangles clásicos devuelven capas [{ d, fill }]. Los dos motores
+      // no se mezclan: figure.js adapta los primeros con legacy(). Si alguien
+      // pasa un patrón de capas a la paleta de celdas, el SVG saldría con
+      // d="[object Object]"; esta prueba lo caza en la frontera.
+      const cellModules = await Promise.all(["geometric", "organic", "complex", "dense", "tangles"].map((m) => import(`./js/generators/patterns/${m}.js`)));
+      const cellFns = cellModules.flatMap((mod) => Object.entries(mod).filter(([k, v]) => /^fill/.test(k) && typeof v === "function"));
+      assert.ok(cellFns.length >= 20, `ERROR: solo se encontraron ${cellFns.length} rellenos de celda.`);
+      const boxes = [{ x0: 0, y0: 0, x1: 42, y1: 42 }, { x0: 0, y0: 0, x1: 190, y1: 14 }, { x0: 0, y0: 0, x1: 18, y1: 80 }];
+      let checkedCell = 0;
+      for (const [name, fn] of cellFns) {
+        for (const box of boxes) {
+          const d = fn(createRNG(11), box, { minGapMm: 1.4, patternStrokeMm: 0.35, sketchy: 0.3, cellMm: 0 });
+          assert.ok(d === undefined || d === null || d === "" || typeof d === "string", `ERROR: ${name} devolvió ${Array.isArray(d) ? "un array" : typeof d} en vez de un string d.`);
+          if (d) assert.ok(!/NaN|Infinity|\[object/.test(d), `ERROR: ${name} produce un path inválido.`);
+          checkedCell++;
+        }
+      }
+      const { CLASSIC_TANGLES } = await import("./js/generators/patterns/classicTangles.js");
+      const { FIGURE_TANGLES } = await import("./js/generators/figure.js");
+      const layerFns = [
+        ...CLASSIC_TANGLES.map((t) => ({ id: "classic:" + t.id, fn: t.fn, cfg: { gap: 1.7, stroke: 0.4, sketchy: 0 } })),
+        ...FIGURE_TANGLES.map((t) => ({ id: "figura:" + t.id, fn: t.fn, cfg: { gap: 1.7, stroke: 0.4, sketchy: 0 } })),
+        ...MOTIFS.map((t) => ({ id: "motivo:" + t.id, fn: t.fn, cfg: { minGapMm: 1.8, patternStrokeMm: 0.5, sketchy: 0, solids: false, inside: () => true } })),
+        ...ICONS.map((t) => ({ id: "icono:" + t.id, fn: t.fn, cfg: { minGapMm: 1.8, patternStrokeMm: 0.5, sketchy: 0, solids: false, inside: () => true } })),
+      ];
+      let checkedLayers = 0;
+      for (const { id, fn, cfg } of layerFns) {
+        const out = fn(createRNG(11), { x0: 0, y0: 0, x1: 42, y1: 42 }, cfg);
+        assert.ok(Array.isArray(out), `ERROR: ${id} debe devolver un array de capas, devolvió ${typeof out}.`);
+        for (const layer of out) {
+          assert.ok(layer && typeof layer === "object" && typeof layer.d === "string", `ERROR: ${id} devolvió una capa sin d de tipo string.`);
+          assert.ok(["none", "#000", "#fff"].includes(layer.fill), `ERROR: ${id} devolvió una capa con fill inesperado «${layer.fill}».`);
+        }
+        checkedLayers++;
+      }
+      // El adaptador de figure.js convierte string → capas con relleno vacío (nunca negro).
+      const adapted = FIGURE_TANGLES.find((t) => t.id === "cadent").fn(createRNG(11), { x0: 0, y0: 0, x1: 60, y1: 60 }, { gap: 1.7, stroke: 0.4, sketchy: 0 });
+      assert.ok(Array.isArray(adapted) && adapted.length >= 1 && adapted.every((l) => l.fill === "none" && typeof l.d === "string"), "ERROR: el adaptador de figure.js no devolvió capas con fill none.");
+      console.log(`✓ ${checkedCell} salidas de ${cellFns.length} rellenos de celda son string; ${checkedLayers} motores de capas devuelven [{ d, fill }].`);
+    }
+
+    console.log("\nPrueba 16: Secuencia de estilos de un libro aleatorio (sin vecinas repetidas)...");
+    {
+      const { randomBookSequence, resolveBookStyle } = await import("./js/generators/randomStyle.js");
+      const { figureForPage } = await import("./js/generators/figure.js");
+      const books = [1, 2, 7, 99, 2025, 123456789, 1147527462, 77777, 424242, 31337];
+      let pages = 0;
+      for (const mode of [RANDOM_STYLE_KEY, RANDOM_COLOR_KEY]) {
+        for (const base of books) {
+          const seq = randomBookSequence(mode, base, 60);
+          const layoutOf = (e) => ZENTANGLE_PRESETS[e.presetName].cellLayout;
+          const hexish = (e) => layoutOf(e) === "hex" || (e.overrides.samplerLayout || ZENTANGLE_PRESETS[e.presetName].samplerLayout) === "hex";
+          for (let i = 1; i < seq.length; i++) {
+            assert.notStrictEqual(seq[i].presetName, seq[i - 1].presetName, `ERROR: ${mode}@${base}: el estilo ${seq[i].presetName} se repite en las páginas ${i} y ${i + 1}.`);
+            assert.notStrictEqual(layoutOf(seq[i]), layoutOf(seq[i - 1]), `ERROR: ${mode}@${base}: dos páginas seguidas con el layout ${layoutOf(seq[i])} (${i} y ${i + 1}).`);
+            if (i >= 2) assert.ok(!(hexish(seq[i]) && hexish(seq[i - 1]) && hexish(seq[i - 2])), `ERROR: ${mode}@${base}: tres páginas hexagonales seguidas en ${i - 1}-${i + 1}.`);
+          }
+          // Las figuras de un libro recorren su lista sin repetir hasta agotarla.
+          const figs = seq.filter((e) => layoutOf(e) === "zen_figure").map((e) => figureForPage(base, e.overrides.figurePage));
+          assert.strictEqual(new Set(figs.slice(0, 8)).size, Math.min(8, figs.length), `ERROR: ${mode}@${base}: una figura se repite antes de agotar las ocho.`);
+          // random_color nunca produce rellenos negros.
+          if (mode === RANDOM_COLOR_KEY) assert.ok(seq.every((e) => isColoringSafe({ ...ZENTANGLE_PRESETS[e.presetName], ...e.overrides })), `ERROR: random_color@${base} incluyó un estilo con tinta.`);
+          // La secuencia depende solo de la semilla del libro: un libro corto es el prefijo de uno largo,
+          // y resolveBookStyle devuelve la misma entrada pida la página que la pida.
+          assert.deepStrictEqual(randomBookSequence(mode, base, 20), seq.slice(0, 20), `ERROR: ${mode}@${base}: la secuencia no es un prefijo estable.`);
+          for (const i of [0, 17, 59]) assert.deepStrictEqual(resolveBookStyle(mode, 12345, { pageIndex: i, bookSeed: base }), seq[i], `ERROR: ${mode}@${base}: resolveBookStyle(${i}) no coincide con la secuencia.`);
+          pages += seq.length;
+        }
+      }
+      // Sin pageIndex (galería, «Otro diseño», un ↻) se sortea con la semilla de la página, como antes.
+      assert.deepStrictEqual(resolveBookStyle(RANDOM_COLOR_KEY, 4242), resolveRandomStyle(4242, { coloringOnly: true }), "ERROR: sin pageIndex el modo aleatorio ya no sortea con la semilla.");
+      console.log(`✓ ${pages} páginas en 20 libros: sin estilo ni layout repetido en vecinas, sin 3 hexagonales seguidas, figuras sin repetir y secuencia estable.`);
+    }
+
+    console.log("\nPrueba 17: Semilla por celda (esquema 2) frente al flujo compartido (esquema 1)...");
+    {
+      const area17 = { x: 10, y: 10, w: 190, h: 260 };
+      const run = async (scheme, family) => {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 21, presetName: "editorial_airy", areaMm: area17, overrides: { flowLinesEnabled: true, patternFamily: family, ...(scheme ? { seedScheme: scheme } : {}) } });
+        const body = d.body.join("");
+        return { body, flow: (body.match(/<path d="[^"]+"[^>]*stroke-dasharray="3,3"[^>]*\/>/g) || []).join("|") };
+      };
+      // Las líneas de flujo se dibujan tras las celdas con el rng de la página. Con el esquema 2 las
+      // celdas no lo consumen, así que no dependen de qué tangles se dibujaron; con el 1 sí.
+      const [g2, o2, g1, o1, def] = [await run(2, "geometric"), await run(2, "organic"), await run(1, "geometric"), await run(1, "organic"), await run(0, "geometric")];
+      assert.ok(g2.flow && g1.flow, "ERROR: no se dibujaron las líneas de flujo de la prueba.");
+      assert.strictEqual(g2.flow, o2.flow, "ERROR: con el esquema 2 las celdas siguen consumiendo el rng de la página.");
+      assert.notStrictEqual(g1.flow, o1.flow, "ERROR: el esquema 1 ya no comparte el flujo de la página (los libros antiguos no se reproducirían).");
+      assert.notStrictEqual(g2.body, g1.body, "ERROR: los esquemas 1 y 2 producen la misma página.");
+      assert.strictEqual(def.body, g2.body, "ERROR: el esquema por defecto ya no es el 2.");
+      console.log("✓ Esquema 2 por defecto: celdas con flujo propio (no reordenan la página); esquema 1 reproduce el flujo compartido.");
+    }
+
+    console.log("\nPrueba 18: Compuerta de colorabilidad por relleno de celda...");
+    {
+      // Cada relleno del motor se dibuja dentro de cinco formas de celda (cuadrada, banda, tira,
+      // triángulo y hexágono) con los giros que usa el motor, y se cuentan las regiones blancas visibles que no
+      // caben una punta de marcador. Casi todas son astillas donde la rejilla del relleno corta el borde
+      // de la celda. Detalle por patrón: npm run audit:patterns.
+      const { CELL_PATTERNS, SHAPES, auditPattern, rotationsFor, drawnIn } = await import("./_samples/patternAudit.mjs");
+      const DEFAULT_CEIL = 6;
+      // Casos conocidos (media de regiones malas por celda) con su techo; lo demás debe quedar en DEFAULT_CEIL.
+      // Son rellenos de líneas o de curvas cortados por los bordes oblicuos de un hexágono, y otros giros de Printemps.
+      const KNOWN = { "fillCurvesSmooth@hexagono": 17, "fillStripesSmooth@hexagono": 16, "fillFlorz@hexagono": 15, "fillScallops@hexagono": 13, "fillParadox@hexagono": 13, "fillCircles@hexagono": 12, "fillPrintemps@triangulo": 12, "fillAura@hexagono": 10, "fillCrescentMoon@cuadrada": 10 };
+      let total = 0, pairs = 0;
+      const mean = {};
+      for (const [name, fn] of CELL_PATTERNS) {
+        for (const shape of Object.keys(SHAPES)) {
+          if (!drawnIn(fn, shape)) continue; // el motor no dibuja ese relleno en esa celda
+          const rs = rotationsFor(fn).map((rot) => auditPattern(fn, shape, 11, {}, rot));
+          const bad = rs.reduce((a, x) => a + x.bad, 0) / rs.length;
+          mean[`${name}@${shape}`] = bad;
+          total += bad; pairs++;
+          assert.ok(bad <= (KNOWN[`${name}@${shape}`] ?? DEFAULT_CEIL), `ERROR: ${name} en celda ${shape} deja ${bad.toFixed(1)} regiones no coloreables de media (techo ${KNOWN[`${name}@${shape}`] ?? DEFAULT_CEIL}). Mira npm run audit:patterns.`);
+        }
+      }
+      // Las correcciones de astillas en el borde de la celda (Cadent, Scallops, Triangles, Flow, Printemps) no se pierden.
+      for (const shape of ["cuadrada", "banda", "tira"]) {
+        for (const [name, ceil] of [["fillCadent", 2], ["fillScallops", 3], ["fillTriangles", 1], ["fillFlow", 3], ["fillPrintemps", 6]]) assert.ok(mean[`${name}@${shape}`] <= ceil, `ERROR: ${name} vuelve a dejar astillas en celdas ${shape} (${mean[`${name}@${shape}`].toFixed(1)} > ${ceil}).`);
+      }
+      assert.ok(total <= 250, `ERROR: la suma de regiones no coloreables subió a ${total.toFixed(0)} (referencia 197, techo 250).`);
+      console.log(`✓ ${pairs} combinaciones relleno × celda bajo su techo; suma ${total.toFixed(0)} regiones no coloreables (techo 250).`);
     }
 
     console.log("\n==============================================");

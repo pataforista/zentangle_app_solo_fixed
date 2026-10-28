@@ -3,7 +3,9 @@ export class PathBuilder {
   constructor(options = {}) {
     this._chunks = [];
     this.sketchy = options.sketchy || 0; // 0..1 (0=clean, 1=very rough)
-    this.rng = options.rng || Math.random;
+    // Sin rng inyectado no hay semilla: fallar aquí evita diseños irreproducibles.
+    if (typeof options.rng !== "function") throw new Error("PathBuilder requiere options.rng (PRNG sembrado)");
+    this.rng = options.rng;
     this._currX = 0;
     this._currY = 0;
   }

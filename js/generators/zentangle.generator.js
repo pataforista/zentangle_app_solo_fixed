@@ -5,7 +5,7 @@ import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
 import { fillDeadSpace } from "./deadSpace.js";
 import { generateZenFigure, figureForPage } from "./figure.js";
-import { RANDOM_STYLE_KEY, BESTSELLER_KEY, isRandomKey, resolveRandomStyle, resolveBestSeller } from "./randomStyle.js";
+import { isRandomKey, resolveBookStyle } from "./randomStyle.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   if (!areaMm || typeof areaMm !== "object") {
@@ -40,11 +40,7 @@ export async function generateZentangle(doc, {
   const area = normalizeAreaMm(areaMm);
   let randomOverrides = {};
   if (isRandomKey(presetName)) {
-    // En modo imagen (cellsOnly) "Más vendidos" cae al aleatorio para colorear:
-    // la mitad de sus estilos no son de celdas.
-    const r = presetName === BESTSELLER_KEY && !cellsOnly
-      ? resolveBestSeller(seed, { pageIndex, bookSeed })
-      : resolveRandomStyle(seed, { cellsOnly, coloringOnly: presetName !== RANDOM_STYLE_KEY });
+    const r = resolveBookStyle(presetName, seed, { pageIndex, bookSeed, cellsOnly });
     presetName = r.presetName;
     randomOverrides = r.overrides;
   }

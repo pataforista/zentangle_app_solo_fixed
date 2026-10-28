@@ -33,7 +33,16 @@ npm install
 npm test             # pruebas de generadores, libro y propiedad intelectual (Node)
 npm run e2e          # libro completo en Chromium: revisión, PDF y ficha KDP
 npm run colorability # regiones no coloreables por estilo
+npm run golden       # huellas de salida por (estilo, semilla); -- --update tras un cambio intencionado
 ```
+
+`npm test` ejecuta las pruebas (incluida la compuerta de colorabilidad por relleno) y las
+huellas golden. `npm run audit:patterns` muestra, por relleno y forma de celda, cuántas
+regiones blancas no se pueden colorear.
+
+`overrides.seedScheme: 1` conserva el reparto de semillas anterior a la semilla por celda
+(un flujo por página). No deshace las correcciones de geometría posteriores (Cadent,
+Scallops, rejillas a 0°/90°): para repetir un libro antiguo exacto hay que usar su commit.
 
 ## Estructura
 

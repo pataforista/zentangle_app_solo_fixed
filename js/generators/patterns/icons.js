@@ -193,7 +193,7 @@ function feather(rng, r, cfg) {
 /* ============ Relleno zentangle recortado ============ */
 // Contorno como path sin temblor (sirve de recorte exacto del relleno).
 const shapeD = (cmds, cx, cy, sx, sy = sx, rot = 0) => {
-  const c = new PathBuilder({ sketchy: 0 });
+  const c = new PathBuilder({ sketchy: 0, rng: () => 0.5 }); // sketchy 0: rng() - 0.5 = 0, sin temblor
   emit(c, cmds, cx, cy, sx, sy, rot);
   return c.d;
 };
@@ -288,7 +288,7 @@ function moonStars(rng, r, cfg) {
   const x = (d * d + 1 - r2 * r2) / (2 * d), y = Math.sqrt(1 - x * x);
   const [x1, y1] = T(x, -y), [x2, y2] = T(x, y);
   const trace = (b) => b.moveTo(x1, y1).arcTo(s, s, 0, 1, 0, x2, y2).arcTo(s * r2, s * r2, 0, x > d ? 1 : 0, 1, x1, y1).close();
-  const moon = trace(mk(rng, cfg)), clip = trace(new PathBuilder({ sketchy: 0 }));
+  const moon = trace(mk(rng, cfg)), clip = trace(new PathBuilder({ sketchy: 0, rng: () => 0.5 }));
   const kind = pickKinds(rng, 1, ["waves", "scallops"])[0];
   const layers = zen(kind, rng, { x0: cx - R, y0: cy - R, x1: cx + R, y1: cy + R }, cfg, gFor(cfg, s, 0.17), clip.d, rot + 1.1);
   const stars = mk(rng, cfg), ro = R * 0.17;
