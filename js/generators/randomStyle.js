@@ -199,3 +199,13 @@ export function resolveRandomStyle(seed, { cellsOnly = false, coloringOnly = fal
   if (group === "template" && chance(rng, 0.5)) overrides.templateName = pickOf(rng, Object.keys(LAYOUT_TEMPLATES));
   return { presetName, overrides, group };
 }
+
+// Punto único de entrada para "qué estilo toca en esta página": generateZentangle,
+// la app y las pruebas lo usan, así el sorteo vive en un solo sitio.
+//   mode: BESTSELLER_KEY | RANDOM_STYLE_KEY | RANDOM_COLOR_KEY
+//   En modo imagen (cellsOnly) "Más vendidos" cae al aleatorio para colorear:
+//   la mitad de sus estilos no son de celdas.
+export function resolveBookStyle(mode, seed, { pageIndex = null, bookSeed = null, cellsOnly = false } = {}) {
+  if (mode === BESTSELLER_KEY && !cellsOnly) return resolveBestSeller(seed, { pageIndex, bookSeed });
+  return resolveRandomStyle(seed, { cellsOnly, coloringOnly: mode !== RANDOM_STYLE_KEY });
+}
