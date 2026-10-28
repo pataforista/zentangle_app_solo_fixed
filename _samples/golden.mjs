@@ -39,7 +39,8 @@ for (const name of Object.keys(ZENTANGLE_PRESETS)) {
     const d = { body: [], defs: [] };
     await generateZentangle(d, { seed, presetName: name, areaMm: AREA });
     current.pages[`${name}@${seed}`] = hashDoc(d);
-    // Esquema de semillas 1 (un flujo compartido por página): reproduce los libros anteriores a la semilla por celda.
+    // Esquema de semillas 1 (un flujo compartido por página): fija que el interruptor siga funcionando.
+    // Reproduce el reparto de semillas anterior, no la geometría de versiones previas.
     const l = { body: [], defs: [] };
     await generateZentangle(l, { seed, presetName: name, areaMm: AREA, overrides: { seedScheme: 1 } });
     current.legacy[`${name}@${seed}`] = hashDoc(l);

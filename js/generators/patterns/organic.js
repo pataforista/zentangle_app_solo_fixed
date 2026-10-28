@@ -85,9 +85,15 @@ export function fillScallops(rng, r, cfg) {
     const b = new PathBuilder({ sketchy: cfg.sketchy, rng });
     const step = rFloat(rng, cfg.minGapMm * 1.8, cfg.minGapMm * 2.5);
     const rad = step * 0.6;
-    for (let y = r.y0 + rad; y < r.y1 + rad; y += rad) {
-        const row = Math.floor((y - r.y0) / rad);
-        const offset = row % 2 ? rad : 0;
+    // Filas con 1.5 radios de aire arriba y abajo: antes la primera fila quedaba a
+    // 0.5 radios del borde y la última se cortaba en cualquier fase, y en ambos
+    // casos la franja entre arcos y borde era más fina que la punta de un marcador.
+    const span = (r.y1 - r.y0) - 3 * rad;
+    const n = Math.max(1, Math.floor(span / rad) + 1);
+    const stepY = n > 1 ? span / (n - 1) : 0;
+    for (let k = 0; k < n; k++) {
+        const y = n > 1 ? r.y0 + 1.5 * rad + k * stepY : (r.y0 + r.y1) / 2;
+        const offset = k % 2 ? rad : 0;
         for (let x = r.x0 + offset; x < r.x1 + rad; x += rad * 2) {
             b.moveTo(x - rad, y).quadTo(x, y - rad, x + rad, y);
         }

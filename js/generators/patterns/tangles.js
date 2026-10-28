@@ -24,14 +24,19 @@ export function fillCadent(rng, r, cfg) {
   const X = (i) => r.x0 + i * dx;
   const Y = (j) => r.y0 + j * dy;
 
-  // Perlas
-  for (let i = 0; i <= cols; i++)
-    for (let j = 0; j <= rows; j++) b.circle(X(i), Y(j), rp);
+  // Perlas solo en los nodos interiores: una perla centrada sobre el borde de la
+  // celda quedaba partida por el recorte y dejaba medias lunas de menos de 1 mm
+  // entre ella y el borde (imposibles de colorear). Los conectores que llegan al
+  // borde parten de él, así las celdas del perímetro quedan cerradas como las demás.
+  for (let i = 1; i < cols; i++)
+    for (let j = 1; j < rows; j++) b.circle(X(i), Y(j), rp);
 
   // Conectores horizontales (curva en S entre perlas vecinas)
-  for (let j = 0; j <= rows; j++) {
+  for (let j = 1; j < rows; j++) {
     for (let i = 0; i < cols; i++) {
-      const x1 = X(i) + rp, x2 = X(i + 1) - rp, y = Y(j);
+      const x1 = i === 0 ? X(0) : X(i) + rp;
+      const x2 = i === cols - 1 ? X(cols) : X(i + 1) - rp;
+      const y = Y(j);
       const dir = ((i + j) % 2 === 0) ? 1 : -1;
       b.moveTo(x1, y)
        .cubicTo(x1 + (x2 - x1) * 0.35, y - bow * dir,
@@ -39,9 +44,11 @@ export function fillCadent(rng, r, cfg) {
     }
   }
   // Conectores verticales
-  for (let i = 0; i <= cols; i++) {
+  for (let i = 1; i < cols; i++) {
     for (let j = 0; j < rows; j++) {
-      const y1 = Y(j) + rp, y2 = Y(j + 1) - rp, x = X(i);
+      const y1 = j === 0 ? Y(0) : Y(j) + rp;
+      const y2 = j === rows - 1 ? Y(rows) : Y(j + 1) - rp;
+      const x = X(i);
       const dir = ((i + j) % 2 === 0) ? -1 : 1;
       b.moveTo(x, y1)
        .cubicTo(x - bow * dir, y1 + (y2 - y1) * 0.35,

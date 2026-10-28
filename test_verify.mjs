@@ -803,6 +803,35 @@ async function runTests() {
       console.log("✓ Esquema 2 por defecto: celdas con flujo propio (no reordenan la página); esquema 1 reproduce el flujo compartido.");
     }
 
+    console.log("\nPrueba 18: Compuerta de colorabilidad por relleno de celda...");
+    {
+      // Cada relleno del motor se dibuja dentro de cuatro formas de celda (cuadrada, banda, tira y
+      // triángulo) con los giros que usa el motor, y se cuentan las regiones blancas visibles que no
+      // caben una punta de marcador. Casi todas son astillas donde la rejilla del relleno corta el borde
+      // de la celda. Detalle por patrón: npm run audit:patterns.
+      const { CELL_PATTERNS, SHAPES, auditPattern, rotationsFor } = await import("./_samples/patternAudit.mjs");
+      const DEFAULT_CEIL = 5;
+      // Casos conocidos (media de regiones malas por celda) con su techo; lo demás debe quedar en DEFAULT_CEIL.
+      const KNOWN = { "fillPrintemps@tira": 20, "fillPrintemps@banda": 19, "fillTriangles@triangulo": 19, "fillFlow@banda": 15, "fillCrescentMoon@cuadrada": 10, "fillPrintemps@triangulo": 10, "fillCircles@cuadrada": 9 };
+      let total = 0, pairs = 0;
+      const mean = {};
+      for (const [name, fn] of CELL_PATTERNS) {
+        for (const shape of Object.keys(SHAPES)) {
+          const rs = rotationsFor(fn).map((rot) => auditPattern(fn, shape, 11, {}, rot));
+          const bad = rs.reduce((a, x) => a + x.bad, 0) / rs.length;
+          mean[`${name}@${shape}`] = bad;
+          total += bad; pairs++;
+          assert.ok(bad <= (KNOWN[`${name}@${shape}`] ?? DEFAULT_CEIL), `ERROR: ${name} en celda ${shape} deja ${bad.toFixed(1)} regiones no coloreables de media (techo ${KNOWN[`${name}@${shape}`] ?? DEFAULT_CEIL}). Mira npm run audit:patterns.`);
+        }
+      }
+      // Las correcciones de Cadent, Scallops y Triangles (astillas en el borde de la celda) no se pierden.
+      for (const shape of ["cuadrada", "banda", "tira"]) {
+        for (const [name, ceil] of [["fillCadent", 2], ["fillScallops", 3], ["fillTriangles", 1]]) assert.ok(mean[`${name}@${shape}`] <= ceil, `ERROR: ${name} vuelve a dejar astillas en celdas ${shape} (${mean[`${name}@${shape}`].toFixed(1)} > ${ceil}).`);
+      }
+      assert.ok(total <= 200, `ERROR: la suma de regiones no coloreables subió a ${total.toFixed(0)} (referencia 160, techo 200).`);
+      console.log(`✓ ${pairs} combinaciones relleno × celda bajo su techo; suma ${total.toFixed(0)} regiones no coloreables (techo 200).`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

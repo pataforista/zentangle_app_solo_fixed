@@ -28,6 +28,23 @@ const yieldToBrowser = () => {
   }
 };
 
+// Patrones del motor de celdas por "Familias" para reducir caos. A nivel de módulo
+// para que el auditor de colorabilidad (_samples/patternAudit.mjs) mida exactamente
+// los rellenos que el motor puede dibujar.
+export const CELL_PATTERN_FAMILIES = {
+  geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit, fillFlorz, fillCadent],
+  organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves, fillCrescentMoon, fillTipple, fillPrintemps],
+  // Sin fillStippling: los puntos no delimitan nada que colorear y en
+  // imprenta se leen como suciedad.
+  dense: [fillTipple, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
+  // Familia dedicada a tangles auténticos reconocibles (look Zentangle clásico)
+  tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
+};
+
+// Rellenos de rejilla (triángulos, perlas de Cadent): solo a 0° o 90° y sin temblor (ver el bucle de celdas).
+// fillCrosses queda fuera: a 0° sus X dejan más manchitas que a 45°.
+export const AXIS_ALIGNED = new Set([fillTriangles, fillCadent]);
+
 /**
  * Zentangle Cells — v5 (integrated)
  * - Soporta: rect_bsp (antes), hex, tri
@@ -220,16 +237,8 @@ export async function generateZentangleCells(doc, opts) {
       fill="white" filter="url(#${renderPrefix}paperTexture)" pointer-events="none" />`);
   }
 
-  // 4) Patrones disponibles por "Familias" para reducir caos
-  const families = {
-    geometric: [fillConcentricSquares, fillAuraSquares, fillCrosses, fillTriangles, fillAura, fillCircuit, fillFlorz, fillCadent],
-    organic: [fillStripesSmooth, fillCircles, fillCurvesSmooth, fillScallops, fillSpiralBands, fillFlow, fillAura, fillWaves, fillCrescentMoon, fillTipple, fillPrintemps],
-    // Sin fillStippling: los puntos no delimitan nada que colorear y en
-    // imprenta se leen como suciedad.
-    dense: [fillTipple, fillAuraSquares, fillConcentricSquares, fillParadox, fillHollibaugh, fillFlux, fillTriangles, fillCadent, fillFlorz],
-    // Familia dedicada a tangles auténticos reconocibles (look Zentangle clásico)
-    tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
-  };
+  // 4) Patrones disponibles por "Familias" para reducir caos (ver CELL_PATTERN_FAMILIES)
+  const families = CELL_PATTERN_FAMILIES;
 
   const familyKey = opts.patternFamily || pick(rng, ["geometric", "organic", "tangles"]);
 
@@ -497,8 +506,12 @@ export async function generateZentangleCells(doc, opts) {
       // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
       // Consumimos el rng siempre para no descuadrar la secuencia determinista.
       const jr = (crng() - 0.5) * 2 * rotationJitterDeg;
-      const jitter = rotatePatterns ? jr : 0;
-      const totalRot = rot + jitter;
+      // Las rejillas (triángulos, Cadent) no se giran 45° ni se tiemblan: cortan el borde de la
+      // celda con una fase cualquiera y dejan astillas de menos de 3 mm² (hasta 28
+      // por celda en el auditor, 0 sin giro). Quedan a 0° o 90°.
+      const aligned = AXIS_ALIGNED.has(fn);
+      const jitter = rotatePatterns && !aligned ? jr : 0;
+      const totalRot = aligned ? Math.floor(rot / 90) * 90 : rot + jitter;
 
       // El patrón se genera sobre el bbox que, tras aplicar la rotación, cubre
       // la celda completa (el clip recorta el sobrante). Sin esta expansión,
