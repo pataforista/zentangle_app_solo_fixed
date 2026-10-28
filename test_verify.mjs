@@ -704,6 +704,50 @@ async function runTests() {
       console.log("✓ PathBuilder exige rng; defaults de solids: muestrario = tinta, ornamentos = contorno.");
     }
 
+    console.log("\nPrueba 15: Contratos de salida de los patrones (string vs capas)...");
+    {
+      // Los rellenos del motor de celdas devuelven un string `d`; los motivos,
+      // iconos y tangles clásicos devuelven capas [{ d, fill }]. Los dos motores
+      // no se mezclan: figure.js adapta los primeros con legacy(). Si alguien
+      // pasa un patrón de capas a la paleta de celdas, el SVG saldría con
+      // d="[object Object]"; esta prueba lo caza en la frontera.
+      const cellModules = await Promise.all(["geometric", "organic", "complex", "dense", "tangles"].map((m) => import(`./js/generators/patterns/${m}.js`)));
+      const cellFns = cellModules.flatMap((mod) => Object.entries(mod).filter(([k, v]) => /^fill/.test(k) && typeof v === "function"));
+      assert.ok(cellFns.length >= 20, `ERROR: solo se encontraron ${cellFns.length} rellenos de celda.`);
+      const boxes = [{ x0: 0, y0: 0, x1: 42, y1: 42 }, { x0: 0, y0: 0, x1: 190, y1: 14 }, { x0: 0, y0: 0, x1: 18, y1: 80 }];
+      let checkedCell = 0;
+      for (const [name, fn] of cellFns) {
+        for (const box of boxes) {
+          const d = fn(createRNG(11), box, { minGapMm: 1.4, patternStrokeMm: 0.35, sketchy: 0.3, cellMm: 0 });
+          assert.ok(d === undefined || d === null || d === "" || typeof d === "string", `ERROR: ${name} devolvió ${Array.isArray(d) ? "un array" : typeof d} en vez de un string d.`);
+          if (d) assert.ok(!/NaN|Infinity|\[object/.test(d), `ERROR: ${name} produce un path inválido.`);
+          checkedCell++;
+        }
+      }
+      const { CLASSIC_TANGLES } = await import("./js/generators/patterns/classicTangles.js");
+      const { FIGURE_TANGLES } = await import("./js/generators/figure.js");
+      const layerFns = [
+        ...CLASSIC_TANGLES.map((t) => ({ id: "classic:" + t.id, fn: t.fn, cfg: { gap: 1.7, stroke: 0.4, sketchy: 0 } })),
+        ...FIGURE_TANGLES.map((t) => ({ id: "figura:" + t.id, fn: t.fn, cfg: { gap: 1.7, stroke: 0.4, sketchy: 0 } })),
+        ...MOTIFS.map((t) => ({ id: "motivo:" + t.id, fn: t.fn, cfg: { minGapMm: 1.8, patternStrokeMm: 0.5, sketchy: 0, solids: false, inside: () => true } })),
+        ...ICONS.map((t) => ({ id: "icono:" + t.id, fn: t.fn, cfg: { minGapMm: 1.8, patternStrokeMm: 0.5, sketchy: 0, solids: false, inside: () => true } })),
+      ];
+      let checkedLayers = 0;
+      for (const { id, fn, cfg } of layerFns) {
+        const out = fn(createRNG(11), { x0: 0, y0: 0, x1: 42, y1: 42 }, cfg);
+        assert.ok(Array.isArray(out), `ERROR: ${id} debe devolver un array de capas, devolvió ${typeof out}.`);
+        for (const layer of out) {
+          assert.ok(layer && typeof layer === "object" && typeof layer.d === "string", `ERROR: ${id} devolvió una capa sin d de tipo string.`);
+          assert.ok(["none", "#000", "#fff"].includes(layer.fill), `ERROR: ${id} devolvió una capa con fill inesperado «${layer.fill}».`);
+        }
+        checkedLayers++;
+      }
+      // El adaptador de figure.js convierte string → capas con relleno vacío (nunca negro).
+      const adapted = FIGURE_TANGLES.find((t) => t.id === "cadent").fn(createRNG(11), { x0: 0, y0: 0, x1: 60, y1: 60 }, { gap: 1.7, stroke: 0.4, sketchy: 0 });
+      assert.ok(Array.isArray(adapted) && adapted.length >= 1 && adapted.every((l) => l.fill === "none" && typeof l.d === "string"), "ERROR: el adaptador de figure.js no devolvió capas con fill none.");
+      console.log(`✓ ${checkedCell} salidas de ${cellFns.length} rellenos de celda son string; ${checkedLayers} motores de capas devuelven [{ d, fill }].`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");
