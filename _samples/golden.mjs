@@ -32,13 +32,17 @@ const hashDoc = (d) => sha(d.body.join("") + "|" + d.defs.join(""));
 let Resvg = null;
 try { ({ Resvg } = createRequire(import.meta.url)("@resvg/resvg-js")); } catch { /* sin resvg se omiten las huellas con relleno */ }
 
-const current = { pages: {}, raster: {}, books: {} };
+const current = { pages: {}, legacy: {}, raster: {}, books: {} };
 
 for (const name of Object.keys(ZENTANGLE_PRESETS)) {
   for (const seed of SEEDS) {
     const d = { body: [], defs: [] };
     await generateZentangle(d, { seed, presetName: name, areaMm: AREA });
     current.pages[`${name}@${seed}`] = hashDoc(d);
+    // Esquema de semillas 1 (un flujo compartido por página): reproduce los libros anteriores a la semilla por celda.
+    const l = { body: [], defs: [] };
+    await generateZentangle(l, { seed, presetName: name, areaMm: AREA, overrides: { seedScheme: 1 } });
+    current.legacy[`${name}@${seed}`] = hashDoc(l);
   }
 }
 
@@ -65,13 +69,13 @@ for (const mode of BOOK_MODES) {
 
 if (UPDATE || !existsSync(FILE)) {
   writeFileSync(FILE, JSON.stringify(current, null, 1) + "\n");
-  console.log(`✓ Huellas golden escritas: ${Object.keys(current.pages).length} páginas, ${Object.keys(current.raster).length} con relleno, ${Object.keys(current.books).length} libros.`);
+  console.log(`✓ Huellas golden escritas: ${Object.keys(current.pages).length} páginas, ${Object.keys(current.legacy).length} con esquema 1, ${Object.keys(current.raster).length} con relleno, ${Object.keys(current.books).length} libros.`);
   process.exit(0);
 }
 
 const saved = JSON.parse(readFileSync(FILE, "utf8"));
 const diffs = [];
-for (const group of ["pages", "raster", "books"]) {
+for (const group of ["pages", "legacy", "raster", "books"]) {
   for (const [k, v] of Object.entries(current[group])) {
     if (saved[group]?.[k] === undefined) diffs.push(`${group}: ${k} no tiene huella guardada`);
     else if (saved[group][k] !== v) diffs.push(`${group}: ${k} cambió (${saved[group][k]} → ${v})`);
@@ -85,4 +89,4 @@ if (diffs.length) {
   console.error("Si el cambio es intencionado: npm run golden -- --update");
   process.exit(1);
 }
-console.log(`✓ Golden: ${Object.keys(current.pages).length} páginas, ${Object.keys(current.raster).length} con relleno, ${Object.keys(current.books).length} secuencias de libro idénticas.`);
+console.log(`✓ Golden: ${Object.keys(current.pages).length} páginas, ${Object.keys(current.legacy).length} con esquema 1, ${Object.keys(current.raster).length} con relleno, ${Object.keys(current.books).length} secuencias de libro idénticas.`);

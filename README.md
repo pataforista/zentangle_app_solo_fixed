@@ -33,7 +33,11 @@ npm install
 npm test             # pruebas de generadores, libro y propiedad intelectual (Node)
 npm run e2e          # libro completo en Chromium: revisión, PDF y ficha KDP
 npm run colorability # regiones no coloreables por estilo
+npm run golden       # huellas de salida por (estilo, semilla); -- --update tras un cambio intencionado
 ```
+
+`npm test` ejecuta las pruebas y las huellas golden. Los libros hechos antes de la
+semilla por celda se reproducen con `overrides.seedScheme: 1` (ver `_samples/golden.mjs`).
 
 ## Estructura
 

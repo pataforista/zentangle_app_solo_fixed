@@ -110,7 +110,9 @@ async function runTests() {
       cellCount: 10,
       minCellSizeMm: 15,
       patternFamily: "tangles",
-      innerOrganicBorderEnabled: true
+      innerOrganicBorderEnabled: true,
+      // Sin saltos al azar: así el conteo describe la estructura y no depende del flujo de cada celda.
+      patternSkipProb: 0
     };
 
     await generateZentangleCells(docReg, optsReg);
@@ -118,7 +120,7 @@ async function runTests() {
     // Contamos elementos basándonos en la estructura esperada:
     // - 1 path para el borde exterior (drawOuterBorder)
     // - 10 paths para los bordes de las celdas
-    // - 10 grupos para los patrones de las celdas (con seed 777 ninguna celda se salta)
+    // - 10 grupos para los patrones de las celdas (patternSkipProb: 0, ninguna celda se salta)
     // - 10 clipPaths en los defs
     const pathCount = docReg.body.filter(s => s.startsWith("<path")).length;
     const groupCount = docReg.body.filter(s => s.startsWith("<g")).length;
@@ -779,6 +781,26 @@ async function runTests() {
       // Sin pageIndex (galería, «Otro diseño», un ↻) se sortea con la semilla de la página, como antes.
       assert.deepStrictEqual(resolveBookStyle(RANDOM_COLOR_KEY, 4242), resolveRandomStyle(4242, { coloringOnly: true }), "ERROR: sin pageIndex el modo aleatorio ya no sortea con la semilla.");
       console.log(`✓ ${pages} páginas en 20 libros: sin estilo ni layout repetido en vecinas, sin 3 hexagonales seguidas, figuras sin repetir y secuencia estable.`);
+    }
+
+    console.log("\nPrueba 17: Semilla por celda (esquema 2) frente al flujo compartido (esquema 1)...");
+    {
+      const area17 = { x: 10, y: 10, w: 190, h: 260 };
+      const run = async (scheme, family) => {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 21, presetName: "editorial_airy", areaMm: area17, overrides: { flowLinesEnabled: true, patternFamily: family, ...(scheme ? { seedScheme: scheme } : {}) } });
+        const body = d.body.join("");
+        return { body, flow: (body.match(/<path d="[^"]+"[^>]*stroke-dasharray="3,3"[^>]*\/>/g) || []).join("|") };
+      };
+      // Las líneas de flujo se dibujan tras las celdas con el rng de la página. Con el esquema 2 las
+      // celdas no lo consumen, así que no dependen de qué tangles se dibujaron; con el 1 sí.
+      const [g2, o2, g1, o1, def] = [await run(2, "geometric"), await run(2, "organic"), await run(1, "geometric"), await run(1, "organic"), await run(0, "geometric")];
+      assert.ok(g2.flow && g1.flow, "ERROR: no se dibujaron las líneas de flujo de la prueba.");
+      assert.strictEqual(g2.flow, o2.flow, "ERROR: con el esquema 2 las celdas siguen consumiendo el rng de la página.");
+      assert.notStrictEqual(g1.flow, o1.flow, "ERROR: el esquema 1 ya no comparte el flujo de la página (los libros antiguos no se reproducirían).");
+      assert.notStrictEqual(g2.body, g1.body, "ERROR: los esquemas 1 y 2 producen la misma página.");
+      assert.strictEqual(def.body, g2.body, "ERROR: el esquema por defecto ya no es el 2.");
+      console.log("✓ Esquema 2 por defecto: celdas con flujo propio (no reordenan la página); esquema 1 reproduce el flujo compartido.");
     }
 
     console.log("\n==============================================");
