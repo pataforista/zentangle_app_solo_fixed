@@ -200,12 +200,70 @@ export function resolveRandomStyle(seed, { cellsOnly = false, coloringOnly = fal
   return { presetName, overrides, group };
 }
 
+// Libros en modo aleatorio: secuencia determinista desde la semilla del libro.
+// Cada página sortea su estilo con semillas propias (hash del libro, página e
+// intento) y se queda con el primero que no choca con sus vecinas; así no hay
+// dos estilos iguales seguidos ni dos muestrarios pegados, y la secuencia
+// depende solo de la semilla del libro: ↻ y la regeneración de una página sin
+// SVG guardado (que solo conocen semilla e índice) obtienen el mismo estilo.
+const BOOK_RETRIES = 16;
+const layoutKeyOf = (name) => ZENTANGLE_PRESETS[name].cellLayout; // todos los muestrarios cuentan como "sampler"
+const isHexish = (c) => { const p = ZENTANGLE_PRESETS[c.presetName]; return p.cellLayout === "hex" || (c.overrides.samplerLayout || p.samplerLayout) === "hex"; };
+
+// Coste de poner `c` tras `hist`: 0 = sin choques con las vecinas.
+function neighborPenalty(c, hist) {
+  const prev = hist[hist.length - 1], prev2 = hist[hist.length - 2];
+  const layout = layoutKeyOf(c.presetName);
+  let s = 0;
+  if (prev) {
+    if (c.presetName === prev.presetName) s += 100;
+    if (layout === layoutKeyOf(prev.presetName)) s += 40;
+  }
+  if (prev2 && layout === layoutKeyOf(prev2.presetName)) s += 3;
+  for (const h of hist.slice(-6, -1)) if (h.presetName === c.presetName) s += 10;
+  if (isHexish(c)) for (const h of hist.slice(-2)) if (isHexish(h)) s += 6;
+  return s;
+}
+
+const bookSeqCache = new Map(); // `${modo}|${libro}|${cellsOnly}` -> { seq, figures }
+export function randomBookSequence(mode, bookSeed, n, { cellsOnly = false } = {}) {
+  const key = `${mode}|${bookSeed >>> 0}|${cellsOnly ? 1 : 0}`;
+  let st = bookSeqCache.get(key);
+  if (!st) {
+    st = { seq: [], figures: 0 };
+    bookSeqCache.set(key, st);
+    if (bookSeqCache.size > 8) bookSeqCache.delete(bookSeqCache.keys().next().value);
+  }
+  const coloringOnly = mode !== RANDOM_STYLE_KEY;
+  while (st.seq.length < n) {
+    const i = st.seq.length;
+    let best = null;
+    for (let a = 0; a < BOOK_RETRIES; a++) {
+      const cand = resolveRandomStyle(hash(bookSeed >>> 0, 0xd3c0 + i * 64 + a), { cellsOnly, coloringOnly });
+      const score = neighborPenalty(cand, st.seq);
+      if (!best || score < best.score) best = { cand, score };
+      if (score === 0) break;
+    }
+    const entry = { ...best.cand, overrides: { ...best.cand.overrides } };
+    // Las figuras recorren su lista sin repetir (ver figureForPage): cuenta las de este libro.
+    if (ZENTANGLE_PRESETS[entry.presetName].cellLayout === "zen_figure") entry.overrides.figurePage = st.figures++;
+    st.seq.push(entry);
+  }
+  return st.seq.slice(0, n);
+}
+
 // Punto único de entrada para "qué estilo toca en esta página": generateZentangle,
 // la app y las pruebas lo usan, así el sorteo vive en un solo sitio.
 //   mode: BESTSELLER_KEY | RANDOM_STYLE_KEY | RANDOM_COLOR_KEY
+//   Con pageIndex, los modos aleatorios siguen la secuencia del libro; sin él
+//   (galería, «Otro diseño», un ↻) sortean con la semilla de la página.
 //   En modo imagen (cellsOnly) "Más vendidos" cae al aleatorio para colorear:
 //   la mitad de sus estilos no son de celdas.
 export function resolveBookStyle(mode, seed, { pageIndex = null, bookSeed = null, cellsOnly = false } = {}) {
   if (mode === BESTSELLER_KEY && !cellsOnly) return resolveBestSeller(seed, { pageIndex, bookSeed });
+  if ((mode === RANDOM_STYLE_KEY || mode === RANDOM_COLOR_KEY) && Number.isInteger(pageIndex) && pageIndex >= 0) {
+    const e = randomBookSequence(mode, bookSeed ?? seed, pageIndex + 1, { cellsOnly })[pageIndex];
+    return { ...e, overrides: { ...e.overrides } };
+  }
   return resolveRandomStyle(seed, { cellsOnly, coloringOnly: mode !== RANDOM_STYLE_KEY });
 }

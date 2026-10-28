@@ -748,6 +748,39 @@ async function runTests() {
       console.log(`✓ ${checkedCell} salidas de ${cellFns.length} rellenos de celda son string; ${checkedLayers} motores de capas devuelven [{ d, fill }].`);
     }
 
+    console.log("\nPrueba 16: Secuencia de estilos de un libro aleatorio (sin vecinas repetidas)...");
+    {
+      const { randomBookSequence, resolveBookStyle } = await import("./js/generators/randomStyle.js");
+      const { figureForPage } = await import("./js/generators/figure.js");
+      const books = [1, 2, 7, 99, 2025, 123456789, 1147527462, 77777, 424242, 31337];
+      let pages = 0;
+      for (const mode of [RANDOM_STYLE_KEY, RANDOM_COLOR_KEY]) {
+        for (const base of books) {
+          const seq = randomBookSequence(mode, base, 60);
+          const layoutOf = (e) => ZENTANGLE_PRESETS[e.presetName].cellLayout;
+          const hexish = (e) => layoutOf(e) === "hex" || (e.overrides.samplerLayout || ZENTANGLE_PRESETS[e.presetName].samplerLayout) === "hex";
+          for (let i = 1; i < seq.length; i++) {
+            assert.notStrictEqual(seq[i].presetName, seq[i - 1].presetName, `ERROR: ${mode}@${base}: el estilo ${seq[i].presetName} se repite en las páginas ${i} y ${i + 1}.`);
+            assert.notStrictEqual(layoutOf(seq[i]), layoutOf(seq[i - 1]), `ERROR: ${mode}@${base}: dos páginas seguidas con el layout ${layoutOf(seq[i])} (${i} y ${i + 1}).`);
+            if (i >= 2) assert.ok(!(hexish(seq[i]) && hexish(seq[i - 1]) && hexish(seq[i - 2])), `ERROR: ${mode}@${base}: tres páginas hexagonales seguidas en ${i - 1}-${i + 1}.`);
+          }
+          // Las figuras de un libro recorren su lista sin repetir hasta agotarla.
+          const figs = seq.filter((e) => layoutOf(e) === "zen_figure").map((e) => figureForPage(base, e.overrides.figurePage));
+          assert.strictEqual(new Set(figs.slice(0, 8)).size, Math.min(8, figs.length), `ERROR: ${mode}@${base}: una figura se repite antes de agotar las ocho.`);
+          // random_color nunca produce rellenos negros.
+          if (mode === RANDOM_COLOR_KEY) assert.ok(seq.every((e) => isColoringSafe({ ...ZENTANGLE_PRESETS[e.presetName], ...e.overrides })), `ERROR: random_color@${base} incluyó un estilo con tinta.`);
+          // La secuencia depende solo de la semilla del libro: un libro corto es el prefijo de uno largo,
+          // y resolveBookStyle devuelve la misma entrada pida la página que la pida.
+          assert.deepStrictEqual(randomBookSequence(mode, base, 20), seq.slice(0, 20), `ERROR: ${mode}@${base}: la secuencia no es un prefijo estable.`);
+          for (const i of [0, 17, 59]) assert.deepStrictEqual(resolveBookStyle(mode, 12345, { pageIndex: i, bookSeed: base }), seq[i], `ERROR: ${mode}@${base}: resolveBookStyle(${i}) no coincide con la secuencia.`);
+          pages += seq.length;
+        }
+      }
+      // Sin pageIndex (galería, «Otro diseño», un ↻) se sortea con la semilla de la página, como antes.
+      assert.deepStrictEqual(resolveBookStyle(RANDOM_COLOR_KEY, 4242), resolveRandomStyle(4242, { coloringOnly: true }), "ERROR: sin pageIndex el modo aleatorio ya no sortea con la semilla.");
+      console.log(`✓ ${pages} páginas en 20 libros: sin estilo ni layout repetido en vecinas, sin 3 hexagonales seguidas, figuras sin repetir y secuencia estable.`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");
