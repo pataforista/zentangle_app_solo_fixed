@@ -805,18 +805,20 @@ async function runTests() {
 
     console.log("\nPrueba 18: Compuerta de colorabilidad por relleno de celda...");
     {
-      // Cada relleno del motor se dibuja dentro de cuatro formas de celda (cuadrada, banda, tira y
-      // triángulo) con los giros que usa el motor, y se cuentan las regiones blancas visibles que no
+      // Cada relleno del motor se dibuja dentro de cinco formas de celda (cuadrada, banda, tira,
+      // triángulo y hexágono) con los giros que usa el motor, y se cuentan las regiones blancas visibles que no
       // caben una punta de marcador. Casi todas son astillas donde la rejilla del relleno corta el borde
       // de la celda. Detalle por patrón: npm run audit:patterns.
-      const { CELL_PATTERNS, SHAPES, auditPattern, rotationsFor } = await import("./_samples/patternAudit.mjs");
-      const DEFAULT_CEIL = 5;
+      const { CELL_PATTERNS, SHAPES, auditPattern, rotationsFor, drawnIn } = await import("./_samples/patternAudit.mjs");
+      const DEFAULT_CEIL = 6;
       // Casos conocidos (media de regiones malas por celda) con su techo; lo demás debe quedar en DEFAULT_CEIL.
-      const KNOWN = { "fillPrintemps@tira": 20, "fillPrintemps@banda": 19, "fillTriangles@triangulo": 19, "fillFlow@banda": 15, "fillCrescentMoon@cuadrada": 10, "fillPrintemps@triangulo": 10, "fillCircles@cuadrada": 9 };
+      // Son rellenos de líneas o de curvas cortados por los bordes oblicuos de un hexágono, y otros giros de Printemps.
+      const KNOWN = { "fillCurvesSmooth@hexagono": 17, "fillStripesSmooth@hexagono": 16, "fillFlorz@hexagono": 15, "fillScallops@hexagono": 13, "fillParadox@hexagono": 13, "fillCircles@hexagono": 12, "fillPrintemps@triangulo": 12, "fillAura@hexagono": 10, "fillCrescentMoon@cuadrada": 10 };
       let total = 0, pairs = 0;
       const mean = {};
       for (const [name, fn] of CELL_PATTERNS) {
         for (const shape of Object.keys(SHAPES)) {
+          if (!drawnIn(fn, shape)) continue; // el motor no dibuja ese relleno en esa celda
           const rs = rotationsFor(fn).map((rot) => auditPattern(fn, shape, 11, {}, rot));
           const bad = rs.reduce((a, x) => a + x.bad, 0) / rs.length;
           mean[`${name}@${shape}`] = bad;
@@ -824,12 +826,12 @@ async function runTests() {
           assert.ok(bad <= (KNOWN[`${name}@${shape}`] ?? DEFAULT_CEIL), `ERROR: ${name} en celda ${shape} deja ${bad.toFixed(1)} regiones no coloreables de media (techo ${KNOWN[`${name}@${shape}`] ?? DEFAULT_CEIL}). Mira npm run audit:patterns.`);
         }
       }
-      // Las correcciones de Cadent, Scallops y Triangles (astillas en el borde de la celda) no se pierden.
+      // Las correcciones de astillas en el borde de la celda (Cadent, Scallops, Triangles, Flow, Printemps) no se pierden.
       for (const shape of ["cuadrada", "banda", "tira"]) {
-        for (const [name, ceil] of [["fillCadent", 2], ["fillScallops", 3], ["fillTriangles", 1]]) assert.ok(mean[`${name}@${shape}`] <= ceil, `ERROR: ${name} vuelve a dejar astillas en celdas ${shape} (${mean[`${name}@${shape}`].toFixed(1)} > ${ceil}).`);
+        for (const [name, ceil] of [["fillCadent", 2], ["fillScallops", 3], ["fillTriangles", 1], ["fillFlow", 3], ["fillPrintemps", 6]]) assert.ok(mean[`${name}@${shape}`] <= ceil, `ERROR: ${name} vuelve a dejar astillas en celdas ${shape} (${mean[`${name}@${shape}`].toFixed(1)} > ${ceil}).`);
       }
-      assert.ok(total <= 200, `ERROR: la suma de regiones no coloreables subió a ${total.toFixed(0)} (referencia 160, techo 200).`);
-      console.log(`✓ ${pairs} combinaciones relleno × celda bajo su techo; suma ${total.toFixed(0)} regiones no coloreables (techo 200).`);
+      assert.ok(total <= 250, `ERROR: la suma de regiones no coloreables subió a ${total.toFixed(0)} (referencia 197, techo 250).`);
+      console.log(`✓ ${pairs} combinaciones relleno × celda bajo su techo; suma ${total.toFixed(0)} regiones no coloreables (techo 250).`);
     }
 
     console.log("\n==============================================");

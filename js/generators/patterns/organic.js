@@ -155,7 +155,8 @@ export function fillFlow(rng, r, cfg) {
         b.cubicTo(cp1x, cp1y, cp2x, cp2y, destX, r.y1);
 
         if (rng() < 0.4) {
-            const gap = cfg.minGapMm * 0.7;
+            // Hebra gemela a 1.3 huecos: a 0.7 la franja entre las dos hebras (~1 mm) no admitía un marcador.
+            const gap = cfg.minGapMm * 1.3;
             b.moveTo(xBase + gap, r.y0);
             b.cubicTo(cp1x + gap, cp1y, cp2x + gap, cp2y, destX + gap, r.y1);
         }

@@ -41,9 +41,12 @@ export const CELL_PATTERN_FAMILIES = {
   tangles: [fillCadent, fillFlorz, fillTipple, fillPrintemps, fillCrescentMoon, fillCircles, fillScallops, fillAura]
 };
 
-// Rellenos de rejilla (triángulos, perlas de Cadent): solo a 0° o 90° y sin temblor (ver el bucle de celdas).
+// Rellenos de rejilla (triángulos, perlas de Cadent, rollos de Printemps): solo a 0° o 90° y sin temblor (ver el bucle de celdas).
 // fillCrosses queda fuera: a 0° sus X dejan más manchitas que a 45°.
-export const AXIS_ALIGNED = new Set([fillTriangles, fillCadent]);
+export const AXIS_ALIGNED = new Set([fillTriangles, fillCadent, fillPrintemps]);
+// Rejillas que solo cierran bien contra bordes rectos: en una celda poligonal (hex, triángulo, voronoi,
+// strings) el borde oblicuo las corta con fase arbitraria (56 astillas en un hexágono de 12 mm con Cadent).
+export const RECT_ONLY = new Set([fillTriangles, fillCadent]);
 
 /**
  * Zentangle Cells — v5 (integrated)
@@ -465,6 +468,11 @@ export async function generateZentangleCells(doc, opts) {
         const spread = available.filter((p) => p !== fillFlux);
         if (spread.length) available = spread;
       }
+      // En celdas poligonales se evitan las rejillas que solo cierran contra bordes rectos.
+      if (cellPoly) {
+        const polyOk = available.filter((p) => !RECT_ONLY.has(p));
+        if (polyOk.length) available = polyOk;
+      }
       if (minDim < 13 && !(isShowcaseCell && L === 0)) {
         const smallSafe = [fillStripesSmooth, fillCrosses, fillConcentricSquares, fillParadox, fillTipple, fillWaves];
         const smallAvail = smallSafe.filter(p => !last3Fns.includes(p));
@@ -506,7 +514,7 @@ export async function generateZentangleCells(doc, opts) {
       // Jitter de rotación perceptible para un look "hecho a mano" (solo al rotar).
       // Consumimos el rng siempre para no descuadrar la secuencia determinista.
       const jr = (crng() - 0.5) * 2 * rotationJitterDeg;
-      // Las rejillas (triángulos, Cadent) no se giran 45° ni se tiemblan: cortan el borde de la
+      // Las rejillas (triángulos, Cadent, Printemps) no se giran 45° ni se tiemblan: cortan el borde de la
       // celda con una fase cualquiera y dejan astillas de menos de 3 mm² (hasta 28
       // por celda en el auditor, 0 sin giro). Quedan a 0° o 90°.
       const aligned = AXIS_ALIGNED.has(fn);

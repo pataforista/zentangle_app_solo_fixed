@@ -12,10 +12,13 @@ import { whiteRegions } from "./regions.mjs";
 const { Resvg } = createRequire(import.meta.url)("@resvg/resvg-js");
 const PX = 8;
 
-import { CELL_PATTERN_FAMILIES, AXIS_ALIGNED } from "../js/generators/zentangleCells.js";
+import { CELL_PATTERN_FAMILIES, AXIS_ALIGNED, RECT_ONLY } from "../js/generators/zentangleCells.js";
 
 // Exactamente los rellenos que el motor de celdas puede dibujar.
 export const CELL_PATTERNS = [...new Set(Object.values(CELL_PATTERN_FAMILIES).flat())].map((fn) => [fn.name, fn]);
+
+// El motor no dibuja los rellenos RECT_ONLY en celdas poligonales: el auditor tampoco.
+export const drawnIn = (fn, shape) => !(RECT_ONLY.has(fn) && (shape === "triangulo" || shape === "hexagono"));
 
 // Giros con los que el motor dibuja cada relleno: 0/45/90/135 más el temblor de
 // +2° (rotationJitterDeg es ±2.5); las rejillas alineadas solo a 0° y 90°, sin temblor.
@@ -27,6 +30,8 @@ export const SHAPES = {
   banda: { w: 120, h: 16, clip: (w, h) => `M0 0H${w}V${h}H0Z` },
   tira: { w: 16, h: 60, clip: (w, h) => `M0 0H${w}V${h}H0Z` },
   triangulo: { w: 44, h: 38, clip: (w, h) => `M0 ${h}L${w / 2} 0L${w} ${h}Z` },
+  // Hexágono de radio 12 mm (celda de hex_editorial y kdp_geometric_art).
+  hexagono: { w: 20.78, h: 24, clip: (w, h) => `M${w / 2} 0L${w} ${h / 4}L${w} ${(3 * h) / 4}L${w / 2} ${h}L0 ${(3 * h) / 4}L0 ${h / 4}Z` },
 };
 
 // rot: giro del patrón en grados, como en zentangleCells (0, 45, 90, 135): se genera sobre
@@ -57,11 +62,12 @@ if (process.argv[1] && process.argv[1].endsWith("patternAudit.mjs")) {
   for (const [name, fn] of CELL_PATTERNS) {
     if (only && !only.includes(name)) continue;
     const cols = Object.keys(SHAPES).map((shape) => {
+      if (!drawnIn(fn, shape)) return { bad: 0, micro: 0, empty: true, skipped: true };
       const r = seeds.flatMap((s) => (forced || rotationsFor(fn)).map((rot) => auditPattern(fn, shape, s, {}, rot)));
       const m = (k) => r.reduce((a, x) => a + x[k], 0) / r.length;
       return { bad: m("bad"), micro: m("micro"), empty: r.every((x) => x.empty) };
     });
     rows.push({ name, cols });
-    console.log(name.padEnd(22) + cols.map((c) => (c.empty ? "(vacío)" : `${c.bad.toFixed(0)} / ${c.micro.toFixed(0)}`).padStart(18)).join(""));
+    console.log(name.padEnd(22) + cols.map((c) => (c.skipped ? "(no se usa)" : c.empty ? "(vacío)" : `${c.bad.toFixed(0)} / ${c.micro.toFixed(0)}`).padStart(18)).join(""));
   }
 }
