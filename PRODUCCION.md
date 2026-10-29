@@ -35,19 +35,25 @@ El resumen verde dice cuántas páginas saldrán. Si aparece ⚠, corrígelo ant
 de seguir: páginas de menos, margen interior insuficiente o más de 828
 páginas.
 
-### 4. Prepara y revisa página por página
+### 4. Prepara el libro y deja que la app lo revise
 
-1. Pulsa **📖 Preparar libro (revisar páginas)**.
-2. Haz clic en cada miniatura para ampliarla. Pulsa **↻ Cambiar** en las que
-   no te convenzan; el reemplazo es inmediato y reproducible.
-3. Mira en especial:
-   - zonas tan pequeñas que no cabe la punta de un rotulador (~1.2 mm);
-   - líneas que se tocan formando manchas negras;
-   - dos páginas seguidas que se parecen demasiado;
+1. Pulsa **📖 Preparar libro (revisar páginas)**. Cada página pasa un
+   **control de calidad**: la app cuenta las zonas donde no cabe la punta de
+   un rotulador (~1.2 mm) y mide la tinta. La miniatura lleva **✓** o
+   **⚠ revisar**, y la cabecera dice cuántas quedaron marcadas.
+2. Si hay marcadas, pulsa **🛠 Arreglar las marcadas**: cada una se regenera
+   hasta 3 veces y la app se queda con el mejor intento. Mantiene el estilo
+   y la figura de la página.
+3. Toca una página para abrirla en el **visor**: la ves como vector, nítida a
+   **tamaño real** o al **200 %**, con las zonas difíciles **en rojo**. Pasa
+   de página con ← → y cambia la que no te guste con **↻ Cambiar**.
+4. Mira además, a ojo:
+   - dos páginas seguidas que se parezcan demasiado;
    - en dobles páginas, que nada importante caiga en el lomo.
 
-> Las miniaturas no tienen resolución suficiente para ver astillas finas.
-> La revisión definitiva se hace en el PDF (paso 6).
+> Unas pocas esquinas rojas en una figura son normales (donde los cortes
+> internos tocan el contorno). Lo que conviene cambiar son las páginas con
+> muchas zonas rojas juntas.
 
 ### 5. Guarda la receta y descarga
 
@@ -57,9 +63,10 @@ páginas.
 - **⬇ Descargar PDF**: arma el interior con exactamente las páginas
   aprobadas.
 
-### 6. Revisa el PDF a 200 %
+### 6. Hojea el PDF
 
-Ábrelo en un visor de PDF y recórrelo entero:
+La calidad de cada dibujo ya la revisaste en el visor. En el PDF comprueba
+el armado:
 
 - el número de páginas coincide con el que anunciaba el botón;
 - los diseños quedan en página derecha y su reverso en blanco (si elegiste
@@ -87,9 +94,10 @@ páginas.
 ## Lista de control antes de subir
 
 - [ ] Resumen del libro sin ⚠ y con «✓ Cumple los límites de KDP».
-- [ ] Todas las páginas revisadas; las dudosas cambiadas con ↻.
+- [ ] Control de calidad sin páginas marcadas (o las que quedan, vistas en el
+      visor y aceptadas).
 - [ ] Receta JSON guardada junto al PDF.
-- [ ] PDF revisado a 200 %: sin guías, grises ni pies cortados.
+- [ ] PDF hojeado: sin guías, grises ni pies cortados.
 - [ ] Nº de páginas del PDF = nº anunciado en el botón.
 - [ ] Ficha sin «Zentangle», «Zendala» ni «Zendoodle» en título, subtítulo,
       portada o palabras clave.
@@ -108,8 +116,10 @@ páginas.
 | Margen insuficiente | Aviso en el resumen según el nº de páginas. |
 | Guías, textura o sombreado impresos | Se quitan del libro y de las descargas de página. |
 | Pie de nivel fuera de la zona segura | Nunca a menos de 7.6 mm del borde. |
-| Regiones imposibles de colorear | Compuerta de colorabilidad en las pruebas (`npm test`) por relleno y celda. |
+| Regiones imposibles de colorear | Control de calidad en cada página del libro, «🛠 Arreglar» y visor con zonas en rojo; además, compuerta por relleno y celda en `npm test`. |
+| Páginas casi negras | El control marca las páginas con más del 25 % de tinta. |
 | Estilos repetidos | Secuencia sin vecinas repetidas; las figuras no se repiten hasta agotarlas. |
+| Figuras que se parecen | Cada página de figura usa su propia paleta de 8 tangles (en 3 páginas salen los 15), y cuando una figura vuelve a salir va en espejo. |
 | Marcas registradas | Ficha y páginas con la marca solo como atribución. |
 | Libro irreproducible | Semillas deterministas + receta JSON. |
 
@@ -121,8 +131,8 @@ Ordenados por el daño que pueden causar en un libro publicado.
 
 | Prioridad | Hueco | Efecto | Qué hacer mientras tanto |
 |---|---|---|---|
-| Alta | No hay control de calidad automático por página dentro de la app. La colorabilidad solo se mide en los scripts de desarrollo (`npm run colorability`). | Una página con muchas astillas puede pasar la revisión visual. | Revisar el PDF a 200 %; usar estilos con compuerta («Más vendidos», figura). |
-| Alta | Las miniaturas de la revisión rondan los 75 ppp. | No se ven defectos finos al aprobar páginas. | Revisión final en el PDF. |
+| Media | Solo hay 8 figuras y 14 iconos. En un libro de 50 diseños cada figura sale 2–3 veces (con otra paleta y en espejo), y los muestrarios de iconos repiten cactus, hongos o paraguas. | En libros largos se nota el repertorio. | Libros de 30–40 diseños, o «Figura zentangle» con menos páginas. Ampliar el repertorio requiere dibujar figuras e iconos nuevos. |
+| Baja | Las figuras dejan esquinas diminutas donde los cortes internos tocan el contorno (de 20 a 90 por página). | Se notan poco al colorear, pero son la causa de casi todas las páginas marcadas. | «🛠 Arreglar» y el visor. Corregirlo en origen exige recortar los cortes junto al contorno. |
 | Media | La receta se exporta pero no se puede cargar. | Rehacer un libro exige poner la semilla y los ajustes a mano y repetir los ↻. Repetirlo idéntico exige además el mismo commit de la app. | Guardar la receta y anotar el commit usado. |
 | Media | La app no genera portada ni página de créditos/copyright ni «Este libro pertenece a». | Hay que hacerlas fuera. | KDP Cover Creator y un editor de PDF. |
 | Media | jsPDF (y la librería del estilo orgánico) se cargan desde internet. | Sin conexión no se puede armar el PDF. | Trabajar con conexión. |

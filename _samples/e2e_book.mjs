@@ -42,6 +42,8 @@ try {
   // jsPDF desde node_modules (el sandbox o una red lenta no deben tumbar la prueba).
   await page.route("**/jspdf.umd.min.js", (r) => r.fulfill({ contentType: "text/javascript", body: readFileSync(JSPDF) }));
   await page.route("**/d3-delaunay*", (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
+  // Umbral de calidad bajo: fuerza páginas marcadas para probar «Arreglar».
+  await page.addInitScript(() => { window.ZT_QUALITY_BAD_DM2 = 7; });
   await page.goto(`${base}/index.html`);
   await page.waitForFunction(() => window.jspdf, null, { timeout: 30000 });
   await page.evaluate(({ n, blank }) => {
@@ -58,6 +60,33 @@ try {
   if (tiles.filter((t) => /^Guía/.test(t)).length < 3) fail("la revisión no muestra la guía.");
   if (!tiles.some((t) => /Pasaporte/.test(t)) || !tiles.some((t) => /Tu turno/.test(t))) fail("faltan pasaporte o «Tu turno» en la revisión.");
   if (!tiles.some((t) => /doble página/.test(t))) fail("falta la doble página en la revisión.");
+
+  // Control de calidad: cada diseño lleva su veredicto.
+  const badges = await page.$$eval(".book-tile:not(.extra) .q-badge", (els) => els.map((e) => e.textContent));
+  if (badges.length !== tiles.filter((t) => /^\d/.test(t)).length) fail(`faltan veredictos de calidad (${badges.length}).`);
+  const flagged0 = badges.filter((b) => /revisar/.test(b)).length;
+  if (process.env.SHOTS) await page.screenshot({ path: join(process.env.SHOTS, "review.png") });
+
+  // Visor a tamaño real con las zonas difíciles en rojo.
+  await page.click(".book-tile:not(.extra) img");
+  await page.waitForFunction(() => document.querySelector(".viewer canvas")?.width > 0 && document.querySelector(".viewer img")?.complete, null, { timeout: 60000 });
+  if (!/Diseño 1 de/.test(await page.textContent(".viewer-bar"))) fail("el visor no muestra la página.");
+  await page.click(".viewer-bar [data-zoom=real]");
+  if (process.env.SHOTS) await page.screenshot({ path: join(process.env.SHOTS, "viewer.png") });
+  await page.keyboard.press("ArrowRight");
+  await page.waitForFunction(() => /Diseño 2 de/.test(document.querySelector(".viewer-bar").textContent));
+  await page.keyboard.press("Escape");
+  if (await page.$(".viewer")) fail("el visor no se cierra con Esc.");
+
+  // «Arreglar»: cambia las marcadas y se queda con el mejor intento.
+  if (flagged0) {
+    await page.click("#btnFixFlagged");
+    await page.waitForFunction(() => /arregladas/.test(document.getElementById("status").textContent), null, { timeout: 600000 });
+    const flagged1 = (await page.$$eval(".book-tile .q-badge.bad", (els) => els.length));
+    if (flagged1 > flagged0) fail(`«Arreglar» empeoró el libro (${flagged0} → ${flagged1}).`);
+    console.log(`  calidad: ${flagged0} marcadas → ${flagged1} tras «Arreglar» (umbral de prueba)`);
+  } else fail("con el umbral de prueba debía haber páginas marcadas.");
+  await page.waitForFunction(() => /Descargar libro/.test(document.getElementById("btnBook").textContent));
 
   const dir = mkdtempSync(join(tmpdir(), "e2e-book-"));
   const recDl = page.waitForEvent("download");

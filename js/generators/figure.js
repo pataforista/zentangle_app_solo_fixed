@@ -319,6 +319,19 @@ export function figureForPage(bookSeed, n) {
   return cur[n % len];
 }
 
+// Paleta de tangles de la n-ésima página de figura de un libro. Sin paleta,
+// cada figura usaba casi los 15 tangles y todas las páginas se parecían; con
+// 8 por página cada una tiene carácter propio. La ventana avanza 5 puestos
+// por página: dos figuras seguidas comparten 3 tangles y en 3 páginas salen todos.
+export const FIGURE_PALETTE_SIZE = 8;
+export function figurePalette(bookSeed, n) {
+  const rng = createRNG(hash(bookSeed >>> 0, 0x9a1e));
+  const ids = POOL.map((t) => t.id);
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  const start = (n * 5) % ids.length;
+  return Array.from({ length: FIGURE_PALETTE_SIZE }, (_, k) => ids[(start + k) % ids.length]);
+}
+
 /* ====================== Secciones con strings ====================== */
 
 // Nº de cortes de una familia: con `level` (0 fácil … 1 difícil) se recorre
@@ -451,8 +464,13 @@ export async function generateZenFigure(doc, opts) {
   // Elegir tangle evitando repetir: cada uso divide el peso.
   const used = new Map();
   let last = [];
+  // tanglePalette: tangles permitidos en esta página (libro). Si deja un
+  // grupo con menos de 3, ese grupo usa su lista completa.
+  const palette = Array.isArray(opts.tanglePalette) && opts.tanglePalette.length ? new Set(opts.tanglePalette) : null;
   const pickTangle = (pool) => {
-    const list = pool.map((t) => (typeof t === "string" ? byId.get(t) : t)).filter(Boolean);
+    const full = pool.map((t) => (typeof t === "string" ? byId.get(t) : t)).filter(Boolean);
+    const inPal = palette ? full.filter((t) => palette.has(t.id)) : full;
+    const list = inPal.length >= 3 ? inPal : full;
     let tot = 0;
     const ws = list.map((t) => {
       let w = last.includes(t.id) ? 0.05 : 1 / (1 + 3 * (used.get(t.id) || 0));

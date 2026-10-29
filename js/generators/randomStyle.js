@@ -31,9 +31,12 @@ export const isRandomKey = (key) => key === RANDOM_STYLE_KEY || key === RANDOM_C
 // La figura zentangle (zen_figure) lleva casi la mitad del libro: es el
 // formato de los títulos líderes del nicho (figura grande llena de tangles).
 // Los muestrarios bajan: se leen más como libro infantil que como zentangle.
+// spiral_modern sustituye a sampler_icon_fractal: con solo 14 iconos, cuatro
+// estilos de iconos repetían cactus, hongos y paraguas en casi un tercio del
+// libro; además sampler_icon_fractal era de los peores en colorabilidad.
 export const BESTSELLERS = [
   ["zen_figure", 8], ["icon_mandala", 2], ["zen_star", 2], ["classic_z_string", 2],
-  ["sampler_icons", 2], ["eye_focus", 1], ["sampler_hex", 1], ["sampler_icon_fractal", 1], ["sampler_cairo", 1],
+  ["sampler_icons", 2], ["eye_focus", 1], ["sampler_hex", 1], ["spiral_modern", 1], ["sampler_cairo", 1],
 ];
 
 // Mazo del libro: las 20 cartas de BESTSELLERS barajadas con la semilla del

@@ -20,8 +20,10 @@ python3 -m http.server 8000   # o: npx serve .
    o papel grueso sin hojas en blanco, y opciones: dificultad progresiva, guía
    de tangles y pasaporte, dobles páginas (con franja segura en el lomo) y
    páginas «Tu turno».
-4. **Preparar libro** → revisa y cambia páginas con ↻ → **🧾 Receta del libro**
-   (semillas de cada página) → **Descargar PDF**.
+4. **Preparar libro** → la app revisa la calidad de cada página (✓ / ⚠) →
+   **🛠 Arreglar las marcadas** → toca una página para verla a tamaño real con
+   las zonas difíciles en rojo; cambia las que no te gusten con ↻ →
+   **🧾 Receta del libro** (semillas de cada página) → **Descargar PDF**.
 5. **📝 Texto para la ficha de KDP**: título, descripción, palabras clave sin
    marcas ajenas y medidas de la portada (lomo y tamaño total).
 
@@ -55,7 +57,8 @@ Scallops, rejillas a 0°/90°): para repetir un libro antiguo exacto hay que usa
 |---|---|
 | `index.html`, `js/app.js` | Interfaz, revisión del libro, descarga de PDF |
 | `js/core/bookPlan.js` | Orden de páginas, dificultad, margen interior de KDP |
-| `js/core/kdpListing.js` | Ficha de KDP y términos de marca bloqueados |
+| `js/core/kdpListing.js` | Ficha de KDP, medidas de portada y términos de marca bloqueados |
+| `js/core/pageQuality.js` | Control de calidad de página (zonas no coloreables, tinta) |
 | `js/core/export.js` | PNG a 300 ppp y PDF por secuencia de páginas |
 | `js/generators/zentangle.generator.js` | Punto de entrada: elige el estilo y lo dibuja |
 | `js/generators/figure.js` | Figuras grandes subdivididas con strings y tangles |

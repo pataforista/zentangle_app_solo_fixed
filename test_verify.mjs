@@ -852,6 +852,61 @@ async function runTests() {
       console.log(`✓ ${pairs} combinaciones relleno × celda bajo su techo; suma ${total.toFixed(0)} regiones no coloreables (techo 250).`);
     }
 
+    console.log("\nPrueba 19: Control de calidad por página y variedad de figuras...");
+    {
+      const { analyzeColorability, qualityVerdict, QUALITY_LIMITS } = await import("./js/core/pageQuality.js");
+      // Raster sintético 100×100 px a 10 px/mm: fondo blanco, un marco negro y,
+      // dentro, una ranura de 0.4 mm (no coloreable) y un cuadro de 4×4 mm (sí).
+      const w = 100, h = 100, px = 10, data = new Uint8ClampedArray(w * h * 4).fill(255);
+      const ink = (x0, y0, x1, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3); };
+      ink(0, 0, 100, 2); ink(0, 98, 100, 100); ink(0, 0, 2, 100); ink(98, 0, 100, 100); // marco
+      ink(10, 10, 60, 12); ink(10, 16, 60, 18); ink(10, 10, 12, 18); ink(58, 10, 60, 18); // ranura de 4 px = 0.4 mm
+      ink(10, 30, 54, 32); ink(10, 72, 54, 74); ink(10, 30, 12, 74); ink(52, 30, 54, 74); // cuadro de 4 mm
+      const q = analyzeColorability({ data, width: w, height: h }, px, { mark: true });
+      assert.strictEqual(q.bad, 1, `ERROR: la ranura de 0.4 mm debía contar como 1 zona difícil (contó ${q.bad}).`);
+      assert.ok(q.mask[(13 * w + 30)] === 1 && q.mask[(50 * w + 30)] === 0, "ERROR: la máscara no marca solo la ranura.");
+      // El límite escala con el área del dibujo: Letter con margen 12.7 mm ≈ 63 zonas.
+      const letterArt = (215.9 - 25.4) * (279.4 - 25.4);
+      const v = qualityVerdict({ bad: 70, ink: 12 }, letterArt);
+      assert.ok(!v.ok && v.maxBad === Math.round(QUALITY_LIMITS.badPerDm2 * letterArt / 10000) && v.maxBad > 55 && v.maxBad < 70);
+      assert.ok(qualityVerdict({ bad: 10, ink: 12 }, letterArt).ok);
+      assert.ok(!qualityVerdict({ bad: 10, ink: 40 }, letterArt).ok, "ERROR: una página casi negra debe marcarse.");
+      assert.ok(qualityVerdict({ bad: 70, ink: 12 }, letterArt * 2).ok, "ERROR: una doble página admite el doble de zonas.");
+
+      // Variedad: paletas de 8 tangles por página de figura, que cubren todos en 3 páginas.
+      const { figurePalette, figureForPage, FIGURE_TANGLES, FIGURE_PALETTE_SIZE, FIGURE_IDS } = await import("./js/generators/figure.js");
+      const all = new Set(FIGURE_TANGLES.map((t) => t.id));
+      const p0 = figurePalette(42, 0), p1 = figurePalette(42, 1);
+      assert.strictEqual(new Set(p0).size, FIGURE_PALETTE_SIZE);
+      assert.ok(p0.every((t) => all.has(t)));
+      assert.notDeepStrictEqual(p0, p1);
+      assert.strictEqual(new Set([0, 1, 2].flatMap((n) => figurePalette(42, n))).size, all.size, "ERROR: 3 páginas de figura no recorren todos los tangles.");
+      assert.deepStrictEqual(figurePalette(42, 5), figurePalette(42, 5));
+      // En un libro la figura usa su paleta y, en su segunda aparición, va en espejo.
+      const { generateZentangle } = await import("./js/generators/zentangle.generator.js");
+      const { createSvgDoc } = await import("./js/core/svgDoc.js");
+      const { renderSvgToString } = await import("./js/core/svgRender.js");
+      const { tanglesInSvgs } = await import("./js/generators/bookExtras.js");
+      const fig = async (pageIndex) => {
+        const d = createSvgDoc({ wMm: 215.9, hMm: 279.4, meta: { seed: 9 } });
+        await generateZentangle(d, { seed: 9 + pageIndex, presetName: "zen_figure", overrides: {}, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex, bookSeed: 42 });
+        return renderSvgToString(d);
+      };
+      const L = FIGURE_IDS.length;
+      const repeatAt = L + [...Array(L).keys()].find((k) => figureForPage(42, L + k) === figureForPage(42, 0));
+      const first = await fig(0), again = await fig(repeatAt);
+      const pal = new Set(figurePalette(42, 0));
+      const used = tanglesInSvgs([first]).filter((t) => all.has(t));
+      // Fuera de la paleta solo el respaldo de un grupo con menos de 3 (fondo o detalle).
+      assert.ok(used.length >= 4 && used.filter((t) => !pal.has(t)).length <= 2, `ERROR: la figura usa tangles fuera de su paleta (${used.join(", ")}).`);
+      assert.ok(!first.includes('scale(-1 1)">'), "ERROR: la primera aparición de la figura no debe ir en espejo.");
+      assert.ok(again.includes('scale(-1 1)">') && (again.match(/data-figure="([^"]+)"/) || [])[1] === (first.match(/data-figure="([^"]+)"/) || [])[1], "ERROR: la figura repetida no va en espejo.");
+      // La mezcla «Más vendidos» ya no usa el muestrario de iconos fractales.
+      const { BESTSELLERS } = await import("./js/generators/randomStyle.js");
+      assert.ok(!BESTSELLERS.some(([k]) => k === "sampler_icon_fractal") && BESTSELLERS.reduce((a, [, w]) => a + w, 0) === 20);
+      console.log(`✓ Calidad por página (zonas difíciles, tinta, límite por área) y figuras con paleta propia de ${FIGURE_PALETTE_SIZE} tangles, en espejo al repetirse.`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");
