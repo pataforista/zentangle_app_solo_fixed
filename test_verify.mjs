@@ -648,6 +648,15 @@ async function runTests() {
       // Pie: dentro del margen inferior y nunca con margen < 10 mm.
       assert.ok(footerSvg(geo, { text: "Nivel 1", level: 1 }).includes("Nivel 1"));
       assert.strictEqual(footerSvg({ w: W, h: H, m: 8 }, { text: "x", level: 1 }), "");
+      // Con margen justo (10 mm) el texto no baja de la zona segura de KDP (6.35 mm del corte).
+      for (const m of [10, 11, 12.7, 20]) {
+        const ys = [...footerSvg({ w: W, h: H, m }, { text: "Nivel 1", level: 1 }).matchAll(/<text[^>]* y="([\d.]+)"/g)].map((x) => Number(x[1]));
+        assert.ok(ys.length && ys.every((y) => H - y >= 7.5), `ERROR: pie a menos de 7.5 mm del borde con margen ${m} mm.`);
+      }
+      // Lo que es solo de pantalla nunca llega a la página impresa.
+      const { printSafeOpts } = await import("./js/core/bookPlan.js");
+      const ps = printSafeOpts({ showSafeZone: true, paperTextureEnabled: true, cellShadowEnabled: true, seed: 5 });
+      assert.deepStrictEqual([ps.showSafeZone, ps.paperTextureEnabled, ps.cellShadowEnabled, ps.seed], [false, false, false, 5]);
       console.log(`✓ Secuencia de páginas correcta, dificultad ${easy} → ${hard} tangles, «Tu turno» vacío, dobles páginas con franja segura, guía de ${guide.length} páginas y pasaporte.`);
     }
 
@@ -680,6 +689,15 @@ async function runTests() {
         assert.ok(l.keywords.length <= 7, "ERROR: KDP admite 7 palabras clave.");
       }
       assert.ok(kdpListingText({ designs: 50, pages: 120 }).includes("REGLAS DE PROPIEDAD INTELECTUAL"));
+      // Portada: 8.5×11 in, 120 págs en papel blanco → lomo 0.270 in; ancho 0.125+8.5+0.270+8.5+0.125.
+      const { coverSpec } = await import("./js/core/kdpListing.js");
+      const cv = coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4 });
+      assert.strictEqual(cv.spineIn, 0.27);
+      assert.strictEqual(cv.widthIn, 17.52);
+      assert.strictEqual(cv.heightIn, 11.25);
+      assert.ok(cv.spineText && !coverSpec({ pages: 60, trimWmm: 215.9, trimHmm: 279.4 }).spineText, "ERROR: KDP solo admite texto en el lomo con más de 79 páginas.");
+      assert.ok(coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4, paper: "premium" }).spineIn > cv.spineIn);
+      assert.ok(kdpListingText({ designs: 50, pages: 120, trimWmm: 215.9, trimHmm: 279.4 }).includes("Lomo: 0.27 in"));
       // La ficha no promete lo que el libro no trae.
       const figOnly = kdpListing({ designs: 30, pages: 60, content: "figures" }).description;
       assert.ok(!/mandalas/.test(figOnly), "ERROR: la ficha promete mandalas en un libro solo de figuras.");

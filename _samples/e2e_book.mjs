@@ -33,7 +33,7 @@ await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}`;
 
 const fail = (msg) => { console.error(`❌ ${msg}`); process.exitCode = 1; };
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PW_EXEC ? { executablePath: process.env.PW_EXEC } : {});
 try {
   const ctx = await browser.newContext({ acceptDownloads: true });
   const page = await ctx.newPage();
@@ -48,6 +48,7 @@ try {
     const set = (id, v) => { const e = document.getElementById(id); if (e.type === "checkbox") e.checked = v; else e.value = v; e.dispatchEvent(new Event("change", { bubbles: true })); };
     set("bookPages", String(n)); set("bookBlank", blank);
     ["bookProgressive", "bookGuide", "bookSpreads", "bookTurn"].forEach((id) => set(id, true));
+    set("showSafeZone", true); // guía de pantalla: no debe llegar al libro
   }, { n: N, blank: BLANK });
 
   await page.click("#btnBook");
@@ -59,6 +60,13 @@ try {
   if (!tiles.some((t) => /doble página/.test(t))) fail("falta la doble página en la revisión.");
 
   const dir = mkdtempSync(join(tmpdir(), "e2e-book-"));
+  const recDl = page.waitForEvent("download");
+  await page.click("text=🧾 Receta del libro");
+  const recPath = join(dir, "receta.json");
+  await (await recDl).saveAs(recPath);
+  const rec = JSON.parse(readFileSync(recPath, "utf8"));
+  if (rec.pages?.length !== N || rec.totalPages !== expected) fail("la receta no recoge todas las páginas del libro.");
+  if (rec.opts?.showSafeZone !== false) fail("la receta (y el libro) llevan las guías de zona segura.");
   const pdfDl = page.waitForEvent("download", { timeout: 1800000 });
   await page.click("#btnBook");
   const pdfPath = join(dir, "libro.pdf");
@@ -75,6 +83,7 @@ try {
   const title = txt.split("DESCRIPCIÓN:")[0];
   if (/zentangle|zendoodle|zendala/i.test(title)) fail("la ficha de KDP usa una marca en título o subtítulo.");
   if (!/Zentangle® es una marca registrada/.test(txt)) fail("la ficha de KDP no lleva la atribución.");
+  if (!/Lomo: [\d.]+ in/.test(txt)) fail("la ficha de KDP no trae las medidas de la portada.");
 
   if (errors.length) fail(`errores en la página: ${errors.join(" | ")}`);
   if (!process.exitCode) console.log(`✓ Libro de ${N} diseños (${BLANK === "1" ? "con" : "sin"} hojas en blanco): ${pages} páginas en el PDF, revisión completa y ficha KDP correcta.`);

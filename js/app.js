@@ -8,7 +8,7 @@ import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
 import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey, isColoringSafe } from "./generators/randomStyle.js";
 import { createStylePicker } from "./ui/stylePicker.js";
-import { designUnits, planSequence, difficultyAt, kdpInsideMarginMm } from "./core/bookPlan.js";
+import { designUnits, planSequence, difficultyAt, kdpInsideMarginMm, printSafeOpts } from "./core/bookPlan.js";
 import { generateSpread, SPREAD_FIGURES } from "./generators/spread.js";
 import { figureForPage, FIGURE_IDS } from "./generators/figure.js";
 import { kdpListingText } from "./core/kdpListing.js";
@@ -350,7 +350,8 @@ async function renderGallery(count = 8) {
 function kdpWarning(marginMm, bleedMm = 0) {
   const artEdgeMm = marginMm - (bleedMm || 0);
   if (artEdgeMm < 6.35) return " | ⚠ Arte a menos de 6.35 mm del borde: KDP lo rechazaría (sube el margen o quita el sangrado)";
-  if (marginMm < 9.5) return " | ⚠ Margen menor a 9.5 mm: insuficiente como gutter KDP";
+  const minIn = kdpInsideMarginMm(KDP_MIN_PAGES);
+  if (marginMm < minIn) return ` | ⚠ Margen menor a ${minIn} mm: por debajo del margen interior (lomo) mínimo de KDP`;
   return "";
 }
 
@@ -512,7 +513,8 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true }
     return { kind, seed, svg: sp.wide, left: sp.left, right, url, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure };
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
-  const overrides = { ...g.opts, seed, ...(difficulty === null ? {} : { difficulty }) };
+  // printSafeOpts: guías de zona segura, textura y sombreado nunca se imprimen.
+  const overrides = { ...printSafeOpts(g.opts), seed, ...(difficulty === null ? {} : { difficulty }) };
   // En los modos aleatorios, la página original (tries 0) toma su estilo de la
   // secuencia del libro, que evita vecinas repetidas. Un ↻ cambia la semilla:
   // esa página sortea un estilo nuevo con ella (en «Más vendidos» sigue el mazo).
@@ -594,7 +596,13 @@ function showBookReview() {
   dl.className = "btn btn-primary";
   dl.textContent = "⬇ Descargar PDF";
   dl.addEventListener("click", () => createBook());
-  head.append(title, dl);
+  const recipe = document.createElement("button");
+  recipe.type = "button";
+  recipe.className = "btn btn-secondary";
+  recipe.textContent = "🧾 Receta del libro";
+  recipe.title = "Guarda ajustes y semillas de cada página (con los ↻) para auditar o rehacer el libro";
+  recipe.addEventListener("click", downloadBookRecipe);
+  head.append(title, dl, recipe);
 
   const grid = document.createElement("div");
   grid.className = "gallery-grid book-grid";
@@ -618,6 +626,26 @@ function showBookReview() {
   });
   wrap.append(head, grid);
   ui.previewInner.replaceChildren(wrap);
+}
+
+// Receta del libro: todo lo necesario para auditar o rehacer exactamente las
+// páginas aprobadas (incluidos los ↻). Rehacerla idéntica exige el mismo commit
+// de la app: las correcciones de geometría cambian los dibujos.
+function bookRecipe(review) {
+  const { g, n, blank, flags, baseSeed, pages, total } = review;
+  return {
+    app: "generador-libros-colorear", recipeVersion: 1, createdAt: new Date().toISOString(),
+    paper: { key: g.paperKey, wMm: g.paper.w, hMm: g.paper.h }, marginMm: g.marginMm,
+    style: g.zPresetKey, opts: printSafeOpts(g.opts), designs: n, blankBacks: blank, flags, baseSeed, totalPages: total,
+    pages: pages.map((p, i) => ({ design: i + 1, kind: p.kind, seed: p.seed, tries: p.tries || 0, style: p.presetName, figure: p.figure || null, tangles: p.tangles || [] })),
+  };
+}
+
+function downloadBookRecipe() {
+  if (!bookReview) return;
+  const r = bookReview;
+  downloadTextFile(`receta_libro_${r.n}disenos_${r.g.paperKey}_seed${r.baseSeed}.json`, JSON.stringify(bookRecipe(r), null, 2), "application/json;charset=utf-8");
+  ui.status.textContent = "✓ Receta descargada: guárdala junto al PDF";
 }
 
 function bookTile(i) {
@@ -789,7 +817,9 @@ function saveSettings() {
   } catch { /* modo privado o sin permiso: no pasa nada */ }
 }
 
-async function render() {
+// forPrint: genera la página para descargar (sin guías de zona segura, textura
+// ni sombreado) y no toca la vista previa.
+async function render({ forPrint = false } = {}) {
   updateBookButton(); // cualquier cambio de ajustes deja vieja la revisión del libro
   ui.status.textContent = "Renderizando...";
   if (ui.previewPanel) ui.previewPanel.classList.remove("gallery-active");
@@ -798,7 +828,9 @@ async function render() {
 
   let marginMm = Math.max(0, num(ui.marginMm.value, 12.7));
 
-  const { opts, zPresetKey } = buildOptsFromUI();
+  const built = buildOptsFromUI();
+  const zPresetKey = built.zPresetKey;
+  const opts = forPrint ? printSafeOpts(built.opts) : built.opts;
 
   // KDP Bleed Safety: Amazon KDP requiere ~12.5mm si hay sangrado
   if (needsWideMargin(zPresetKey)) {
@@ -840,6 +872,10 @@ async function render() {
   const shownKey = isRandomKey(zPresetKey) ? used.presetName : zPresetKey;
 
   const svg = renderSvgToString(doc);
+  if (forPrint) {
+    ui.status.textContent = "Preparando descarga…";
+    return { svg, opts, paperKey, zPresetKey: shownKey };
+  }
   ui.previewInner.innerHTML = svg;
 
   setStateToURL({
@@ -1214,6 +1250,8 @@ function bind() {
       designs: plan.n,
       pages: fresh ? bookReview.total : plan.total,
       paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
+      trimWmm: g.paper.w,
+      trimHmm: g.paper.h,
       flags: plan.flags,
       spreads: plan.units.filter((u) => u.kind === "spread").length,
       turnPages: plan.turnPages,
@@ -1297,7 +1335,7 @@ function bind() {
   ui.btnDownloadSVG.addEventListener("click", () => withBusy(async () => {
     try {
       ui.status.innerText = "Preparando SVG...";
-      const { svg, paperKey, zPresetKey } = await render();
+      const { svg, paperKey, zPresetKey } = await render({ forPrint: true });
       downloadTextFile(`diseno_${paperKey}_${zPresetKey}.svg`, svg);
       ui.status.innerText = "✓ Descargado SVG";
     } catch (err) {
@@ -1308,7 +1346,7 @@ function bind() {
 
   ui.btnDownloadPNG.addEventListener("click", () => withBusy(async () => {
     try {
-      const { svg, paperKey, zPresetKey } = await render();
+      const { svg, paperKey, zPresetKey } = await render({ forPrint: true });
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Preparando PNG...";
       await downloadPng(`diseno_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
@@ -1321,7 +1359,7 @@ function bind() {
 
   ui.btnDownloadPDF.addEventListener("click", () => withBusy(async () => {
     try {
-      const { svg, paperKey, zPresetKey } = await render();
+      const { svg, paperKey, zPresetKey } = await render({ forPrint: true });
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Generando PDF (KDP)...";
       await downloadPdf(`diseno_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);

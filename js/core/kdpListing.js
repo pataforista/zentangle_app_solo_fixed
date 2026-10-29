@@ -59,8 +59,28 @@ export function kdpListing({ designs, pages, paperLabel = "8.5×11 in", flags = 
   return { titles, subtitle, description, keywords };
 }
 
+// Medidas de la portada completa (contraportada + lomo + portada) para tapa
+// blanda en KDP. Grosor por página según el papel: blanco B/N 0.002252",
+// color prémium 0.002347". Sangrado de portada: 0.125" por lado. KDP solo
+// admite texto en el lomo con más de 79 páginas.
+export const SPINE_IN_PER_PAGE = { white: 0.002252, premium: 0.002347 };
+export function coverSpec({ pages, trimWmm, trimHmm, paper = "white" }) {
+  const IN = 25.4, bleed = 0.125;
+  const spineIn = pages * (SPINE_IN_PER_PAGE[paper] ?? SPINE_IN_PER_PAGE.white);
+  const wIn = bleed + trimWmm / IN + spineIn + trimWmm / IN + bleed;
+  const hIn = bleed + trimHmm / IN + bleed;
+  const r = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
+  return {
+    paper, spineIn: r(spineIn), spineMm: r(spineIn * IN, 1),
+    widthIn: r(wIn), heightIn: r(hIn), widthMm: r(wIn * IN, 1), heightMm: r(hIn * IN, 1),
+    widthPx: Math.ceil(wIn * 300), heightPx: Math.ceil(hIn * 300),
+    spineText: pages > 79,
+  };
+}
+
 export function kdpListingText(opts) {
   const l = kdpListing(opts);
+  const cover = opts.trimWmm && opts.trimHmm ? coverSpec({ pages: opts.pages, trimWmm: opts.trimWmm, trimHmm: opts.trimHmm, paper: opts.blank === false ? "premium" : "white" }) : null;
   return [
     "FICHA PARA KDP (revisa antes de publicar)",
     "========================================",
@@ -78,6 +98,13 @@ export function kdpListingText(opts) {
     "PALABRAS CLAVE (7 casillas de KDP):",
     ...l.keywords.map((k) => `  - ${k}`),
     "",
+    ...(cover ? [
+      `PORTADA (tapa blanda, ${opts.pages} páginas, papel ${cover.paper === "premium" ? "color prémium" : "blanco, tinta B/N"}):`,
+      `  - Lomo: ${cover.spineIn} in (${cover.spineMm} mm)${cover.spineText ? "" : " · sin texto en el lomo: KDP lo exige con más de 79 páginas"}`,
+      `  - Portada completa con sangrado: ${cover.widthIn} × ${cover.heightIn} in (${cover.widthMm} × ${cover.heightMm} mm) · ${cover.widthPx} × ${cover.heightPx} px a 300 ppp`,
+      "  - Confirma las medidas con la plantilla oficial de KDP (Cover Calculator) antes de subirla: el lomo cambia si añades o quitas páginas.",
+      "",
+    ] : []),
     "REGLAS DE PROPIEDAD INTELECTUAL",
     "  ✓ No pongas «Zentangle», «Zendala» ni el logotipo en el título, el subtítulo, la portada ni las palabras clave.",
     "  ✓ «Zentangle®» solo en la descripción y en la página «Antes de empezar», como atribución.",

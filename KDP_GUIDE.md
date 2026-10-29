@@ -13,11 +13,10 @@
   extiende el marco artístico hacia el borde dentro de la misma página; úsalo
   solo si margen − sangrado ≥ 6.35mm (la app avisa si lo incumples).
 
-### Linaje y Claridad:
-- ✓ Líneas limpias, sin antialiasing borroso
-- ✓ Contraste máximo blanco/negro
-- ✓ Sin grises intermedios (salvo gradientes suaves)
-- ✓ Peso de línea consistente
+### Calidad de línea:
+- El PDF lleva cada página como imagen a 300 ppp a tamaño de corte.
+- Los bordes de las líneas están suavizados (antialiasing): es lo normal y KDP lo imprime bien.
+- Sin grises de relleno: la textura de papel y el sombreado nunca llegan al libro.
 
 ---
 
@@ -116,79 +115,10 @@ El motor incluye mecanismos anti-repetición aplicables a CUALQUIER preset:
 
 ---
 
-## 🖥️ Cómo Usar la App
+## 🖥️ Cómo producir el libro
 
-### Paso 1: Seleccionar Estilo
-```
-1. En el panel izquierdo, abre "Estilo"
-2. Elige un preset KDP (recomendado: "KDP Balanceado" ya seleccionado)
-3. El preview se actualiza automáticamente
-```
-
-### Paso 2: Ajustar Parámetros (Opcional)
-
-**Para más detalle:**
-- Reduce `Cantidad de Celdas` (ej: 28 → 20)
-- Reduce `Prob. Saltar` (ej: 0.20 → 0.10)
-- Aumenta `Max Capas` (ej: 2 → 3)
-
-**Para menos detalle:**
-- Aumenta `Cantidad de Celdas` (ej: 28 → 35)
-- Aumenta `Prob. Saltar` (ej: 0.20 → 0.30)
-- Reduce `Max Capas` (ej: 2 → 1)
-
-### Paso 3: Generar Variaciones
-- Haz clic `🎲 Random Seed` para generar diferentes diseños
-- Cada seed produce un diseño único
-- Usa el campo "Semilla" para reproducir diseños exactos
-
-### Paso 4: Descargar
-**Para Amazon KDP (Recomendado):**
-- Click `⚡ PDF (KDP)` para PDF profesional optimizado
-  - O click `📄 PNG (300DPI)` para PNG de alta resolución
-- PDF es más versátil para multi-página
-- Archivos: `zentangle_A4_[preset]_kdp.pdf` o `zentangle_A4_[preset]_300dpi.png`
-
-**Alternativas:**
-- `📊 SVG Escalable`: Para edición posterior en Inkscape
-- `⚙️ JSON Config`: Guarda los parámetros exactos
-
----
-
-## 🎯 Flujo Completo para Vender en KDP
-
-### Fase 1: Diseño & Revisión
-1. ✓ Genera 3-5 variaciones con diferentes seeds
-2. ✓ Elige la que más te guste visualmente
-3. ✓ Exporta como PDF KDP o PNG 300DPI
-4. ✓ Abre en editor (Photoshop, GIMP, Paint.NET) para verificar líneas limpias
-
-### Fase 2: Validación de Calidad
-Checklista antes de subir a KDP:
-- [ ] Archivo es 300 DPI (PDF/PNG debe ser ~3500x4960px para A4)
-- [ ] Imagen es blanco & negro puro (sin grises)
-- [ ] Líneas son claras y nítidas (zoom 100% - no borroso)
-- [ ] No hay artefactos ni antialiasing
-- [ ] Márgenes son de al menos 12.7mm desde el borde
-
-### Fase 3: Crear el libro (un clic)
-1. Elige **Papel** (8.5×11 in es el estándar), **Estilo** y una **Seed**
-2. En **📖 Tu libro** indica el nº de diseños (30 es un buen punto de partida)
-   y deja **Hojas en blanco: Entre diseños** (evita que la tinta traspase
-   al diseño siguiente; es lo habitual en libros de una cara)
-3. Mira el resumen verde: confirma páginas totales (KDP exige mínimo 24)
-4. Pulsa **📖 Crear libro (PDF para KDP)**. Cada diseño usa una semilla distinta
-   derivada de la Seed; con los mismos ajustes obtienes el mismo libro
-5. Se descarga un único PDF listo para subir como interior. La portada se
-   crea aparte (KDP Cover Creator)
-
-### Fase 4: Subir a KDP
-1. Ingresa a Amazon KDP
-2. Crea nuevo libro
-3. Sube el PDF del libro (interior) con la opción **Sin sangrado**
-4. Selecciona opciones de impresión (color, blanco&negro, etc.)
-5. Revisa preview
-6. Publica
+El proceso completo, paso a paso, con la lista de control antes de subir y
+los huecos que la app aún no cubre, está en **[PRODUCCION.md](PRODUCCION.md)**.
 
 ---
 
@@ -203,9 +133,8 @@ Checklista antes de subir a KDP:
    - "Zen Patterns for Stress Relief"
 
 ### Control de Calidad:
-- ✓ Siempre descarga el PDF/PNG y verifica en Zoom 200%
-- ✓ Busca líneas rotas o artefactos (indica problema)
-- ✓ Las líneas deben ser sólidas, no con pixeles
+- ✓ Revisa el PDF final a 200 %: las miniaturas de la revisión no muestran defectos finos
+- ✓ Guarda la 🧾 receta del libro junto al PDF
 
 ### Optimización Visual:
 - **Más blanco:** Usa presets con más `whiteSpaceMm` (KDP Relajado)
@@ -215,25 +144,12 @@ Checklista antes de subir a KDP:
 
 ---
 
-## 🔧 Troubleshooting
+## 🔧 Problemas frecuentes
 
-### Problema: Líneas borrosas en PDF/PNG
-**Solución:**
-- Verifica que sea 300 DPI
-- Revisa propiedades: A4 (300 DPI) = 3508×4961px
-- Si es más pequeño, aumenta los parámetros de renderizado
-
-### Problema: Patrones demasiado simples
-**Solución:**
-- Reduce "Prob. Saltar" (ahora más patrones se dibujan)
-- Aumenta "Max Capas"
-- Elige preset más denso (KDP Masterpiece, KDP Denso Meditativo)
-
-### Problema: Patrones demasiado complejos
-**Solución:**
-- Aumenta "Prob. Saltar"
-- Reduce "Max Capas"
-- Elige preset más relajado (KDP Relajado)
+- **Patrones demasiado simples o complejos**: cambia de estilo o activa
+  📈 Dificultad progresiva; en «Más vendidos» los ajustes finos no aplican.
+- **No se descarga el PDF**: jsPDF se carga desde internet; revisa la conexión y recarga.
+- **Aviso de margen en el resumen**: sube el margen hasta la cifra que indica.
 
 ---
 
@@ -248,23 +164,6 @@ Checklista antes de subir a KDP:
 | Intrincado | 18+ | Avanzado | 4-6h | $8.99-9.99 |
 | Denso Meditativo | 18+ | Profesional | 8+h | $9.99-11.99 |
 | Masterpiece | 18+ | Experto | 10+h | $11.99-14.99 |
-
----
-
-## 🚀 Próximos Pasos
-
-1. **Genera 10-20 diseños** con diferentes seeds y presets
-2. **Revisa cada uno** en zoom 200% para calidad
-3. **Elige 25-50 favoritos** para empezar
-4. **Descarga PDF KDP o PNG** de cada uno
-5. **Crea una serie de libros** combinando diferentes presets
-6. **Sube a Amazon KDP** y comienza a vender
-
----
-
-**¡Éxito! Tus libros para colorear profesionales están listos para el mercado.** 🎨📚
-
-Generado para zentangle_app_solo_fixed - 300 DPI optimizado para impresión
 
 ---
 

@@ -20,9 +20,13 @@ python3 -m http.server 8000   # o: npx serve .
    o papel grueso sin hojas en blanco, y opciones: dificultad progresiva, guía
    de tangles y pasaporte, dobles páginas (con franja segura en el lomo) y
    páginas «Tu turno».
-4. **Preparar libro** → revisa y cambia páginas con ↻ → **Descargar PDF**.
-5. **📝 Texto para la ficha de KDP**: título, descripción y palabras clave sin
-   marcas ajenas.
+4. **Preparar libro** → revisa y cambia páginas con ↻ → **🧾 Receta del libro**
+   (semillas de cada página) → **Descargar PDF**.
+5. **📝 Texto para la ficha de KDP**: título, descripción, palabras clave sin
+   marcas ajenas y medidas de la portada (lomo y tamaño total).
+
+El proceso completo, con la lista de control antes de subir a KDP y los huecos
+que la app aún no cubre, está en **[PRODUCCION.md](PRODUCCION.md)**.
 
 El PDF se genera en el navegador (jsPDF desde CDN: hace falta conexión).
 
@@ -31,7 +35,8 @@ El PDF se genera en el navegador (jsPDF desde CDN: hace falta conexión).
 ```bash
 npm install
 npm test             # pruebas de generadores, libro y propiedad intelectual (Node)
-npm run e2e          # libro completo en Chromium: revisión, PDF y ficha KDP
+npm run e2e          # libro completo en Chromium: revisión, receta, PDF y ficha KDP
+                     # (PW_EXEC=/ruta/a/chromium para usar un Chromium ya instalado)
 npm run colorability # regiones no coloreables por estilo
 npm run golden       # huellas de salida por (estilo, semilla); -- --update tras un cambio intencionado
 ```
