@@ -903,6 +903,19 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 1.9,
     sketchy: 0.3,
     fillDeadSpace: false,
+  },  // Dinosaurios origami: contorno de pocos vértices y caras rectas, como papel doblado.
+  zen_figure_dino_origami: {
+    cellLayout: "zen_figure",
+    figureStyle: "facet",
+    figureAngular: true,
+    figures: FIGURE_SETS.dino,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
   },  zen_figure_bio: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.bio,

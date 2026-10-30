@@ -968,7 +968,7 @@ async function runTests() {
       assert.ok(hidden >= FIGURE_IDS.length * 2 && nested >= 15, `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
       // Repertorio por estilo: adulto (y abstracto) frente a infantil, en libro.
       const { FIGURE_SETS } = await import("./js/generators/figure.js");
-      for (const [preset, allowed] of [["zen_figure", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_glass", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_kids", FIGURE_SETS.kids], ["zen_figure_dino", FIGURE_SETS.dino], ["zen_figure_bio", FIGURE_SETS.bio], ["zen_figure_cryptids", FIGURE_SETS.cryptids]]) {
+      for (const [preset, allowed] of [["zen_figure", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_glass", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_kids", FIGURE_SETS.kids], ["zen_figure_dino", FIGURE_SETS.dino], ["zen_figure_dino_origami", FIGURE_SETS.dino], ["zen_figure_bio", FIGURE_SETS.bio], ["zen_figure_cryptids", FIGURE_SETS.cryptids]]) {
         const seen = new Set();
         for (let i = 0; i < 24; i++) {
           const d = { body: [], defs: [] };

@@ -15,6 +15,8 @@ export const BOOK_RECIPES = [
     style: "zen_figure_glass", designs: 30, progressive: false, guide: false, spreads: false, turn: false },
   { id: "dino", label: "🦖 Dinosaurios", hint: "17 criaturas prehistóricas, de fácil a difícil.",
     style: "zen_figure_dino", designs: 34, progressive: true, guide: true, spreads: false, turn: false },
+  { id: "origami", label: "🦕 Dinosaurios origami", hint: "Dinosaurios de papel doblado: líneas rectas y caras grandes, fáciles de colorear.",
+    style: "zen_figure_dino_origami", designs: 34, progressive: false, guide: false, spreads: false, turn: false },
   { id: "bio", label: "🧬 Biología", hint: "Neurona, ADN, células, virus, corazón… ciencia para colorear.",
     style: "zen_figure_bio", designs: 26, progressive: true, guide: false, spreads: false, turn: false },
   { id: "cryptids", label: "👣 Críptidos", hint: "Pie Grande, Nessie, Mothman, kraken, yeti, ovni y más.",
@@ -26,5 +28,5 @@ export const BOOK_RECIPES = [
 // Tema de la ficha de KDP según el estilo elegido.
 export const STYLE_THEME = {
   zen_figure: "adult", zen_figure_light: "adult", zen_figure_facet: "adult", zen_figure_glass: "glass",
-  zen_figure_dino: "dino", zen_figure_bio: "bio", zen_figure_cryptids: "cryptids", zen_figure_kids: "kids",
+  zen_figure_dino: "dino", zen_figure_dino_origami: "dino", zen_figure_bio: "bio", zen_figure_cryptids: "cryptids", zen_figure_kids: "kids",
 };

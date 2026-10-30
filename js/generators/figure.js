@@ -2000,6 +2000,26 @@ function facetSections(rng, rings, targetArea) {
   });
 }
 
+/* ====================== Origami (contorno anguloso) ====================== */
+// Simplifica un contorno a pocos vértices (Douglas-Peucker): rectas largas y
+// esquinas marcadas, como un papel doblado. eps en unidades de figura.
+function angularize(cmds, eps = 0.035) {
+  const rings = flatten(cmds, (u, v) => [u, v]);
+  const dp = (pts) => {
+    if (pts.length < 3) return pts;
+    const a = pts[0], b = pts[pts.length - 1], L = Math.hypot(b.x - a.x, b.y - a.y) || 1e-9;
+    let iMax = 0, dMax = 0;
+    for (let i = 1; i < pts.length - 1; i++) { const d = Math.abs((b.x - a.x) * (a.y - pts[i].y) - (a.x - pts[i].x) * (b.y - a.y)) / L; if (d > dMax) { dMax = d; iMax = i; } }
+    return dMax > eps ? [...dp(pts.slice(0, iMax + 1)).slice(0, -1), ...dp(pts.slice(iMax))] : [a, b];
+  };
+  return rings.flatMap((r) => {
+    // Se parte el anillo en dos mitades para que DP tenga extremos distintos.
+    const h = Math.floor(r.length / 2), A = dp(r.slice(0, h + 1)), B = dp(r.slice(h));
+    const pts = [...A.slice(0, -1), ...B.slice(0, -1)];
+    return pts.length >= 3 ? polyCmds(pts.map((q) => [q.x, q.y])) : [];
+  });
+}
+
 /* ============================ Página ============================ */
 
 export async function generateZenFigure(doc, opts) {
@@ -2033,7 +2053,11 @@ export async function generateZenFigure(doc, opts) {
   // Figura: la pedida (figureName) o una por semilla.
   const ids = Array.isArray(opts.figures) && opts.figures.length ? opts.figures.filter((f) => FIGURES[f]) : FIGURE_IDS;
   const figName = FIGURES[opts.figureName] ? opts.figureName : ids[Math.floor(rng() * ids.length)];
-  const def = { ...FIGURES[figName], ...(FIGURES[figName].build ? FIGURES[figName].build(rng) : {}) };
+  const def0 = { ...FIGURES[figName], ...(FIGURES[figName].build ? FIGURES[figName].build(rng) : {}) };
+  // Origami: todos los contornos pasan a polígonos de pocos vértices.
+  const ang = opts.figureAngular ? (list) => (list || []).map((q) => ({ ...q, cmds: angularize(q.cmds, 0.04) })) : (l) => l;
+  const def = opts.figureAngular ? { ...def0, parts: ang(def0.parts), back: ang(def0.back), front: ang(def0.front),
+    silhouette: def0.silhouette && def0.silhouette.map((c) => angularize(c, 0.04)), deco: undefined } : def0;
   const parts = def.parts, back = def.back || [], front = def.front || [];
 
   // Encaje: escala y centro a partir de la silueta girada.
@@ -2218,8 +2242,10 @@ export async function generateZenFigure(doc, opts) {
     `<path d="${frameD}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 3)}"/>`);
   for (let k = aura; k >= 1; k--) {
     const wOut = 2 * k * ringGap;
-    auraEls.push(`<path d="${silD}" fill="none" stroke="#000" stroke-width="${fmt(wOut + stroke)}" stroke-linejoin="round"/>`);
-    auraEls.push(`<path d="${silD}" fill="none" stroke="#fff" stroke-width="${fmt(wOut - stroke)}" stroke-linejoin="round"/>`);
+    // Origami: esquinas rectas también en las auras.
+    const lj = opts.figureAngular ? 'stroke-linejoin="miter" stroke-miterlimit="3"' : 'stroke-linejoin="round"';
+    auraEls.push(`<path d="${silD}" fill="none" stroke="#000" stroke-width="${fmt(wOut + stroke)}" ${lj}/>`);
+    auraEls.push(`<path d="${silD}" fill="none" stroke="#fff" stroke-width="${fmt(wOut - stroke)}" ${lj}/>`);
   }
   body.push(`<g clip-path="url(#${frameClip})">${auraEls.join("")}</g>`);
 
