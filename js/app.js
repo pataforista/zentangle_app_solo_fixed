@@ -362,7 +362,7 @@ function kdpWarning(marginMm, bleedMm = 0) {
 const THUMB_SEED = 7;
 // Con la misma semilla, las tarjetas de figura mostraban la misma hoja: cada
 // una enseña una figura distinta y reconocible.
-const THUMB_OVERRIDES = { zen_figure: { figureName: "nautilus" }, zen_figure_light: { figureName: "hummingbird" }, zen_figure_facet: { figureName: "hamsa" }, zen_figure_glass: { figureName: "lunamoth" }, zen_figure_kids: { figureName: "owl" } };
+const THUMB_OVERRIDES = { zen_figure: { figureName: "nautilus" }, zen_figure_light: { figureName: "hummingbird" }, zen_figure_facet: { figureName: "hamsa" }, zen_figure_glass: { figureName: "lunamoth" }, zen_figure_kids: { figureName: "owl" }, zen_figure_dino: { figureName: "triceratops" }, zen_figure_bio: { figureName: "neuron" } };
 async function renderThumb(key) {
   const p = PAPER_SIZES_MM.LETTER, m = 10;
   const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "patrones" } });

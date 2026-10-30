@@ -892,6 +892,27 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 1.9,
     sketchy: 0.3,
     fillDeadSpace: false,
+  },  // Temas de ciencia: prehistoria (dinosaurios, reptiles marinos, amonites) y biología.
+  zen_figure_dino: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.dino,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },  zen_figure_bio: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.bio,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
   },
   // La misma figura con fondo ligero (anillos sueltos): más rápida de colorear.
   zen_figure_light: {

@@ -430,6 +430,313 @@ const GEM = [["M", 0, -1], ["L", 0.42, -0.6], ["L", 0.48, 0.45], ["L", 0, 1], ["
 const GEM_TABLE = [["M", 0, -0.6], ["L", 0.2, -0.25], ["L", 0, 0.55], ["L", -0.2, -0.25], ["Z"]];
 const GEMS = [[0, 0, 0, 0.6], [-0.55, 0.3, -0.35, 0.42], [0.58, 0.35, 0.3, 0.38]];
 
+/* ---- Ciencia: biología ---- */
+
+// Rama ahusada a lo largo de una polilínea (ancho w0 → w1), como polígono.
+function taper(pts, w0, w1) {
+  const L = [], R = [];
+  pts.forEach(([x, y], i) => {
+    const [ax, ay] = pts[Math.max(0, i - 1)], [bx, by] = pts[Math.min(pts.length - 1, i + 1)];
+    const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy) || 1, w = w0 + (w1 - w0) * (i / (pts.length - 1));
+    L.push([x - (dy / d) * w, y + (dx / d) * w]); R.push([x + (dy / d) * w, y - (dx / d) * w]);
+  });
+  return polyCmds([...L, ...R.reverse()]);
+}
+// Curva cuadrática muestreada (para ramas suaves).
+const qpts = (p0, c, p1, n = 10) => Array.from({ length: n + 1 }, (_, i) => { const t = i / n, m = 1 - t; return [m * m * p0[0] + 2 * m * t * c[0] + t * t * p1[0], m * m * p0[1] + 2 * m * t * c[1] + t * t * p1[1]]; });
+
+// Neurona: soma con núcleo, dendritas ramificadas, axón con vainas de
+// mielina y terminales con botones sinápticos.
+const NEURON = (() => {
+  const soma = [["M", -0.38, 0], ["C", -0.38, -0.2, -0.52, -0.3, -0.62, -0.26], ["C", -0.78, -0.24, -0.86, -0.1, -0.82, 0.04],
+    ["C", -0.8, 0.2, -0.66, 0.3, -0.52, 0.26], ["C", -0.42, 0.22, -0.38, 0.12, -0.38, 0], ["Z"]];
+  const dends = [
+    taper(qpts([-0.7, -0.2], [-0.8, -0.5], [-0.98, -0.72]), 0.05, 0.012), taper(qpts([-0.86, -0.62], [-0.82, -0.8], [-0.72, -0.95]), 0.022, 0.01),
+    taper(qpts([-0.55, -0.25], [-0.45, -0.55], [-0.5, -0.88]), 0.045, 0.012), taper(qpts([-0.47, -0.6], [-0.3, -0.7], [-0.24, -0.86]), 0.022, 0.01),
+    taper(qpts([-0.8, 0.02], [-0.95, 0.02], [-1.06, -0.2]), 0.045, 0.012),
+    taper(qpts([-0.75, 0.2], [-0.9, 0.5], [-1.0, 0.7]), 0.05, 0.012), taper(qpts([-0.9, 0.48], [-0.78, 0.66], [-0.8, 0.86]), 0.022, 0.01),
+    taper(qpts([-0.55, 0.25], [-0.5, 0.55], [-0.6, 0.9]), 0.045, 0.012),
+  ];
+  const axonPts = qpts([-0.4, 0.02], [0.15, -0.2], [0.72, 0.1], 24);
+  const axon = taper(axonPts, 0.035, 0.03);
+  const sheaths = [5, 9, 13, 17].map((i) => {
+    const [x, y] = axonPts[i], [x2, y2] = axonPts[i + 2], ang = Math.atan2(y2 - y, x2 - x);
+    return xform(ell(0, 0, 0.12, 0.065), (x + x2) / 2, (y + y2) / 2, ang);
+  });
+  const terms = [taper(qpts([0.7, 0.1], [0.85, -0.05], [0.95, -0.3]), 0.025, 0.012), taper(qpts([0.7, 0.1], [0.9, 0.12], [1.02, 0.02]), 0.025, 0.012),
+    taper(qpts([0.7, 0.1], [0.82, 0.3], [0.9, 0.45]), 0.025, 0.012)];
+  const buttons = [ell(0.95, -0.33, 0.05), ell(1.04, 0.0, 0.05), ell(0.9, 0.49, 0.05)];
+  return { soma, dends, axon, sheaths, terms, buttons };
+})();
+
+// Cerebro (vista lateral, mira a la izquierda): hemisferio con circunvoluciones
+// (strings), lóbulo temporal, cerebelo y tronco.
+const BRAIN = [["M", -0.92, 0.05], ["C", -1.0, -0.42, -0.68, -0.82, -0.18, -0.86], ["C", 0.32, -0.9, 0.86, -0.62, 0.94, -0.12], ["C", 0.98, 0.18, 0.86, 0.36, 0.62, 0.38],
+  ["C", 0.42, 0.4, 0.3, 0.3, 0.1, 0.36], ["C", -0.2, 0.46, -0.5, 0.42, -0.7, 0.32], ["C", -0.86, 0.24, -0.9, 0.15, -0.92, 0.05], ["Z"]];
+const BRAIN_TEMPORAL = [["M", -0.6, 0.18], ["C", -0.4, 0.06, 0.05, 0.06, 0.28, 0.18], ["C", 0.36, 0.3, 0.3, 0.42, 0.1, 0.46], ["C", -0.2, 0.52, -0.5, 0.46, -0.62, 0.34], ["C", -0.7, 0.28, -0.68, 0.22, -0.6, 0.18], ["Z"]];
+const CEREBELLUM = [["M", 0.35, 0.42], ["C", 0.5, 0.3, 0.9, 0.32, 0.92, 0.52], ["C", 0.92, 0.7, 0.6, 0.76, 0.42, 0.66], ["C", 0.3, 0.6, 0.28, 0.5, 0.35, 0.42], ["Z"]];
+const BRAINSTEM = [["M", 0.16, 0.4], ["L", 0.36, 0.42], ["C", 0.36, 0.6, 0.32, 0.8, 0.3, 0.98], ["L", 0.14, 0.98], ["C", 0.16, 0.8, 0.16, 0.6, 0.16, 0.4], ["Z"]];
+
+// Doble hélice de ADN: dos hebras que se cruzan y peldaños (pares de bases).
+const DNA = (() => {
+  const strand = (ph) => {
+    const pts = Array.from({ length: 61 }, (_, i) => { const y = -1 + (2 * i) / 60; return [0.38 * Math.sin(Math.PI * 1.25 * y + ph), y]; });
+    return taper(pts, 0.075, 0.075);
+  };
+  const rungs = [];
+  for (let k = 0; k < 14; k++) {
+    const y = -0.93 + k * 0.143, xa = 0.38 * Math.sin(Math.PI * 1.25 * y), xb = -xa;
+    if (Math.abs(xa - xb) < 0.24) continue;
+    const x0 = Math.min(xa, xb) + 0.05, x1 = Math.max(xa, xb) - 0.05;
+    rungs.push([["M", x0, y - 0.03], ["L", x1, y - 0.03], ["L", x1, y + 0.03], ["L", x0, y + 0.03], ["Z"]]);
+  }
+  return { a: strand(0), b: strand(Math.PI), rungs };
+})();
+
+// Célula vegetal: pared poligonal, citoplasma, vacuola, núcleo, cloroplastos.
+const PCELL_WALL = [["M", -0.5, -0.95], ["L", 0.52, -0.92], ["L", 0.95, -0.2], ["L", 0.9, 0.62], ["L", 0.42, 0.98], ["L", -0.55, 0.95], ["L", -0.95, 0.3], ["L", -0.9, -0.5], ["Z"]];
+const PCELL_IN = xform(PCELL_WALL, 0, 0, 0, 0.88);
+const PCELL_VAC = [["M", -0.1, -0.35], ["C", 0.3, -0.5, 0.65, -0.3, 0.62, 0.1], ["C", 0.6, 0.5, 0.25, 0.7, -0.05, 0.55], ["C", -0.35, 0.4, -0.4, -0.2, -0.1, -0.35], ["Z"]];
+const PCELL_NUC = ell(-0.48, -0.42, 0.2);
+const PCELL_CHL = [[-0.62, 0.18, 0.4], [-0.45, 0.6, -0.3], [0.1, 0.78, 0.1], [0.66, 0.5, 1.1], [0.7, -0.45, 0.8], [0.15, -0.68, 0.0]].map(([x, y, r]) => xform(ell(0, 0, 0.14, 0.075), x, y, r));
+
+// Célula animal: membrana, núcleo con nucléolo, mitocondrias, Golgi, vesículas.
+const ACELL = [["M", 0, -0.92], ["C", 0.55, -0.95, 0.95, -0.55, 0.92, -0.02], ["C", 0.9, 0.5, 0.52, 0.92, 0, 0.9], ["C", -0.55, 0.88, -0.95, 0.5, -0.92, 0], ["C", -0.9, -0.55, -0.5, -0.9, 0, -0.92], ["Z"]];
+const ACELL_IN = xform(ACELL, 0, 0, 0, 0.9);
+const ACELL_NUC = ell(-0.08, -0.05, 0.32, 0.28);
+const ACELL_MITO = [[0.5, -0.45, 0.6], [-0.55, 0.4, -0.4], [0.45, 0.5, 2.4]].map(([x, y, r]) => xform(ell(0, 0, 0.17, 0.08), x, y, r));
+const ACELL_GOLGI = [0.0, 0.07, 0.14].map((d) => taper(qpts([-0.62, -0.42 + d], [-0.45, -0.62 + d], [-0.22, -0.6 + d]), 0.025, 0.025));
+const ACELL_VES = [ell(-0.2, 0.62, 0.05), ell(0.12, 0.68, 0.045), ell(0.62, 0.05, 0.05)];
+
+// Mitocondria: membrana externa y crestas (membrana interna plegada).
+const MITO = [["M", -0.95, 0], ["C", -0.95, -0.42, -0.6, -0.5, 0, -0.5], ["C", 0.6, -0.5, 0.95, -0.42, 0.95, 0], ["C", 0.95, 0.42, 0.6, 0.5, 0, 0.5], ["C", -0.6, 0.5, -0.95, 0.42, -0.95, 0], ["Z"]];
+const CRISTAE = (() => {
+  const top = [], bot = [];
+  const n = 6;
+  for (let k = 0; k <= 40; k++) {
+    const x = -0.82 + (1.64 * k) / 40, f = (k / 40) * n * 2 * Math.PI;
+    const base = 0.36 * Math.sqrt(Math.max(0, 1 - (x / 0.86) ** 2));
+    top.push([x, -base + (Math.sin(f) > 0.3 ? 0.24 : 0)]);
+    bot.push([x, base - (Math.sin(f + Math.PI) > 0.3 ? 0.24 : 0)]);
+  }
+  return polyCmds([...top, ...bot.reverse()]);
+})();
+
+// Virus: cápside icosaédrica (hexágono con caras), espículas y cola.
+const VIRUS_HEAD = [["M", 0, -0.72], ["L", 0.5, -0.45], ["L", 0.5, 0.1], ["L", 0, 0.37], ["L", -0.5, 0.1], ["L", -0.5, -0.45], ["Z"]];
+const VIRUS_TAIL = [["M", -0.08, 0.37], ["L", 0.08, 0.37], ["L", 0.08, 0.72], ["L", -0.08, 0.72], ["Z"]];
+const VIRUS_LEGS = [-1, 1].flatMap((m) => [taper([[0.06 * m, 0.72], [0.4 * m, 0.82], [0.55 * m, 1.0]], 0.025, 0.02), taper([[0.04 * m, 0.72], [0.2 * m, 0.86], [0.25 * m, 1.02]], 0.025, 0.02)]);
+const VIRUS_FACES = [[["M", 0, -0.72], ["L", 0, -0.18], ["L", 0.5, -0.45], ["Z"]], [["M", 0, -0.18], ["L", 0.5, 0.1], ["L", 0, 0.37], ["Z"]], [["M", 0, -0.18], ["L", -0.5, -0.45], ["L", -0.5, 0.1], ["Z"]]];
+
+// Cromosoma: dos cromátidas en X con bandas y centrómero.
+const CHROMATID = [["M", -0.12, -0.05], ["C", -0.3, -0.4, -0.55, -0.75, -0.62, -0.88], ["C", -0.66, -0.98, -0.5, -1.02, -0.42, -0.94], ["C", -0.3, -0.75, -0.08, -0.4, 0.02, -0.1],
+  ["C", 0.12, 0.25, 0.32, 0.7, 0.42, 0.9], ["C", 0.46, 1.0, 0.32, 1.04, 0.26, 0.96], ["C", 0.14, 0.75, -0.02, 0.35, -0.12, -0.05], ["Z"]];
+const CHROMO = [xform(CHROMATID, 0, 0, 0, 1.25, 1), xform(CHROMATID, 0, 0, 0, -1.25, 1)];
+
+/* ---- Ciencia: dinosaurios (de perfil, miran a la derecha) ---- */
+
+// Terópodo bípedo: cuerpo común y cabeza intercambiable.
+const theropod = (head) => [["M", -1.0, 0.05], ["C", -0.7, -0.05, -0.4, -0.25, -0.1, -0.3], ["C", 0.15, -0.35, 0.3, -0.45, 0.42, -0.6], ...head,
+  ["C", 0.48, -0.1, 0.36, 0.08, 0.24, 0.16], ["L", 0.26, 0.55], ["L", 0.34, 0.9], ["L", 0.1, 0.9], ["L", 0.08, 0.55],
+  ["C", 0.0, 0.35, -0.12, 0.25, -0.22, 0.2], ["C", -0.45, 0.15, -0.7, 0.12, -1.0, 0.05], ["Z"]];
+const TREX = theropod([["C", 0.5, -0.72, 0.62, -0.78, 0.8, -0.74], ["C", 0.95, -0.7, 1.02, -0.62, 1.0, -0.55], ["L", 0.82, -0.52], ["L", 0.98, -0.48],
+  ["C", 0.9, -0.4, 0.7, -0.38, 0.6, -0.42], ["C", 0.54, -0.38, 0.5, -0.34, 0.5, -0.3]]);
+const SPINO = theropod([["C", 0.52, -0.72, 0.62, -0.74, 0.75, -0.7], ["L", 1.06, -0.6], ["L", 1.06, -0.54], ["L", 0.7, -0.5], ["C", 0.6, -0.48, 0.52, -0.4, 0.5, -0.3]]);
+const PARA = theropod([["C", 0.5, -0.72, 0.58, -0.76, 0.7, -0.74], ["C", 0.82, -0.72, 0.92, -0.64, 0.98, -0.58], ["C", 0.98, -0.52, 0.9, -0.5, 0.8, -0.5],
+  ["C", 0.65, -0.48, 0.55, -0.42, 0.5, -0.3]]);
+const DINO_FAR_LEG = [["M", -0.02, 0.32], ["L", 0.02, 0.9], ["L", -0.2, 0.9], ["L", -0.18, 0.5], ["Z"]];
+const DINO_THIGH = ell(0.08, 0.22, 0.19, 0.28);
+const DINO_ARM = [["M", 0.4, -0.15], ["L", 0.57, -0.02], ["L", 0.54, 0.04], ["L", 0.37, -0.07], ["Z"]];
+const SPINO_SAIL = [["M", -0.38, -0.27], ["C", -0.25, -0.78, 0.15, -0.84, 0.34, -0.56], ["L", 0.27, -0.42], ["C", 0.05, -0.38, -0.15, -0.32, -0.38, -0.27], ["Z"]];
+const PARA_CREST = taper(qpts([0.72, -0.73], [0.55, -0.98], [0.22, -0.95]), 0.05, 0.03);
+
+// Cuadrúpedos.
+const STEGO = [["M", -1.0, 0.2], ["C", -0.7, 0.1, -0.5, -0.15, -0.1, -0.25], ["C", 0.3, -0.3, 0.55, -0.1, 0.7, 0.05], ["C", 0.8, 0.1, 0.9, 0.12, 0.98, 0.15],
+  ["C", 1.0, 0.22, 0.92, 0.26, 0.82, 0.24], ["C", 0.7, 0.22, 0.6, 0.25, 0.5, 0.3], ["L", 0.48, 0.66], ["L", 0.3, 0.66], ["L", 0.3, 0.38],
+  ["C", 0.1, 0.42, -0.15, 0.42, -0.3, 0.38], ["L", -0.3, 0.66], ["L", -0.5, 0.66], ["L", -0.52, 0.32], ["C", -0.7, 0.3, -0.85, 0.25, -1.0, 0.2], ["Z"]];
+const STEGO_PLATE = [["M", -0.1, 0.06], ["L", -0.1, -0.08], ["L", 0, -0.22], ["L", 0.1, -0.08], ["L", 0.1, 0.06], ["Z"]];
+const STEGO_PLATES = [[-0.58, -0.04, 0.65, -0.35], [-0.38, -0.16, 0.85, -0.2], [-0.14, -0.24, 1.05, -0.05], [0.12, -0.26, 1.05, 0.1], [0.34, -0.19, 0.85, 0.3], [0.53, -0.08, 0.65, 0.5]]
+  .map(([u, v, k, r]) => xform(STEGO_PLATE, u, v, r, k));
+const STEGO_SPIKES = [[-0.9, 0.15, -0.6], [-0.82, 0.13, -0.3]].map(([u, v, r]) => xform([["M", -0.03, 0], ["L", 0, -0.22], ["L", 0.03, 0], ["Z"]], u, v, r));
+
+const TRIKE = [["M", -0.95, 0.2], ["C", -0.7, 0.05, -0.4, -0.18, 0, -0.2], ["C", 0.25, -0.2, 0.4, -0.12, 0.48, -0.02], ["L", 0.5, 0.32], ["C", 0.5, 0.4, 0.48, 0.45, 0.46, 0.48],
+  ["L", 0.46, 0.75], ["L", 0.3, 0.75], ["L", 0.3, 0.45], ["C", 0.1, 0.48, -0.15, 0.48, -0.3, 0.42], ["L", -0.3, 0.75], ["L", -0.46, 0.75], ["L", -0.48, 0.36],
+  ["C", -0.65, 0.32, -0.8, 0.27, -0.95, 0.2], ["Z"]];
+const TRIKE_FRILL = [["M", 0.4, 0.1], ["C", 0.28, -0.26, 0.5, -0.52, 0.7, -0.44], ["C", 0.86, -0.36, 0.84, -0.05, 0.74, 0.15], ["C", 0.62, 0.26, 0.48, 0.23, 0.4, 0.1], ["Z"]];
+const TRIKE_FACE = [["M", 0.6, -0.05], ["C", 0.75, -0.12, 0.92, 0, 1.0, 0.18], ["C", 1.02, 0.26, 0.95, 0.3, 0.85, 0.3], ["C", 0.72, 0.3, 0.62, 0.25, 0.56, 0.15], ["Z"]];
+const TRIKE_HORNS = [taper([[0.72, -0.04], [0.86, -0.24], [1.02, -0.4]], 0.03, 0.006), taper([[0.66, -0.02], [0.76, -0.22], [0.86, -0.36]], 0.026, 0.006), taper([[0.92, 0.07], [0.96, -0.04]], 0.024, 0.006)];
+
+const BRACHIO = [["M", -1.0, 0.3], ["C", -0.6, 0.25, -0.4, 0, -0.1, -0.05], ["C", 0.15, -0.08, 0.3, -0.2, 0.38, -0.5], ["C", 0.45, -0.8, 0.5, -0.92, 0.62, -0.95],
+  ["C", 0.75, -0.97, 0.82, -0.9, 0.78, -0.84], ["C", 0.68, -0.82, 0.6, -0.8, 0.57, -0.7], ["C", 0.52, -0.4, 0.5, -0.15, 0.52, 0.05], ["L", 0.55, 0.72], ["L", 0.37, 0.72],
+  ["L", 0.36, 0.35], ["C", 0.1, 0.4, -0.15, 0.4, -0.3, 0.35], ["L", -0.3, 0.72], ["L", -0.48, 0.72], ["L", -0.5, 0.32], ["C", -0.7, 0.34, -0.85, 0.33, -1.0, 0.3], ["Z"]];
+
+const ANKY = [["M", -0.55, 0.1], ["C", -0.5, -0.25, 0.1, -0.4, 0.5, -0.2], ["C", 0.65, -0.12, 0.75, -0.02, 0.8, 0.05], ["C", 0.95, 0.05, 1.0, 0.15, 0.95, 0.25],
+  ["C", 0.85, 0.3, 0.7, 0.28, 0.62, 0.25], ["L", 0.6, 0.55], ["L", 0.44, 0.55], ["L", 0.43, 0.32], ["C", 0.2, 0.36, -0.1, 0.36, -0.3, 0.32], ["L", -0.3, 0.55],
+  ["L", -0.46, 0.55], ["L", -0.48, 0.26], ["C", -0.65, 0.26, -0.8, 0.24, -0.9, 0.24], ["L", -0.9, 0.15], ["C", -0.78, 0.13, -0.66, 0.12, -0.55, 0.1], ["Z"]];
+const ANKY_CLUB = ell(-0.97, 0.195, 0.11, 0.09);
+
+// Pterosaurio en vuelo (visto desde abajo, simétrico).
+const PTERO_WING = [["M", 0.05, -0.18], ["C", 0.4, -0.4, 0.8, -0.46, 1.02, -0.36], ["C", 0.78, -0.18, 0.5, 0.04, 0.05, 0.16], ["Z"]];
+const PTERO_BODY = ell(0, 0.02, 0.09, 0.32);
+const PTERO_HEAD = [["M", -0.07, -0.28], ["L", 0, -0.82], ["L", 0.07, -0.28], ["Z"]];
+const PTERO_LEGS = [taper([[0.04, 0.3], [0.12, 0.5], [0.16, 0.62]], 0.025, 0.015), taper([[-0.04, 0.3], [-0.12, 0.5], [-0.16, 0.62]], 0.025, 0.015)];
+
+/* ---- Más prehistoria ---- */
+const ALLO = theropod([["C", 0.5, -0.74, 0.6, -0.8, 0.72, -0.78], ["L", 0.76, -0.86], ["L", 0.8, -0.77], ["C", 0.92, -0.74, 1.0, -0.66, 0.98, -0.58], ["L", 0.82, -0.54], ["L", 0.95, -0.48],
+  ["C", 0.86, -0.42, 0.68, -0.4, 0.58, -0.42], ["C", 0.53, -0.38, 0.5, -0.34, 0.5, -0.3]]);
+const RAPTOR = theropod([["C", 0.5, -0.7, 0.6, -0.72, 0.74, -0.68], ["L", 1.0, -0.58], ["L", 0.98, -0.52], ["L", 0.7, -0.5], ["C", 0.6, -0.48, 0.52, -0.4, 0.5, -0.3]]);
+const RAPTOR_CLAW = taper(qpts([0.3, 0.86], [0.42, 0.78], [0.44, 0.68]), 0.02, 0.006);
+const PACHY = theropod([["C", 0.46, -0.78, 0.6, -0.92, 0.74, -0.88], ["C", 0.9, -0.84, 0.98, -0.7, 0.96, -0.6], ["C", 0.92, -0.52, 0.82, -0.5, 0.72, -0.5],
+  ["C", 0.6, -0.48, 0.52, -0.4, 0.5, -0.3]]);
+const PACHY_DOME = [["M", 0.5, -0.76], ["C", 0.56, -0.98, 0.86, -1.02, 0.94, -0.78], ["C", 0.84, -0.84, 0.64, -0.84, 0.5, -0.76], ["Z"]];
+const IGUANO = theropod([["C", 0.48, -0.74, 0.56, -0.8, 0.68, -0.8], ["C", 0.84, -0.8, 0.96, -0.7, 0.98, -0.62], ["C", 0.96, -0.56, 0.86, -0.54, 0.76, -0.54],
+  ["C", 0.64, -0.52, 0.54, -0.42, 0.5, -0.3]]);
+const IGUANO_THUMB = taper([[0.54, 0.0], [0.6, -0.08], [0.64, -0.16]], 0.025, 0.006);
+
+const DIPLO = [["M", -1.0, 0.0], ["C", -0.7, 0.05, -0.45, -0.1, -0.2, -0.15], ["C", 0.05, -0.2, 0.2, -0.2, 0.35, -0.25], ["C", 0.6, -0.35, 0.8, -0.5, 0.92, -0.52],
+  ["C", 1.0, -0.53, 1.04, -0.47, 0.98, -0.44], ["C", 0.85, -0.4, 0.7, -0.28, 0.45, -0.08], ["L", 0.42, 0.42], ["L", 0.27, 0.42], ["L", 0.26, 0.12],
+  ["C", 0.05, 0.16, -0.12, 0.16, -0.22, 0.12], ["L", -0.24, 0.42], ["L", -0.39, 0.42], ["L", -0.4, 0.08], ["C", -0.6, 0.06, -0.8, 0.04, -1.0, 0.0], ["Z"]];
+const DIMETRO = [["M", -1.0, 0.25], ["C", -0.7, 0.2, -0.4, 0.05, -0.1, 0.02], ["C", 0.3, -0.02, 0.6, 0.02, 0.82, 0.1], ["C", 0.96, 0.15, 1.0, 0.24, 0.92, 0.3],
+  ["C", 0.8, 0.34, 0.66, 0.3, 0.55, 0.3], ["L", 0.55, 0.52], ["L", 0.42, 0.52], ["L", 0.4, 0.34], ["C", 0.1, 0.36, -0.15, 0.36, -0.3, 0.34], ["L", -0.32, 0.52],
+  ["L", -0.45, 0.52], ["L", -0.46, 0.3], ["C", -0.7, 0.3, -0.85, 0.28, -1.0, 0.25], ["Z"]];
+const DIMETRO_SAIL = [["M", -0.45, 0.05], ["C", -0.35, -0.62, 0.25, -0.7, 0.42, 0.02], ["C", 0.1, -0.02, -0.2, 0.0, -0.45, 0.05], ["Z"]];
+
+const PLESIO = [["M", -0.6, 0.15], ["C", -0.6, -0.12, -0.2, -0.22, 0.1, -0.2], ["C", 0.3, -0.2, 0.4, -0.3, 0.5, -0.5], ["C", 0.6, -0.72, 0.7, -0.86, 0.84, -0.88],
+  ["C", 0.98, -0.9, 1.04, -0.8, 0.96, -0.76], ["C", 0.84, -0.74, 0.74, -0.62, 0.66, -0.42], ["C", 0.56, -0.18, 0.5, 0.08, 0.3, 0.2], ["C", 0.0, 0.32, -0.3, 0.32, -0.6, 0.15], ["Z"]];
+const PLESIO_TAIL = [["M", -0.56, 0.06], ["L", -1.0, 0.22], ["L", -0.55, 0.2], ["Z"]];
+const PLESIO_FLIP = [["M", 0, 0], ["C", 0.1, 0.1, 0.12, 0.36, 0.02, 0.48], ["C", -0.06, 0.3, -0.08, 0.14, -0.06, 0.02], ["Z"]];
+const PLESIO_FLIPS = [xform(PLESIO_FLIP, 0.12, 0.18, -0.5), xform(PLESIO_FLIP, -0.38, 0.2, -0.3)];
+
+const MOSA = [["M", 1.0, 0.0], ["C", 0.9, -0.14, 0.6, -0.2, 0.3, -0.18], ["C", -0.1, -0.16, -0.5, -0.06, -0.8, 0.0], ["L", -1.0, -0.22], ["L", -0.92, 0.04], ["L", -1.0, 0.16],
+  ["L", -0.8, 0.06], ["C", -0.5, 0.12, -0.1, 0.16, 0.3, 0.14], ["C", 0.6, 0.12, 0.88, 0.08, 1.0, 0.0], ["Z"]];
+// Cuerpo más grueso (×1.7 en alto): delgado se leía como un pez espada.
+MOSA.splice(0, MOSA.length, ...xform(MOSA.slice(), 0, 0, 0, 1, 1.7));
+const MOSA_FLIPS = [xform(PLESIO_FLIP, 0.42, 0.12, -0.6, 0.8), xform(PLESIO_FLIP, -0.2, 0.12, -0.5, 0.65)];
+
+// Amonite: espiral con costillas (como el nautilus, más vueltas y más cámaras).
+const AMMO = (() => {
+  const b = Math.log(2.2) / (2 * Math.PI), r = (t) => Math.exp(b * t);
+  const P = (t, rad) => [Math.cos(t) * rad, Math.sin(t) * rad];
+  const ch = [];
+  const n = 12;
+  for (let turn = 0; turn < 3; turn++) for (let k = 0; k < n; k++) {
+    const ta = -2 * Math.PI * (turn + 1) + (2 * Math.PI * k) / n, tb = ta + (2 * Math.PI) / n;
+    const outer = [], inner = [];
+    for (let i = 0; i <= 6; i++) { const t = ta + ((tb - ta) * i) / 6; outer.push(P(t, r(t))); inner.unshift(P(t, r(t - 2 * Math.PI))); }
+    ch.push(polyCmds([...outer, ...inner]));
+  }
+  const shell = [];
+  for (let i = 0; i <= 120; i++) { const t = -2 * Math.PI + (2 * Math.PI * i) / 120; shell.push(P(t, r(t))); }
+  return { ch, shell: polyCmds(shell), core: ell(0, 0, r(-6 * Math.PI) * 1.05) };
+})();
+
+/* ---- Más biología ---- */
+const BACT = [["M", -0.7, -0.22], ["C", -0.7, -0.4, -0.55, -0.42, -0.4, -0.42], ["L", 0.45, -0.42], ["C", 0.62, -0.42, 0.72, -0.3, 0.72, -0.1], ["L", 0.72, 0.1],
+  ["C", 0.72, 0.3, 0.62, 0.42, 0.45, 0.42], ["L", -0.4, 0.42], ["C", -0.55, 0.42, -0.7, 0.4, -0.7, 0.22], ["Z"]];
+const BACT_FLAG = [taper(Array.from({ length: 13 }, (_, i) => [0.7 + i * 0.025, 0.1 * Math.sin(i * 0.9)]).map(([x, y], i) => [0.7 + i * 0.026, y + i * 0.02]), 0.02, 0.012),
+  taper(Array.from({ length: 13 }, (_, i) => [-0.7 - i * 0.026, 0.1 * Math.sin(i * 0.9) - i * 0.03]), 0.02, 0.012)];
+const BACT_DNA = taper(qpts([-0.35, 0.05], [0, -0.3], [0.35, 0.05], 16), 0.03, 0.03);
+
+const JELLY_BELL = [["M", -0.62, 0.0], ["C", -0.62, -0.62, -0.3, -0.85, 0, -0.85], ["C", 0.3, -0.85, 0.62, -0.62, 0.62, 0.0], ["Q", 0.47, 0.1, 0.31, 0.0], ["Q", 0.16, 0.1, 0, 0.0],
+  ["Q", -0.16, 0.1, -0.31, 0.0], ["Q", -0.47, 0.1, -0.62, 0.0], ["Z"]];
+const JELLY_TENT = [-0.45, -0.22, 0, 0.22, 0.45].map((x, k) => taper(Array.from({ length: 16 }, (_, i) => [x + 0.07 * Math.sin(i * 0.7 + k), 0.04 + i * 0.06]), 0.04, 0.012));
+const JELLY_ARMS = [-0.1, 0.1].map((x) => taper(Array.from({ length: 12 }, (_, i) => [x + 0.1 * Math.sin(i * 0.5) * (x > 0 ? 1 : -1), 0.04 + i * 0.05]), 0.07, 0.03));
+
+const HEART_ORG = [["M", -0.1, -0.35], ["C", -0.5, -0.5, -0.82, -0.2, -0.74, 0.15], ["C", -0.66, 0.5, -0.3, 0.8, 0.05, 0.95], ["C", 0.35, 0.75, 0.72, 0.4, 0.76, 0.0],
+  ["C", 0.8, -0.35, 0.45, -0.52, 0.15, -0.38], ["Z"]];
+const AORTA = [["M", -0.08, -0.36], ["C", -0.12, -0.7, 0.05, -0.92, 0.32, -0.9], ["C", 0.55, -0.88, 0.62, -0.7, 0.6, -0.5], ["L", 0.48, -0.5], ["C", 0.48, -0.66, 0.42, -0.76, 0.3, -0.76],
+  ["C", 0.12, -0.76, 0.06, -0.6, 0.08, -0.38], ["Z"]];
+const VESSELS = [taper([[-0.3, -0.42], [-0.36, -0.68], [-0.44, -0.84]], 0.06, 0.05), taper([[0.25, -0.88], [0.22, -1.0]], 0.04, 0.035), taper([[0.42, -0.86], [0.46, -1.0]], 0.04, 0.035)];
+
+const EYE_BALL = ell(-0.1, 0, 0.72);
+const EYE_CORNEA = [["M", 0.5, -0.32], ["C", 0.8, -0.28, 0.82, 0.28, 0.5, 0.32], ["C", 0.58, 0.1, 0.58, -0.1, 0.5, -0.32], ["Z"]];
+const EYE_LENS = ell(0.44, 0, 0.09, 0.22);
+const EYE_NERVE = [["M", -0.78, -0.12], ["C", -0.9, -0.12, -0.98, -0.06, -1.04, 0.0], ["C", -0.98, 0.06, -0.9, 0.12, -0.78, 0.12], ["Z"]];
+
+const DIATOM = ell(0, 0, 0.92);
+const DIATOM_RINGS = [ell(0, 0, 0.62), ell(0, 0, 0.3)];
+
+/* ---- Más figuras para adultos (temas del nicho: flores, mar, animales
+   elegantes, hogar acogedor, celeste) ---- */
+
+// Rosa vista desde arriba: anillos de pétalos que se solapan.
+const ROSE = (() => {
+  const petals = [];
+  const ring = (n, R, w, h, a0) => { for (let k = 0; k < n; k++) { const a = a0 + (k / n) * TAU; petals.push(xform(ell(0, 0, w, h), Math.cos(a) * R, Math.sin(a) * R, a + Math.PI / 2)); } };
+  ring(7, 0.62, 0.38, 0.3, 0.2); ring(6, 0.38, 0.3, 0.24, 0.6); ring(5, 0.17, 0.2, 0.16, 1.1);
+  return petals;
+})();
+const ROSE_LEAVES = [xform(LEAF, 0.72, 0.72, -0.8, 0.28, 0.38), xform(LEAF, -0.75, 0.68, 0.8, 0.26, 0.36)];
+
+// Suculenta (roseta) en maceta.
+// Hojas carnosas redondeadas en abanico (echeveria vista de lado).
+const SUCC = (() => {
+  const out = [];
+  for (const [n, L, w, spread] of [[7, 0.78, 0.21, 1.45], [5, 0.56, 0.17, 1.0], [3, 0.36, 0.13, 0.55]])
+    for (let k = 0; k < n; k++) { const r = -spread + (2 * spread * k) / (n - 1); out.push(xform(ell(0, -L / 2, w, L / 2), 0, 0.22, r)); }
+  return out;
+})();
+const SUCC_POT = [["M", -0.5, 0.35], ["L", 0.5, 0.35], ["L", 0.4, 0.98], ["L", -0.4, 0.98], ["Z"]];
+const SUCC_RIM = [["M", -0.56, 0.24], ["L", 0.56, 0.24], ["L", 0.56, 0.4], ["L", -0.56, 0.4], ["Z"]];
+
+// Caballito de mar.
+const SEAHORSE = [["M", 0.1, -0.78], ["C", 0.28, -0.88, 0.45, -0.8, 0.5, -0.66], ["L", 0.82, -0.62], ["L", 0.82, -0.52], ["L", 0.48, -0.5], ["C", 0.44, -0.4, 0.36, -0.34, 0.3, -0.28],
+  ["C", 0.48, -0.1, 0.5, 0.2, 0.32, 0.38], ["C", 0.2, 0.5, 0.05, 0.56, 0.0, 0.66], ["C", -0.06, 0.8, 0.08, 0.92, 0.2, 0.86], ["C", 0.3, 0.8, 0.26, 0.7, 0.18, 0.7],
+  ["C", 0.14, 0.7, 0.12, 0.74, 0.14, 0.77], ["C", 0.06, 0.78, 0.02, 0.72, 0.08, 0.66], ["C", 0.0, 0.88, -0.24, 0.9, -0.24, 0.66], ["C", -0.24, 0.5, -0.08, 0.42, -0.06, 0.28],
+  ["C", -0.04, 0.0, -0.2, -0.2, -0.12, -0.45], ["C", -0.08, -0.62, 0.0, -0.74, 0.1, -0.78], ["Z"]];
+const SEAHORSE_FIN = [["M", -0.1, -0.1], ["C", -0.34, -0.12, -0.42, 0.06, -0.36, 0.2], ["C", -0.24, 0.12, -0.14, 0.08, -0.06, 0.1], ["Z"]];
+
+// Pulpo: cabeza y ocho tentáculos ondulados.
+const OCTO_HEAD = [["M", -0.42, -0.1], ["C", -0.5, -0.6, -0.24, -0.92, 0, -0.92], ["C", 0.24, -0.92, 0.5, -0.6, 0.42, -0.1], ["C", 0.3, 0.06, -0.3, 0.06, -0.42, -0.1], ["Z"]];
+const OCTO_ARMS = [-0.36, -0.26, -0.15, -0.05, 0.05, 0.15, 0.26, 0.36].map((x0, k) => {
+  const dir = x0 < 0 ? -1 : 1, spread = Math.abs(x0) * 2.2;
+  const pts = Array.from({ length: 18 }, (_, i) => { const t = i / 17; return [x0 + dir * spread * t * 0.9 + 0.07 * Math.sin(t * 7 + k), -0.04 + t * (0.95 - Math.abs(x0) * 0.6) - 0.15 * Math.sin(t * 3.2) * t]; });
+  return taper(pts, 0.07, 0.015);
+});
+
+// Lobo aullando (silueta sentada, mira arriba a la derecha).
+const WOLF = [["M", -0.5, 0.95], ["C", -0.56, 0.6, -0.5, 0.25, -0.3, 0.0], ["C", -0.18, -0.18, -0.05, -0.35, 0.05, -0.55], ["L", 0.04, -0.74], ["L", 0.14, -0.62],
+  ["C", 0.2, -0.66, 0.24, -0.7, 0.28, -0.72], ["L", 0.3, -0.9], ["L", 0.38, -0.7], ["C", 0.5, -0.72, 0.62, -0.82, 0.72, -0.92], ["L", 0.76, -0.86],
+  ["C", 0.68, -0.72, 0.6, -0.6, 0.5, -0.52], ["C", 0.4, -0.42, 0.3, -0.3, 0.26, -0.1], ["C", 0.24, 0.1, 0.3, 0.35, 0.32, 0.6], ["L", 0.36, 0.95],
+  ["L", 0.2, 0.95], ["L", 0.14, 0.62], ["L", 0.06, 0.95], ["Z"]];
+const WOLF_TAIL = [["M", -0.42, 0.75], ["C", -0.7, 0.8, -0.95, 0.9, -1.0, 0.98], ["C", -0.8, 1.0, -0.6, 0.98, -0.42, 0.93], ["Z"]];
+
+// Cabeza de caballo con crin.
+const HORSE = [["M", -0.3, 0.95], ["C", -0.32, 0.5, -0.25, 0.1, -0.1, -0.25], ["C", 0.0, -0.5, 0.1, -0.65, 0.2, -0.72], ["L", 0.2, -0.9], ["L", 0.3, -0.74],
+  ["C", 0.45, -0.7, 0.58, -0.5, 0.7, -0.25], ["C", 0.8, -0.05, 0.86, 0.1, 0.82, 0.18], ["C", 0.76, 0.26, 0.64, 0.24, 0.55, 0.16], ["C", 0.45, 0.06, 0.35, 0.0, 0.28, 0.06],
+  ["C", 0.25, 0.35, 0.35, 0.65, 0.45, 0.95], ["Z"]];
+const HORSE_MANE = [["M", 0.15, -0.7], ["C", -0.15, -0.55, -0.35, -0.2, -0.42, 0.2], ["C", -0.48, 0.5, -0.45, 0.75, -0.42, 0.95], ["L", -0.3, 0.95],
+  ["C", -0.32, 0.5, -0.25, 0.1, -0.1, -0.25], ["C", 0.0, -0.5, 0.08, -0.62, 0.15, -0.7], ["Z"]];
+
+// Pavo real: cola en abanico de plumas con ojo.
+const PEACOCK_BODY = [["M", 0.02, -0.32], ["C", 0.12, -0.45, 0.04, -0.6, 0.1, -0.68], ["C", 0.16, -0.74, 0.24, -0.7, 0.24, -0.64], ["L", 0.32, -0.62], ["L", 0.24, -0.58],
+  ["C", 0.22, -0.5, 0.18, -0.4, 0.16, -0.28], ["C", 0.24, 0.0, 0.2, 0.4, 0.05, 0.6], ["C", -0.1, 0.45, -0.14, 0.1, 0.02, -0.32], ["Z"]];
+const PEACOCK_FAN = (() => {
+  const out = [];
+  for (let k = 0; k < 9; k++) out.push(xform([["M", 0, 0], ["C", 0.14, -0.3, 0.16, -0.7, 0, -0.9], ["C", -0.16, -0.7, -0.14, -0.3, 0, 0], ["Z"]], 0.06, 0.45, (k - 4) * 0.3, 1.0, 1.15));
+  return out;
+})();
+const PEACOCK_EYES = Array.from({ length: 9 }, (_, k) => { const r = (k - 4) * 0.3; return [0.06 + Math.sin(r) * 0.8, 0.45 - Math.cos(r) * 0.8]; });
+
+// Gato sentado (silueta elegante, de espaldas, sin cara).
+const SITCAT = [["M", -0.38, 0.95], ["C", -0.5, 0.6, -0.42, 0.2, -0.22, -0.05], ["C", -0.26, -0.25, -0.26, -0.45, -0.2, -0.58], ["L", -0.24, -0.86], ["L", -0.06, -0.68],
+  ["C", 0.02, -0.7, 0.1, -0.7, 0.16, -0.68], ["L", 0.32, -0.86], ["L", 0.3, -0.58], ["C", 0.36, -0.45, 0.36, -0.25, 0.26, -0.05], ["C", 0.48, 0.2, 0.52, 0.6, 0.4, 0.95], ["Z"]];
+const SITCAT_TAIL = [["M", 0.3, 0.88], ["C", 0.7, 0.95, 0.9, 0.75, 0.86, 0.45], ["C", 0.84, 0.3, 0.72, 0.28, 0.72, 0.4], ["C", 0.76, 0.62, 0.62, 0.78, 0.3, 0.78], ["Z"]];
+
+// Tetera.
+const TEAPOT = [["M", -0.6, 0.0], ["C", -0.65, -0.4, -0.3, -0.52, 0, -0.52], ["C", 0.3, -0.52, 0.65, -0.4, 0.6, 0.0], ["C", 0.58, 0.4, 0.35, 0.62, 0, 0.62],
+  ["C", -0.35, 0.62, -0.58, 0.4, -0.6, 0.0], ["Z"]];
+const TEAPOT_LID = [["M", -0.32, -0.5], ["C", -0.28, -0.7, 0.28, -0.7, 0.32, -0.5], ["Z"]];
+const TEAPOT_SPOUT = [["M", 0.55, -0.02], ["C", 0.75, -0.05, 0.85, -0.2, 0.98, -0.42], ["L", 1.04, -0.36], ["C", 0.92, -0.1, 0.82, 0.12, 0.56, 0.2], ["Z"]];
+const TEAPOT_HANDLE = [["M", -0.56, -0.25], ["C", -0.95, -0.3, -1.0, 0.25, -0.58, 0.28], ["L", -0.6, 0.16], ["C", -0.82, 0.12, -0.8, -0.14, -0.58, -0.12], ["Z"]];
+const TEAPOT_BASE = [["M", -0.35, 0.56], ["L", 0.35, 0.56], ["L", 0.42, 0.72], ["L", -0.42, 0.72], ["Z"]];
+
+// Sol radiante (rayos ondulados alternos).
+const SUN_RAYS = Array.from({ length: 12 }, (_, k) => {
+  const a = (k / 12) * TAU, L = k % 2 ? 0.88 : 1.0;
+  return xform([["M", -0.09, 0], ["C", -0.12, -0.3, 0.05, -0.5, 0, -1], ["C", 0.12, -0.5, 0.12, -0.3, 0.09, 0], ["Z"]], Math.cos(a - Math.PI / 2) * 0.48, Math.sin(a - Math.PI / 2) * 0.48, a, 1, L * 0.55);
+});
+
 const FIGURES = {
   owl: {
     parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] } }],
@@ -733,19 +1040,299 @@ const FIGURES = {
     silhouette: GEMS.map(([u, v, r, k]) => xform(GEM, u, v, r, k * 1.2, k * 1.55)),
     abstract: true, hide: true,
   },
+  neuron: {
+    parts: [{ cmds: NEURON.soma, strings: { angle: 0.4, a: [1, 2], b: [1, 1] } }],
+    back: [...NEURON.dends.map((cmds) => ({ cmds, tangle: null })), { cmds: NEURON.axon, tangle: null }, ...NEURON.terms.map((cmds) => ({ cmds, tangle: null }))],
+    front: [...NEURON.sheaths.map((cmds) => ({ cmds, tangle: "detail" })), ...NEURON.buttons.map((cmds) => ({ cmds, tangle: null })), { cmds: ell(-0.6, 0, 0.12), tangle: "round" }],
+    deco: () => [{ cmds: ell(-0.6, 0, 0.04), fill: W }],
+    silhouette: [NEURON.soma, ...NEURON.dends, NEURON.axon, ...NEURON.sheaths, ...NEURON.terms, ...NEURON.buttons],
+    science: "bio", hide: true,
+  },
+  brain: {
+    parts: [{ cmds: BRAIN, strings: { angle: 0.7, a: [4, 5], b: [3, 4] } }],
+    back: [{ cmds: BRAINSTEM, tangle: null }, { cmds: CEREBELLUM, tangle: "detail" }],
+    front: [{ cmds: BRAIN_TEMPORAL, tangle: "any" }],
+    silhouette: [BRAIN, BRAIN_TEMPORAL, CEREBELLUM, BRAINSTEM],
+    science: "bio", hide: true,
+  },
+  dna: {
+    parts: [{ cmds: DNA.a, strings: { angle: Math.PI / 2, a: [1, 1], b: [9, 11] } }, { cmds: DNA.b, strings: { angle: Math.PI / 2, a: [1, 1], b: [9, 11] } }],
+    back: DNA.rungs.map((cmds) => ({ cmds, tangle: null })),
+    silhouette: [DNA.a, DNA.b, ...DNA.rungs],
+    science: "bio", hide: true,
+  },
+  plantcell: {
+    parts: [{ cmds: PCELL_WALL, strings: { angle: 0.5, a: [2, 3], b: [2, 3] } }],
+    front: [{ cmds: PCELL_IN, tangle: "round" }, { cmds: PCELL_VAC, tangle: "any" }, { cmds: PCELL_NUC, tangle: "any" }, { cmds: ell(-0.48, -0.42, 0.07), tangle: null },
+      ...PCELL_CHL.map((cmds) => ({ cmds, tangle: "detail" }))],
+    silhouette: [PCELL_WALL],
+    science: "bio",
+  },
+  animalcell: {
+    parts: [{ cmds: ACELL, strings: { angle: 0.3, a: [2, 3], b: [2, 3] } }],
+    front: [{ cmds: ACELL_IN, tangle: "round" }, { cmds: ACELL_NUC, tangle: "any" }, { cmds: ell(-0.02, -0.08, 0.09), tangle: null },
+      ...ACELL_MITO.map((cmds) => ({ cmds, tangle: "detail" })), ...ACELL_GOLGI.map((cmds) => ({ cmds, tangle: null })), ...ACELL_VES.map((cmds) => ({ cmds, tangle: null }))],
+    silhouette: [ACELL],
+    science: "bio", hide: true,
+  },
+  mitochondrion: {
+    rot: -0.35,
+    parts: [{ cmds: MITO, strings: { angle: 0.2, a: [1, 1], b: [3, 4] } }],
+    front: [{ cmds: CRISTAE, tangle: "any" }],
+    silhouette: [MITO],
+    science: "bio", hide: true,
+  },
+  virus: {
+    parts: [...VIRUS_FACES.map((cmds, k) => ({ cmds, strings: { angle: k * 1.1, a: [1, 2], b: [1, 1] } })), ...VIRUS_FACES.map((cmds, k) => ({ cmds: xform(cmds, 0, 0, 0, -1, 1), strings: { angle: -k * 1.1, a: [1, 2], b: [1, 1] } }))],
+    back: [{ cmds: VIRUS_TAIL, tangle: "detail" }, ...VIRUS_LEGS.map((cmds) => ({ cmds, tangle: null }))],
+    silhouette: [VIRUS_HEAD, VIRUS_TAIL, ...VIRUS_LEGS],
+    science: "bio", hide: true,
+  },
+  chromosome: {
+    parts: CHROMO.map((cmds, k) => ({ cmds, strings: { angle: k ? -0.95 : 0.95, a: [1, 1], b: [6, 8] } })),
+    front: [{ cmds: ell(0, -0.07, 0.1, 0.08), tangle: null }],
+    silhouette: CHROMO,
+    science: "bio", hide: true,
+  },
+  trex: {
+    parts: [{ cmds: TREX, strings: { angle: 0.4, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: DINO_FAR_LEG, tangle: "detail" }],
+    front: [{ cmds: DINO_THIGH, tangle: "any" }, { cmds: DINO_ARM, tangle: null }],
+    deco: () => [{ cmds: ell(0.76, -0.66, 0.028), fill: W }],
+    silhouette: [TREX, DINO_FAR_LEG], branch: 0.86,
+    science: "dino", hide: true,
+  },
+  spinosaurus: {
+    parts: [{ cmds: SPINO_SAIL, strings: { angle: 0.2, a: [1, 1], b: [5, 6] } }, { cmds: SPINO, strings: { angle: 0.4, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: DINO_FAR_LEG, tangle: "detail" }],
+    front: [{ cmds: DINO_THIGH, tangle: "any" }, { cmds: DINO_ARM, tangle: null }],
+    deco: () => [{ cmds: ell(0.72, -0.64, 0.026), fill: W }],
+    silhouette: [SPINO, SPINO_SAIL, DINO_FAR_LEG], branch: 0.86,
+    science: "dino",
+  },
+  parasaurolophus: {
+    parts: [{ cmds: PARA, strings: { angle: 0.4, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: PARA_CREST, tangle: null }, { cmds: DINO_FAR_LEG, tangle: "detail" }],
+    front: [{ cmds: DINO_THIGH, tangle: "any" }, { cmds: DINO_ARM, tangle: null }],
+    deco: () => [{ cmds: ell(0.7, -0.65, 0.026), fill: W }],
+    silhouette: [PARA, PARA_CREST, DINO_FAR_LEG], branch: 0.86,
+    science: "dino",
+  },
+  stegosaurus: {
+    parts: [{ cmds: STEGO, strings: { angle: 0.2, a: [3, 4], b: [3, 4] } }],
+    back: [...STEGO_PLATES.map((cmds) => ({ cmds, tangle: "detail" })), ...STEGO_SPIKES.map((cmds) => ({ cmds, tangle: null }))],
+    deco: () => [{ cmds: ell(0.88, 0.16, 0.022), fill: W }],
+    silhouette: [STEGO, ...STEGO_PLATES, ...STEGO_SPIKES], branch: 0.62,
+    science: "dino", hide: true,
+  },
+  triceratops: {
+    parts: [{ cmds: TRIKE, strings: { angle: 0.2, a: [3, 4], b: [3, 4] } }],
+    front: [{ cmds: TRIKE_FRILL, tangle: "any" }, { cmds: TRIKE_FACE, tangle: "detail" }, ...TRIKE_HORNS.map((cmds) => ({ cmds, tangle: null }))],
+    deco: () => [{ cmds: ell(0.78, 0.06, 0.025), fill: W }],
+    silhouette: [TRIKE, TRIKE_FRILL, TRIKE_FACE, ...TRIKE_HORNS], branch: 0.71,
+    science: "dino", hide: true,
+  },
+  brachiosaurus: {
+    parts: [{ cmds: BRACHIO, strings: { angle: 0.6, a: [3, 4], b: [3, 4] } }],
+    deco: () => [{ cmds: ell(0.67, -0.89, 0.022), fill: W }],
+    silhouette: [BRACHIO], branch: 0.68,
+    science: "dino", hide: true,
+  },
+  ankylosaurus: {
+    parts: [{ cmds: ANKY, strings: { angle: 0.1, a: [3, 4], b: [4, 5] } }],
+    back: [{ cmds: ANKY_CLUB, tangle: "round" }],
+    deco: () => [{ cmds: ell(0.84, 0.12, 0.022), fill: W }],
+    silhouette: [ANKY, ANKY_CLUB], branch: 0.51,
+    science: "dino",
+  },
+  pterosaur: {
+    mirror: true,
+    parts: [{ cmds: PTERO_WING, strings: { angle: -0.3, a: [2, 3], b: [2, 3] } }],
+    center: () => [{ cmds: PTERO_BODY, fill: W }, { cmds: PTERO_HEAD, fill: W }, ...PTERO_LEGS.map((cmds) => ({ cmds, fill: W })), { cmds: ell(0, -0.32, 0.06), fill: W }],
+    silhouette: [PTERO_WING, xform(PTERO_WING, 0, 0, 0, -1, 1), PTERO_BODY, PTERO_HEAD, ...PTERO_LEGS],
+    science: "dino",
+  },
+  allosaurus: {
+    parts: [{ cmds: ALLO, strings: { angle: 0.4, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: DINO_FAR_LEG, tangle: "detail" }],
+    front: [{ cmds: DINO_THIGH, tangle: "any" }, { cmds: DINO_ARM, tangle: null }],
+    deco: () => [{ cmds: ell(0.74, -0.68, 0.026), fill: W }],
+    silhouette: [ALLO, DINO_FAR_LEG], branch: 0.86,
+    science: "dino", hide: true,
+  },
+  velociraptor: {
+    parts: [{ cmds: RAPTOR, strings: { angle: 0.4, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: DINO_FAR_LEG, tangle: "detail" }],
+    front: [{ cmds: DINO_THIGH, tangle: "any" }, { cmds: DINO_ARM, tangle: null }, { cmds: RAPTOR_CLAW, tangle: null }],
+    deco: () => [{ cmds: ell(0.72, -0.64, 0.026), fill: W }],
+    silhouette: [RAPTOR, DINO_FAR_LEG], branch: 0.86,
+    science: "dino", hide: true,
+  },
+  pachycephalosaurus: {
+    parts: [{ cmds: PACHY, strings: { angle: 0.4, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: PACHY_DOME, tangle: "round" }, { cmds: DINO_FAR_LEG, tangle: "detail" }],
+    front: [{ cmds: DINO_THIGH, tangle: "any" }, { cmds: DINO_ARM, tangle: null }],
+    deco: () => [{ cmds: ell(0.8, -0.66, 0.026), fill: W }],
+    silhouette: [PACHY, DINO_FAR_LEG, PACHY_DOME], branch: 0.86,
+    science: "dino",
+  },
+  iguanodon: {
+    parts: [{ cmds: IGUANO, strings: { angle: 0.4, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: DINO_FAR_LEG, tangle: "detail" }],
+    front: [{ cmds: DINO_THIGH, tangle: "any" }, { cmds: DINO_ARM, tangle: null }, { cmds: IGUANO_THUMB, tangle: null }],
+    deco: () => [{ cmds: ell(0.76, -0.7, 0.026), fill: W }],
+    silhouette: [IGUANO, DINO_FAR_LEG], branch: 0.86,
+    science: "dino",
+  },
+  diplodocus: {
+    parts: [{ cmds: DIPLO, strings: { angle: 0.1, a: [2, 3], b: [4, 5] } }],
+    deco: () => [{ cmds: ell(0.92, -0.49, 0.02), fill: W }],
+    silhouette: [DIPLO], branch: 0.38,
+    science: "dino", hide: true,
+  },
+  dimetrodon: {
+    parts: [{ cmds: DIMETRO_SAIL, strings: { angle: 0, a: [1, 1], b: [6, 7] } }, { cmds: DIMETRO, strings: { angle: 0.2, a: [2, 3], b: [3, 4] } }],
+    deco: () => [{ cmds: ell(0.84, 0.17, 0.022), fill: W }],
+    silhouette: [DIMETRO, DIMETRO_SAIL], branch: 0.48,
+    science: "dino", hide: true,
+  },
+  plesiosaur: {
+    parts: [{ cmds: PLESIO, strings: { angle: 0.5, a: [2, 3], b: [3, 4] } }],
+    back: [{ cmds: PLESIO_TAIL, tangle: "detail" }, ...PLESIO_FLIPS.map((cmds) => ({ cmds, tangle: "detail" }))],
+    deco: () => [{ cmds: ell(0.9, -0.82, 0.02), fill: W }],
+    silhouette: [PLESIO, PLESIO_TAIL, ...PLESIO_FLIPS],
+    science: "dino", hide: true,
+  },
+  mosasaurus: {
+    rot: -0.25,
+    parts: [{ cmds: MOSA, strings: { angle: 0, a: [2, 2], b: [5, 6] } }],
+    back: MOSA_FLIPS.map((cmds) => ({ cmds, tangle: "detail" })),
+    deco: () => [{ cmds: ell(0.82, -0.06, 0.02), fill: W }, { cmds: [["M", 1.0, 0.0], ["L", 0.7, 0.03]], fill: "none" }],
+    silhouette: [MOSA, ...MOSA_FLIPS],
+    science: "dino",
+  },
+  ammonite: {
+    rot: 0.3,
+    parts: AMMO.ch.map((cmds, k) => ({ cmds, strings: { angle: k * 0.52, a: [1, 1], b: [0, 1] } })),
+    front: [{ cmds: AMMO.core, tangle: null }],
+    silhouette: [AMMO.shell],
+    science: "dino",
+  },
+  bacterium: {
+    parts: [{ cmds: BACT, strings: { angle: 0.3, a: [2, 3], b: [3, 4] } }],
+    back: BACT_FLAG.map((cmds) => ({ cmds, tangle: null })),
+    front: [{ cmds: BACT_DNA, tangle: null }],
+    silhouette: [BACT, ...BACT_FLAG],
+    science: "bio", hide: true,
+  },
+  jellyfish: {
+    parts: [{ cmds: JELLY_BELL, strings: { angle: 0, a: [2, 3], b: [2, 3] } }],
+    back: [...JELLY_TENT.map((cmds) => ({ cmds, tangle: null })), ...JELLY_ARMS.map((cmds) => ({ cmds, tangle: "detail" }))],
+    silhouette: [JELLY_BELL, ...JELLY_TENT, ...JELLY_ARMS],
+    science: "bio", hide: true,
+  },
+  heartorgan: {
+    parts: [{ cmds: HEART_ORG, strings: { angle: 0.9, a: [2, 3], b: [2, 3] } }],
+    back: [{ cmds: AORTA, tangle: "detail" }, ...VESSELS.map((cmds) => ({ cmds, tangle: null }))],
+    silhouette: [HEART_ORG, AORTA, ...VESSELS],
+    science: "bio", hide: true,
+  },
+  eyeball: {
+    parts: [{ cmds: EYE_BALL, strings: { angle: Math.PI / 2, a: [3, 4], b: [1, 2] } }],
+    back: [{ cmds: EYE_NERVE, tangle: "detail" }],
+    front: [{ cmds: EYE_CORNEA, tangle: null }, { cmds: EYE_LENS, tangle: null }, { cmds: ell(-0.1, 0, 0.55), tangle: "any" }],
+    silhouette: [EYE_BALL, EYE_CORNEA, EYE_NERVE],
+    science: "bio",
+  },
+  diatom: {
+    parts: [{ cmds: DIATOM, strings: { angle: 0, a: [4, 5], b: [4, 5] } }],
+    front: [{ cmds: DIATOM_RINGS[0], tangle: "any" }, { cmds: DIATOM_RINGS[1], tangle: "round" }],
+    silhouette: [DIATOM],
+    science: "bio",
+  },
+  rose: {
+    parts: ROSE.slice(0, 7).map((cmds, k) => ({ cmds, strings: { angle: k * 0.9, a: [1, 2], b: [1, 1] } })),
+    back: ROSE_LEAVES.map((cmds) => ({ cmds, tangle: "detail" })),
+    front: [...ROSE.slice(7, 13).map((cmds) => ({ cmds, tangle: "any" })), ...ROSE.slice(13).map((cmds) => ({ cmds, tangle: "round" }))],
+    silhouette: [...ROSE, ...ROSE_LEAVES],
+    adult: true,
+  },
+  succulent: {
+    parts: [{ cmds: SUCC_POT, strings: { angle: 0, a: [1, 2], b: [2, 3] } }, ...SUCC.slice(0, 8).map((cmds, k) => ({ cmds, strings: { angle: k * 0.8, a: [1, 1], b: [1, 2], bShape: "chevron" } }))],
+    front: [{ cmds: SUCC_RIM, tangle: "detail" }, ...SUCC.slice(8).map((cmds) => ({ cmds, tangle: "detail" }))],
+    silhouette: [SUCC_POT, SUCC_RIM, ...SUCC],
+    adult: true, hide: true,
+  },
+  seahorse: {
+    parts: [{ cmds: SEAHORSE, strings: { angle: 0, a: [1, 2], b: [6, 8], bShape: "chevron" } }],
+    back: [{ cmds: SEAHORSE_FIN, tangle: "detail" }],
+    deco: () => [{ cmds: ell(0.3, -0.62, 0.04), fill: W }],
+    silhouette: [SEAHORSE, SEAHORSE_FIN],
+    adult: true, hide: true,
+  },
+  octopus: {
+    parts: [{ cmds: OCTO_HEAD, strings: { angle: 0.3, a: [2, 3], b: [2, 3] } }],
+    back: OCTO_ARMS.map((cmds) => ({ cmds, tangle: "detail" })),
+    deco: () => [{ cmds: ell(-0.15, -0.3, 0.06), fill: W }, { cmds: ell(0.15, -0.3, 0.06), fill: W }],
+    silhouette: [OCTO_HEAD, ...OCTO_ARMS],
+    adult: true,
+  },
+  wolf: {
+    parts: [{ cmds: WOLF, strings: { angle: 0.6, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: WOLF_TAIL, tangle: "detail" }],
+    silhouette: [WOLF, WOLF_TAIL], branch: 0.96,
+    adult: true, hide: true,
+  },
+  horse: {
+    parts: [{ cmds: HORSE, strings: { angle: 0.9, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: HORSE_MANE, tangle: "detail" }],
+    deco: () => [{ cmds: ell(0.42, -0.4, 0.04, 0.03), fill: W }, { cmds: ell(0.72, 0.1, 0.03), fill: W }],
+    silhouette: [HORSE, HORSE_MANE],
+    adult: true, hide: true,
+  },
+  peacock: {
+    parts: PEACOCK_FAN.map((cmds, k) => ({ cmds, strings: { angle: Math.PI / 2 + (k - 4) * 0.3, a: [1, 1], b: [2, 3], bShape: "chevron", bSign: -1 } })),
+    front: [{ cmds: xform(PEACOCK_BODY, 0, 0.35), tangle: "detail" }, ...PEACOCK_EYES.map(([x, y]) => ({ cmds: ell(x, y, 0.08, 0.1), tangle: null }))],
+    silhouette: [...PEACOCK_FAN, xform(PEACOCK_BODY, 0, 0.35)],
+    adult: true,
+  },
+  sittingcat: {
+    parts: [{ cmds: SITCAT, strings: { angle: 0.5, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: SITCAT_TAIL, tangle: "detail" }],
+    silhouette: [SITCAT, SITCAT_TAIL], branch: 0.96,
+    adult: true, hide: true,
+  },
+  teapot: {
+    parts: [{ cmds: TEAPOT, strings: { angle: 0.2, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: TEAPOT_SPOUT, tangle: "detail" }, { cmds: TEAPOT_HANDLE, tangle: null }],
+    front: [{ cmds: TEAPOT_LID, tangle: "detail" }, { cmds: ell(0, -0.68, 0.07), tangle: null }, { cmds: TEAPOT_BASE, tangle: null }],
+    silhouette: [TEAPOT, TEAPOT_LID, TEAPOT_SPOUT, TEAPOT_HANDLE, TEAPOT_BASE, ell(0, -0.68, 0.07)], branch: 0.72,
+    adult: true, hide: true,
+  },
+  sun: {
+    parts: [{ cmds: ell(0, 0, 0.5), strings: { angle: 0.4, a: [2, 3], b: [2, 3] } }],
+    back: SUN_RAYS.map((cmds) => ({ cmds, tangle: "detail" })),
+    front: [{ cmds: ell(0, 0, 0.18), tangle: "round" }],
+    silhouette: [ell(0, 0, 0.5), ...SUN_RAYS],
+    adult: true,
+  },
 };
 export const FIGURE_IDS = Object.keys(FIGURES);
 // Grupos: figuras para adultos (elegantes, sin caritas), composiciones
 // abstractas y animales tiernos (libro infantil).
 export const FIGURE_SETS = {
-  adult: ["koi", "hummingbird", "feather", "nautilus", "lunamoth", "hamsa", "vase", "lotus", "butterfly", "dragonfly", "leaf", "flower", "moon", "heart"],
+  adult: ["koi", "hummingbird", "feather", "nautilus", "lunamoth", "hamsa", "vase", "lotus", "butterfly", "dragonfly", "leaf", "flower", "moon", "heart",
+    "rose", "succulent", "seahorse", "octopus", "wolf", "horse", "peacock", "sittingcat", "teapot", "sun"],
   abstract: ["ribbons", "drops", "orbs", "crystals"],
   kids: ["owl", "cat", "fish", "turtle", "elephant", "snail", "bird", "whale", "mushroom", "tree", "bear", "rabbit", "penguin", "fox"],
 };
+// Temas de ciencia: se leen de la etiqueta `science` de cada figura.
+FIGURE_SETS.dino = FIGURE_IDS.filter((f) => FIGURES[f].science === "dino");
+FIGURE_SETS.bio = FIGURE_IDS.filter((f) => FIGURES[f].science === "bio");
 export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
 // En los estilos para adultos, las figuritas escondidas también son adultas.
-const HIDEABLE_ADULT = ["koi", "hummingbird", "feather", "vase", "drops", "crystals", "leaf", "moon", "heart"];
+const HIDEABLE_ADULT = ["koi", "hummingbird", "feather", "vase", "drops", "crystals", "leaf", "moon", "heart", "succulent", "seahorse", "wolf", "horse", "sittingcat", "teapot"];
 const HIDEABLE = ["cat", "fish", "heart", "bird", "whale", "rabbit", "bear", "penguin", "moon", "leaf", "turtle", "mushroom", "tree", "fox", "elephant"];
 
 // Figura de la n-ésima página de figura de un libro: recorre todas las
@@ -975,9 +1562,26 @@ export async function generateZenFigure(doc, opts) {
   const aura = fStyle === "glass" ? 1 : rInt(rng, auraLo, auraHi);
   const room = aura * gap * 1.6 + gap * 3; // margen para auras y respiro
   const bottomRoom = def.branch || def.stem ? 0.06 : 0;
-  const s = Math.min((a.w - 2 * room) / (ub.x1 - ub.x0), (a.h - 2 * room) / ((ub.y1 - ub.y0) * (1 + bottomRoom)));
-  const fcx = a.x + a.w / 2 - ((ub.x0 + ub.x1) / 2) * s;
-  const fcy = a.y + a.h / 2 - ((ub.y0 + ub.y1) / 2) * s - (bottomRoom ? a.h * 0.02 : 0);
+  const sFit = Math.min((a.w - 2 * room) / (ub.x1 - ub.x0), (a.h - 2 * room) / ((ub.y1 - ub.y0) * (1 + bottomRoom)));
+  // Encuadre: «center» (a página completa), «offset» (más pequeña y movida a
+  // un lado o esquina: más fondo para colorear) o «zoom» (más grande que la
+  // página y recortada por el marco, como un primer plano).
+  const layouts = { center: 0.4, offset: 0.35, zoom: 0.25 };
+  let layout = layouts[opts.figureLayout] !== undefined ? opts.figureLayout : null;
+  const lr = rng();
+  if (!layout) layout = empty ? "center" : lr < 0.4 ? "center" : lr < 0.75 ? "offset" : "zoom";
+  const s = sFit * (layout === "offset" ? rFloat(rng, 0.66, 0.8) : layout === "zoom" ? rFloat(rng, 1.25, 1.45) : 1);
+  const figW = (ub.x1 - ub.x0) * s, figH = (ub.y1 - ub.y0) * s;
+  // Holgura para mover la figura: dentro del marco (offset) o hasta un ~25 %
+  // fuera de él (zoom).
+  const slackX = layout === "zoom" ? (figW - a.w) / 2 + figW * 0.12 : Math.max(0, (a.w - 2 * room - figW) / 2);
+  const slackY = layout === "zoom" ? (figH - a.h) / 2 + figH * 0.12 : Math.max(0, (a.h - 2 * room - figH * (1 + bottomRoom)) / 2);
+  const ox = layout === "center" ? 0 : rFloat(rng, -1, 1) * Math.max(0, slackX);
+  let oy = layout === "center" ? 0 : rFloat(rng, -1, 1) * Math.max(0, slackY);
+  // Con suelo (rama, tallo) la figura va de la mitad hacia abajo: no flota.
+  if ((def.branch || def.stem) && layout === "offset") oy = Math.abs(oy);
+  const fcx = a.x + a.w / 2 - ((ub.x0 + ub.x1) / 2) * s + ox;
+  const fcy = a.y + a.h / 2 - ((ub.y0 + ub.y1) / 2) * s - (bottomRoom ? a.h * 0.02 : 0) + oy;
   const c = Math.cos(rot), sn = Math.sin(rot);
   const tf = (u, v) => [fcx + (u * c - v * sn) * s, fcy + (u * sn + v * c) * s];
 
@@ -1144,8 +1748,10 @@ export async function generateZenFigure(doc, opts) {
     let band = null;
     if (def.branch) { const [, by] = tf(0, def.branch + 0.06), bh = Math.max(gap * 5, s * 0.1); band = [by - bh, by + bh]; }
     // Solo siluetas que se reconocen pequeñas y sin detalles interiores.
+    // Figuritas del mismo tema (ciencia), o adultas, o tiernas.
+    const theme = def.science ? FIGURE_IDS.filter((f) => FIGURES[f].science === def.science && FIGURES[f].hide) : null;
     const adultMode = !FIGURE_SETS.kids.includes(figName);
-    const pool = (adultMode ? HIDEABLE_ADULT : HIDEABLE).filter((f) => f !== figName && FIGURES[f]);
+    const pool = (theme && theme.length > 1 ? theme : adultMode ? HIDEABLE_ADULT : HIDEABLE).filter((f) => f !== figName && FIGURES[f]);
     const placed = [], out = [];
     for (let n = 0; n < nHidden; n++) {
       const other = FIGURES[pool[Math.floor(rng() * pool.length)]];
@@ -1200,7 +1806,7 @@ export async function generateZenFigure(doc, opts) {
   }
 
   /* ---- 4) Piezas con tangle propio (detrás / delante) ---- */
-  const piece = (p, mirrorX = false) => {
+  const piece = (p, mirrorX = false, front = false) => {
     const cmds = mirrorX ? xform(p.cmds, 0, 0, 0, -1, 1) : p.cmds;
     const d = shapeD(cmds), dc = shapeD(cmds, 0);
     const rings = flatten(cmds, tf), bb = bboxOf(rings);
@@ -1214,9 +1820,12 @@ export async function generateZenFigure(doc, opts) {
       const pool = p.tangle === "detail" ? DETAIL_POOL : p.tangle === "round" ? ["printemps", "purk", "tipple"] : POOL.map((t) => t.id);
       inner = `<g clip-path="url(#${clipOf(dc)})">${tangleIn(pickTangle(pool), bb, p.tangle === "detail" ? 0.9 : 1)}</g>`;
     }
-    return `<path d="${dc}" fill="#fff" stroke="none"/>${inner}${el(d, "none", strStroke * 1.1)}`;
+    // Piezas de delante (orgánulos, caras): halo blanco fino para que el
+    // tangle de debajo no deje astillas pegadas a su borde.
+    const halo = front && rich ? `<path d="${dc}" fill="#fff" stroke="#fff" stroke-width="${fmt(gap * 2.2)}" stroke-linejoin="round"/>` : "";
+    return `${halo}<path d="${dc}" fill="#fff" stroke="none"/>${inner}${el(d, "none", strStroke * 1.1)}`;
   };
-  const pieces = (list) => list.flatMap((p) => (p.mirror ? [piece(p), piece(p, true)] : [piece(p)]));
+  const pieces = (list, front = false) => list.flatMap((p) => (p.mirror ? [piece(p, false, front), piece(p, true, front)] : [piece(p, false, front)]));
 
   /* ---- 5) Partes subdivididas ---- */
   // Relleno rico (zentangle clásico): dentro de algunas secciones, una banda
@@ -1257,7 +1866,7 @@ export async function generateZenFigure(doc, opts) {
   // (como el corazón dentro del corazón), con otro tangle. Solo donde cabe
   // entera, lejos del contorno y sin tapar la cara ni las piezas de delante.
   const nestedSvg = () => {
-    if (!rich || def.mirror || def.abstract || figName === "heart" || opts.nestedFigure === false) return "";
+    if (!rich || def.mirror || def.abstract || def.science || figName === "heart" || opts.nestedFigure === false) return "";
     // Contenedor: cualquiera de las partes (cabeza o cuerpo del oso, etc.).
     const partRings = parts.map((p) => flatten(p.cmds, tf));
     const inFig = (x, y) => partRings.some((r) => inside(r, x, y));
@@ -1367,14 +1976,17 @@ export async function generateZenFigure(doc, opts) {
   figure.push(...pieces(back));
   if (def.mirror) {
     // Mitad derecha + su espejo exacto (simetría bilateral, como la mariposa real).
-    const half = [...parts.map(partSvg), ...pieces(front), def.deco ? decoSvg(def.deco()) : ""].join("");
+    const half = [...parts.map(partSvg), ...pieces(front, true), def.deco ? decoSvg(def.deco()) : ""].join("");
     figure.push(`<g>${half}</g>`, `<g transform="translate(${fmt(2 * fcx)} 0) scale(-1 1)">${half}</g>`);
     if (def.center) figure.push(decoSvg(def.center()));
   } else {
-    figure.push(...parts.map(partSvg), ...pieces(front), nestedSvg());
+    figure.push(...parts.map(partSvg), ...pieces(front, true), nestedSvg());
     if (def.deco) figure.push(decoSvg(def.deco()));
   }
-  body.push(`<g data-figure="${figName}">${figure.join("")}</g>`);
+  // En «zoom» la figura sale del marco: se recorta a él.
+  body.push(layout === "zoom"
+    ? `<g data-figure="${figName}" data-layout="zoom"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
+    : `<g data-figure="${figName}" data-layout="${layout}">${figure.join("")}</g>`);
 
   // Marco.
   body.push(el(polyD(frameRings[0]), "none", outStroke * 1.1));

@@ -20,7 +20,8 @@ export async function generateSpread({ paper, marginMm, seed, difficulty = null,
   const W = paper.w, H = paper.h, m = marginMm;
   const rng = createRNG(hash(seed >>> 0, 0x5b4d));
   const fig = figureName || SPREAD_FIGURES[Math.floor(rng() * SPREAD_FIGURES.length)];
-  const overrides = { ...ZENTANGLE_PRESETS.zen_figure, seed, figureName: fig };
+  // Centrada: la figura debe cruzar el lomo.
+  const overrides = { ...ZENTANGLE_PRESETS.zen_figure, seed, figureName: fig, figureLayout: "center" };
   // La hoja se acuesta para cruzar el lomo con su nervio central.
   if (fig === "leaf") overrides.figureRot = (rng() < 0.5 ? 1 : -1) * (Math.PI / 2 - 0.12);
   if (Number.isFinite(difficulty)) overrides.difficulty = difficulty;
