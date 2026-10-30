@@ -891,16 +891,41 @@ const FLATWOODS_FACE = ell(0, -0.4, 0.15, 0.13);
 // hondo, pierna con muslo, rodilla, tobillo y pie con dedos. `head`: puntos
 // del cráneo entre la nuca y la garganta.
 // La pierna va bajo la cadera (no bajo el pecho): el cuerpo se equilibra sobre ella.
-const LEG_PTS = [[0.3, 0.12], [0.38, 0.36], [0.26, 0.62], [0.33, 0.84], [0.48, 0.9], [0.49, 0.97], [0.02, 0.97], [0.02, 0.9], [0.07, 0.66], [0.08, 0.46], [-0.18, 0.24]].map(([x, y]) => [x - 0.28, y]);
+// Las patas son piezas aparte (muslo, rodilla, espinilla, tobillo y pie): dentro
+// del contorno del cuerpo el suavizado las convertía en palos.
 // Postura horizontal (como en las reconstrucciones modernas): la cabeza baja
 // al nivel de la espalda y la cola equilibra el cuerpo sobre la pierna.
-const theropod2 = (head, { neck = [[0.32, -0.32], [0.42, -0.36], [0.48, -0.46]], tailY = -0.12 } = {}) => smoothPoly([
-  [-1.0, tailY], [-0.72, -0.22], [-0.42, -0.3], [-0.12, -0.34], [0.14, -0.33], ...neck, ...head.map(([x, y]) => [x, y + 0.16]),
-  [0.58, -0.2], [0.52, -0.1], [0.46, 0.02], [0.34, 0.1], [0.16, 0.12], ...LEG_PTS, [-0.64, 0.06], [-0.88, -0.06]]);
-const FAR_LEG2 = smoothPoly([[-0.28, 0.0], ...LEG_PTS].map(([x, y]) => [x - 0.16, y]));
-const ARM2 = taper([[0.44, -0.04], [0.54, 0.06], [0.62, 0.1], [0.66, 0.06]], 0.035, 0.015);
+// Cola larga (un tercio del animal) que se afila desde la cadera; lomo
+// arqueado; pecho hondo y vientre que sube antes de la cadera.
+const theropod2 = (head, { neck = [[0.3, -0.33], [0.4, -0.38], [0.46, -0.48]] } = {}) => smoothPoly([
+  [-1.02, -0.13], [-0.8, -0.18], [-0.55, -0.26], [-0.28, -0.34], [-0.02, -0.38], [0.16, -0.36], ...neck, ...head.map(([x, y]) => [x, y + 0.16]),
+  [0.6, -0.22], [0.58, -0.08], [0.48, 0.08], [0.32, 0.17], [0.14, 0.16], [-0.06, 0.1], [-0.3, 0.04], [-0.56, -0.02], [-0.82, -0.08]]);
+// Zigzag del terópodo: muslo hacia adelante hasta la rodilla, espinilla hacia
+// atrás hasta el tobillo (talón alto) y metatarso hacia adelante hasta los dedos.
+const LEG_SHAPE = [[0.12, -0.1], [0.24, 0.06], [0.25, 0.26], [0.19, 0.41], [0.09, 0.55], [0.05, 0.7], [0.1, 0.85], [0.2, 0.92], [0.31, 0.97],
+  [0.0, 0.97], [-0.06, 0.92], [-0.08, 0.84], [-0.06, 0.72], [-0.02, 0.58], [0.03, 0.47], [-0.07, 0.36], [-0.18, 0.22], [-0.2, 0.02]];
+// Pata en tres piezas (como en la ilustración de referencia del usuario):
+// muslo grande y redondo sobre el cuerpo, pierna recta casi vertical con un
+// leve quiebre en el tobillo, y pie corto con garra. Muslo y pierna son piezas
+// separadas: cada una se colorea por su lado.
+const legPieces = (dx, k = 1) => {
+  const T = (pts) => pts.map(([x, y]) => [dx + x * k, y]);
+  return {
+    // Muslo «de pollo»: ancho arriba, se afina hacia la rodilla (atrás y abajo).
+    thigh: smoothPoly(T([[-0.02, -0.22], [0.14, -0.18], [0.24, -0.04], [0.24, 0.12], [0.16, 0.28], [0.06, 0.42], [-0.04, 0.46], [-0.1, 0.4], [-0.14, 0.22], [-0.17, 0.02], [-0.12, -0.14]])),
+    // Espinilla: del bajo del muslo hacia delante y abajo, ~media anchura del muslo.
+    shin: polyCmds(T([[-0.06, 0.36], [0.07, 0.36], [0.12, 0.62], [0.16, 0.86], [0.02, 0.86], [-0.02, 0.62], [-0.08, 0.4]])),
+    foot: smoothPoly(T([[-0.02, 0.84], [0.18, 0.84], [0.3, 0.89], [0.35, 0.97], [-0.06, 0.97], [-0.06, 0.9]])),
+  };
+};
+const LEG_N = legPieces(0.04), LEG_F = legPieces(-0.3, 0.94);
+const NEAR_LEG2 = LEG_N.thigh, FAR_LEG2 = LEG_F.thigh;
+const LEG_LOWER_N = [LEG_N.shin, LEG_N.foot], LEG_LOWER_F = [LEG_F.shin, LEG_F.foot];
+// Brazo con mano de dos dedos.
+const ARM2 = smoothPoly([[0.44, -0.08], [0.5, 0.0], [0.56, 0.06], [0.62, 0.12], [0.68, 0.14], [0.72, 0.11], [0.71, 0.17], [0.64, 0.18], [0.58, 0.14], [0.52, 0.1], [0.46, 0.04]]);
 const HEADS = {
-  trex: [[0.6, -0.72], [0.84, -0.7], [0.98, -0.62], [0.99, -0.53], [0.86, -0.5], [0.97, -0.45], [0.92, -0.38], [0.7, -0.36]],
+  // Cráneo profundo con mandíbula marcada (sin zigzag: el suavizado lo hacía bulto).
+  trex: [[0.5, -0.78], [0.7, -0.84], [0.86, -0.8], [0.96, -0.7], [0.98, -0.56], [0.92, -0.46], [0.76, -0.42], [0.64, -0.36], [0.52, -0.4]],
   allo: [[0.57, -0.72], [0.65, -0.79], [0.72, -0.72], [0.94, -0.64], [0.98, -0.56], [0.86, -0.52], [0.95, -0.46], [0.88, -0.4], [0.68, -0.38]],
   raptor: [[0.62, -0.69], [0.82, -0.66], [0.97, -0.6], [0.97, -0.55], [0.78, -0.5], [0.66, -0.44]],
   spino: [[0.62, -0.7], [0.82, -0.66], [1.0, -0.6], [1.0, -0.55], [0.8, -0.52], [0.66, -0.47]],
@@ -910,28 +935,41 @@ const HEADS = {
 };
 const TREX2 = theropod2(HEADS.trex), ALLO2 = theropod2(HEADS.allo), RAPTOR2 = theropod2(HEADS.raptor), SPINO2 = theropod2(HEADS.spino),
   PARA2 = theropod2(HEADS.para), PACHY2 = theropod2(HEADS.pachy), IGUANO2 = theropod2(HEADS.iguano);
-const SPINO2_SAIL = smoothPoly([[-0.4, -0.27], [-0.3, -0.58], [-0.1, -0.82], [0.12, -0.82], [0.3, -0.6], [0.34, -0.34], [0.0, -0.32]]);
+// Vela irregular: joroba que nace en el lomo y baja hacia la cola, con espinas.
+const SPINO2_SAIL = polyCmds((() => { const pts = []; for (let k = 0; k <= 30; k++) { const t = k / 30, x = -0.48 + t * 0.82, h = 0.52 * Math.sin(Math.PI * Math.pow(t, 0.8)) * (1 + 0.06 * Math.cos(t * 40)); pts.push([x, -0.3 - (x + 0.48) * 0.08 - h]); }
+  return [...pts, [0.34, -0.36], [0.0, -0.36], [-0.3, -0.33], [-0.48, -0.27]]; })());
 const PARA2_CREST = taper([[0.6, -0.54], [0.48, -0.68], [0.3, -0.76], [0.14, -0.76]], 0.05, 0.035);
-const RAPTOR2_FEATHERS = [[-0.4, -0.29], [-0.25, -0.31], [-0.1, -0.33]].map(([x, y]) => [["M", x - 0.07, y + 0.03], ["L", x, y - 0.1], ["L", x + 0.07, y + 0.03], ["Z"]]);
-const TREX2_TEETH = [0.88, 0.92].map((x) => [["M", x - 0.015, -0.34], ["L", x, -0.3], ["L", x + 0.015, -0.34]]);
+// Plumas grandes en la cola y el antebrazo, y la garra en hoz del pie.
+const RAPTOR2_FEATHERS = [[-0.95, -0.12, 0.7], [-0.8, -0.17, 0.85], [-0.64, -0.22, 1.0], [-0.48, -0.28, 0.9]].map(([x, y, k]) =>
+  smoothPoly([[x - 0.06 * k, y + 0.02], [x - 0.04 * k, y - 0.1 * k], [x + 0.02 * k, y - 0.17 * k], [x + 0.07 * k, y - 0.08 * k], [x + 0.06 * k, y + 0.02]]));
+const RAPTOR2_ARMFEATHERS = smoothPoly([[0.46, -0.02], [0.56, 0.08], [0.64, 0.16], [0.6, 0.22], [0.5, 0.18], [0.42, 0.06]]);
+const RAPTOR2_CLAW = smoothPoly([[0.12, 0.88], [0.2, 0.8], [0.28, 0.79], [0.22, 0.84], [0.18, 0.9]]);
+const TREX2_TEETH = [0.84, 0.89].map((x) => [["M", x - 0.015, -0.355], ["L", x, -0.315], ["L", x + 0.015, -0.36]]);
 
 // Cuadrúpedos: patas columnares de pie redondeado.
 const STEGO2 = smoothPoly([[-1.0, 0.12], [-0.72, 0.0], [-0.42, -0.18], [-0.08, -0.3], [0.25, -0.22], [0.5, -0.02], [0.68, 0.08], [0.86, 0.12], [0.95, 0.18],
   [0.9, 0.25], [0.74, 0.27], [0.6, 0.24], [0.52, 0.32], [0.5, 0.6], [0.52, 0.86], [0.55, 0.94], [0.32, 0.94], [0.33, 0.62], [0.2, 0.44], [-0.15, 0.46],
   [-0.18, 0.62], [-0.16, 0.88], [-0.12, 0.94], [-0.44, 0.94], [-0.42, 0.6], [-0.46, 0.36], [-0.7, 0.22], [-0.9, 0.17]]);
 const stegoSpine = (x) => -0.3 + 0.95 * (x + 0.08) * (x + 0.08);
-const STEGO2_PLATES = [-0.62, -0.44, -0.26, -0.08, 0.1, 0.28].map((x, k) => {
-  const y = stegoSpine(x) + 0.03, h = [0.18, 0.26, 0.32, 0.32, 0.26, 0.18][k], w = h * 0.55;
-  return smoothPoly([[x - w, y + 0.04], [x - w * 0.8, y - h * 0.5], [x, y - h], [x + w * 0.8, y - h * 0.5], [x + w, y + 0.04]]);
-});
-const STEGO2_SPIKES = [[-0.92, 0.1, -0.9], [-0.84, 0.06, -0.55]].map(([u, v, r]) => xform([["M", -0.035, 0.02], ["L", 0, -0.24], ["L", 0.035, 0.02], ["Z"]], u, v, r));
+// Dos filas intercaladas: la exterior más alta, la interior más baja (detrás).
+const plateShape = (x, h, w) => { const y = stegoSpine(x) + 0.04; return smoothPoly([[x - w, y], [x - w * 0.75, y - h * 0.55], [x - w * 0.2, y - h * 0.95], [x, y - h], [x + w * 0.2, y - h * 0.95], [x + w * 0.75, y - h * 0.55], [x + w, y]]); };
+const STEGO2_PLATES = [[-0.66, 0.16, 0.07], [-0.48, 0.24, 0.09], [-0.28, 0.3, 0.1], [-0.06, 0.32, 0.11], [0.16, 0.28, 0.1], [0.36, 0.2, 0.08],
+  [-0.57, 0.14, 0.06], [-0.38, 0.2, 0.07], [-0.17, 0.24, 0.08], [0.05, 0.24, 0.08], [0.26, 0.18, 0.07]].map(([x, h, w]) => plateShape(x, h, w));
+// «Thagomizer»: cuatro púas gruesas en la punta de la cola.
+const STEGO2_SPIKES = [[-0.94, 0.12, -1.1], [-0.88, 0.08, -0.75], [-0.94, 0.2, -2.0], [-0.86, 0.18, -2.35]].map(([u, v, r]) => xform([["M", -0.05, 0.02], ["Q", -0.02, -0.1, 0, -0.22], ["Q", 0.02, -0.1, 0.05, 0.02], ["Z"]], u, v, r));
 
 const TRIKE2 = smoothPoly([[-1.0, 0.18], [-0.72, 0.02], [-0.4, -0.14], [-0.05, -0.2], [0.3, -0.14], [0.5, 0.02], [0.58, 0.2], [0.5, 0.36], [0.48, 0.62], [0.5, 0.88],
   [0.53, 0.94], [0.3, 0.94], [0.3, 0.6], [0.16, 0.46], [-0.18, 0.48], [-0.2, 0.62], [-0.18, 0.88], [-0.14, 0.94], [-0.46, 0.94], [-0.44, 0.62], [-0.48, 0.38],
   [-0.72, 0.26], [-0.9, 0.22]]);
-const TRIKE2_FRILL = smoothPoly([[0.38, 0.12], [0.3, -0.12], [0.36, -0.38], [0.52, -0.5], [0.68, -0.44], [0.76, -0.24], [0.74, 0.02], [0.62, 0.16]]);
+// Gola con borde festoneado (polyCmds: el suavizado borraría las ondas).
+// Gola: escudo grande detrás de la cabeza, inclinado hacia atrás, con festón.
+const TRIKE2_FRILL = (() => {
+  const cx = 0.5, cy = -0.18, R = 0.36, pts = [];
+  for (let k = 0; k <= 72; k++) { const t = k / 72, a = Math.PI * 0.45 + t * Math.PI * 1.45, r = R * (0.96 + 0.06 * Math.cos(t * 9 * 2 * Math.PI)); pts.push([cx + Math.cos(a) * r * 0.85, cy + Math.sin(a) * r * 1.15]); }
+  return polyCmds([...pts, [0.62, 0.12]]);
+})();
 const TRIKE2_HEAD = smoothPoly([[0.56, -0.06], [0.72, -0.1], [0.88, 0.02], [0.99, 0.2], [0.94, 0.28], [0.82, 0.3], [0.66, 0.3], [0.54, 0.18]]);
-const TRIKE2_HORNS = [taper([[0.7, -0.08], [0.82, -0.24], [0.94, -0.42]], 0.035, 0.006), taper([[0.64, -0.06], [0.72, -0.24], [0.8, -0.4]], 0.03, 0.006),
+const TRIKE2_HORNS = [taper([[0.7, -0.08], [0.82, -0.24], [0.94, -0.42]], 0.05, 0.006), taper([[0.64, -0.06], [0.72, -0.24], [0.8, -0.4]], 0.045, 0.006),
   taper([[0.92, 0.1], [0.95, -0.02]], 0.028, 0.006)];
 
 const BRACHIO2 = smoothPoly([[-1.0, 0.35], [-0.7, 0.18], [-0.4, -0.02], [-0.1, -0.14], [0.22, -0.22], [0.33, -0.48], [0.42, -0.78], [0.52, -0.93], [0.7, -0.94],
@@ -944,7 +982,8 @@ const ANKY2 = smoothPoly([[-0.82, 0.22], [-0.6, 0.12], [-0.45, -0.1], [-0.15, -0
   [0.95, 0.22], [0.8, 0.28], [0.62, 0.28], [0.6, 0.48], [0.62, 0.56], [0.44, 0.56], [0.44, 0.34], [0.2, 0.36], [-0.2, 0.36], [-0.26, 0.5], [-0.24, 0.56],
   [-0.44, 0.56], [-0.44, 0.34], [-0.6, 0.3], [-0.78, 0.28]]);
 const ANKY2_CLUB = smoothPoly([[-1.0, 0.25], [-0.92, 0.16], [-0.8, 0.18], [-0.78, 0.26], [-0.84, 0.33], [-0.96, 0.33]]);
-const ANKY2_SCUTES = [[-0.32, -0.08], [-0.08, -0.14], [0.16, -0.14], [0.38, -0.06], [-0.2, 0.08], [0.04, 0.04], [0.28, 0.06]].map(([x, y]) => ell(x, y, 0.09, 0.055));
+const hexScute = (cx, cy, r) => polyCmds(Array.from({ length: 6 }, (_, k) => { const a = (k / 6) * TAU + Math.PI / 6; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.6]; }));
+const ANKY2_SCUTES = [[-0.32, -0.08], [-0.08, -0.14], [0.16, -0.14], [0.38, -0.06], [-0.2, 0.08], [0.04, 0.04], [0.28, 0.06]].map(([x, y]) => hexScute(x, y, 0.09));
 const DIMETRO2 = smoothPoly([[-1.0, 0.3], [-0.7, 0.2], [-0.42, 0.08], [-0.1, 0.04], [0.3, 0.04], [0.58, 0.08], [0.78, 0.1], [0.96, 0.18], [0.94, 0.26], [0.76, 0.3],
   [0.58, 0.3], [0.56, 0.36], [0.66, 0.5], [0.7, 0.58], [0.52, 0.58], [0.42, 0.42], [0.2, 0.38], [-0.16, 0.38], [-0.2, 0.44], [-0.1, 0.52], [-0.08, 0.58],
   [-0.3, 0.58], [-0.38, 0.4], [-0.6, 0.34], [-0.85, 0.32]]);
@@ -1308,39 +1347,39 @@ const FIGURES = {
     science: "bio", hide: true,
   },
   trex: {
-    parts: [{ cmds: TREX2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }],
-    back: [{ cmds: FAR_LEG2, tangle: "detail" }],
-    front: [{ cmds: ARM2, tangle: null }],
-    deco: () => [{ cmds: ell(0.74, -0.46, 0.028), fill: W }, ...TREX2_TEETH.map((cmds) => ({ cmds, fill: "none" }))],
-    silhouette: [TREX2, FAR_LEG2], branch: 0.9,
+    parts: [{ cmds: TREX2, strings: { angle: Math.PI / 2 + 0.2, a: [1, 2], b: [4, 5] } }],
+    back: [...LEG_LOWER_F.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "round" }],
+    front: [...LEG_LOWER_N.map((cmds) => ({ cmds, tangle: null, halo: false })), { cmds: NEAR_LEG2, tangle: "round", halo: false }, { cmds: ARM2, tangle: null }],
+    deco: () => [{ cmds: ell(0.74, -0.56, 0.03), fill: W }, { cmds: [["M", 0.78, -0.36], ["Q", 0.86, -0.34, 0.94, -0.4]], fill: "none" }, ...TREX2_TEETH.map((cmds) => ({ cmds, fill: "none" }))],
+    silhouette: [TREX2, FAR_LEG2, NEAR_LEG2, ...LEG_LOWER_N, ...LEG_LOWER_F], branch: 0.9,
     science: "dino", hide: true,
   },
   spinosaurus: {
-    parts: [{ cmds: SPINO2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }],
-    back: [{ cmds: SPINO2_SAIL, tangle: "any" }, { cmds: FAR_LEG2, tangle: "detail" }],
-    front: [{ cmds: ARM2, tangle: null }],
+    parts: [{ cmds: SPINO2, strings: { angle: Math.PI / 2 + 0.2, a: [1, 2], b: [4, 5] } }],
+    back: [{ cmds: SPINO2_SAIL, tangle: "any" }, ...LEG_LOWER_F.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "round" }],
+    front: [...LEG_LOWER_N.map((cmds) => ({ cmds, tangle: null, halo: false })), { cmds: NEAR_LEG2, tangle: "round", halo: false }, { cmds: ARM2, tangle: null }],
     deco: () => [{ cmds: ell(0.72, -0.46, 0.028), fill: W }],
-    silhouette: [SPINO2, FAR_LEG2, SPINO2_SAIL], branch: 0.9,
+    silhouette: [SPINO2, FAR_LEG2, NEAR_LEG2, ...LEG_LOWER_N, ...LEG_LOWER_F, SPINO2_SAIL], branch: 0.9,
     science: "dino",
   },
   parasaurolophus: {
-    parts: [{ cmds: PARA2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }],
-    back: [{ cmds: PARA2_CREST, tangle: null }, { cmds: FAR_LEG2, tangle: "detail" }],
-    front: [{ cmds: ARM2, tangle: null }],
+    parts: [{ cmds: PARA2, strings: { angle: Math.PI / 2 + 0.2, a: [1, 2], b: [4, 5] } }],
+    back: [{ cmds: PARA2_CREST, tangle: null }, ...LEG_LOWER_F.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "round" }],
+    front: [...LEG_LOWER_N.map((cmds) => ({ cmds, tangle: null, halo: false })), { cmds: NEAR_LEG2, tangle: "round", halo: false }, { cmds: ARM2, tangle: null }],
     deco: () => [{ cmds: ell(0.72, -0.47, 0.028), fill: W }],
-    silhouette: [PARA2, FAR_LEG2, PARA2_CREST], branch: 0.9,
+    silhouette: [PARA2, FAR_LEG2, NEAR_LEG2, ...LEG_LOWER_N, ...LEG_LOWER_F, PARA2_CREST], branch: 0.9,
     science: "dino",
   },
   stegosaurus: {
-    parts: [{ cmds: STEGO2, strings: { angle: 0.2, a: [3, 4], b: [3, 4] } }],
-    back: [...STEGO2_PLATES.map((cmds) => ({ cmds, tangle: "detail" })), ...STEGO2_SPIKES.map((cmds) => ({ cmds, tangle: null }))],
+    parts: [{ cmds: STEGO2, strings: { angle: 0.2, a: [2, 3], b: [2, 3] } }],
+    back: [...STEGO2_PLATES.map((cmds) => ({ cmds, tangle: "round" })), ...STEGO2_SPIKES.map((cmds) => ({ cmds, tangle: null }))],
     deco: () => [{ cmds: ell(0.84, 0.17, 0.024), fill: W }],
     silhouette: [STEGO2, ...STEGO2_PLATES, ...STEGO2_SPIKES], branch: 0.9,
     science: "dino", hide: true,
   },
   triceratops: {
     parts: [{ cmds: TRIKE2, strings: { angle: 0.2, a: [3, 4], b: [3, 4] } }],
-    front: [{ cmds: TRIKE2_FRILL, tangle: "any" }, { cmds: TRIKE2_HEAD, tangle: "detail" }, ...TRIKE2_HORNS.map((cmds) => ({ cmds, tangle: null }))],
+    front: [{ cmds: TRIKE2_FRILL, tangle: "round" }, { cmds: TRIKE2_HEAD, tangle: null }, ...TRIKE2_HORNS.map((cmds) => ({ cmds, tangle: null }))],
     deco: () => [{ cmds: ell(0.76, 0.06, 0.026), fill: W }],
     silhouette: [TRIKE2, TRIKE2_FRILL, TRIKE2_HEAD, ...TRIKE2_HORNS], branch: 0.9,
     science: "dino", hide: true,
@@ -1367,35 +1406,35 @@ const FIGURES = {
     science: "dino",
   },
   allosaurus: {
-    parts: [{ cmds: ALLO2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }],
-    back: [{ cmds: FAR_LEG2, tangle: "detail" }],
-    front: [{ cmds: ARM2, tangle: null }],
+    parts: [{ cmds: ALLO2, strings: { angle: Math.PI / 2 + 0.2, a: [1, 2], b: [4, 5] } }],
+    back: [...LEG_LOWER_F.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "round" }],
+    front: [...LEG_LOWER_N.map((cmds) => ({ cmds, tangle: null, halo: false })), { cmds: NEAR_LEG2, tangle: "round", halo: false }, { cmds: ARM2, tangle: null }],
     deco: () => [{ cmds: ell(0.74, -0.48, 0.028), fill: W }],
-    silhouette: [ALLO2, FAR_LEG2], branch: 0.9,
+    silhouette: [ALLO2, FAR_LEG2, NEAR_LEG2, ...LEG_LOWER_N, ...LEG_LOWER_F], branch: 0.9,
     science: "dino", hide: true,
   },
   velociraptor: {
-    parts: [{ cmds: RAPTOR2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }],
-    back: [...RAPTOR2_FEATHERS.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "detail" }],
-    front: [{ cmds: ARM2, tangle: null }],
+    parts: [{ cmds: RAPTOR2, strings: { angle: Math.PI / 2 + 0.2, a: [1, 2], b: [4, 5] } }],
+    back: [...RAPTOR2_FEATHERS.map((cmds) => ({ cmds, tangle: null })), ...LEG_LOWER_F.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "round" }],
+    front: [...LEG_LOWER_N.map((cmds) => ({ cmds, tangle: null, halo: false })), { cmds: NEAR_LEG2, tangle: "round", halo: false }, { cmds: ARM2, tangle: null }, { cmds: RAPTOR2_ARMFEATHERS, tangle: null }, { cmds: RAPTOR2_CLAW, tangle: null, halo: false }],
     deco: () => [{ cmds: ell(0.72, -0.46, 0.028), fill: W }],
-    silhouette: [RAPTOR2, FAR_LEG2, ...RAPTOR2_FEATHERS], branch: 0.9,
+    silhouette: [RAPTOR2, FAR_LEG2, NEAR_LEG2, ...LEG_LOWER_N, ...LEG_LOWER_F, ...RAPTOR2_FEATHERS], branch: 0.9,
     science: "dino", hide: true,
   },
   pachycephalosaurus: {
-    parts: [{ cmds: PACHY2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }],
-    back: [{ cmds: FAR_LEG2, tangle: "detail" }],
-    front: [{ cmds: ARM2, tangle: null }],
+    parts: [{ cmds: PACHY2, strings: { angle: Math.PI / 2 + 0.2, a: [1, 2], b: [4, 5] } }],
+    back: [...LEG_LOWER_F.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "round" }],
+    front: [...LEG_LOWER_N.map((cmds) => ({ cmds, tangle: null, halo: false })), { cmds: NEAR_LEG2, tangle: "round", halo: false }, { cmds: ARM2, tangle: null }],
     deco: () => [{ cmds: ell(0.8, -0.48, 0.028), fill: W }],
-    silhouette: [PACHY2, FAR_LEG2], branch: 0.9,
+    silhouette: [PACHY2, FAR_LEG2, NEAR_LEG2, ...LEG_LOWER_N, ...LEG_LOWER_F], branch: 0.9,
     science: "dino",
   },
   iguanodon: {
-    parts: [{ cmds: IGUANO2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }],
-    back: [{ cmds: FAR_LEG2, tangle: "detail" }],
-    front: [{ cmds: ARM2, tangle: null }],
+    parts: [{ cmds: IGUANO2, strings: { angle: Math.PI / 2 + 0.2, a: [1, 2], b: [4, 5] } }],
+    back: [...LEG_LOWER_F.map((cmds) => ({ cmds, tangle: null })), { cmds: FAR_LEG2, tangle: "round" }],
+    front: [...LEG_LOWER_N.map((cmds) => ({ cmds, tangle: null, halo: false })), { cmds: NEAR_LEG2, tangle: "round", halo: false }, { cmds: ARM2, tangle: null }],
     deco: () => [{ cmds: ell(0.75, -0.48, 0.028), fill: W }],
-    silhouette: [IGUANO2, FAR_LEG2], branch: 0.9,
+    silhouette: [IGUANO2, FAR_LEG2, NEAR_LEG2, ...LEG_LOWER_N, ...LEG_LOWER_F], branch: 0.9,
     science: "dino",
   },
   diplodocus: {
@@ -2150,8 +2189,11 @@ export async function generateZenFigure(doc, opts) {
     }
     // Piezas de delante (orgánulos, caras): halo blanco fino para que el
     // tangle de debajo no deje astillas pegadas a su borde.
-    const halo = front && rich ? `<path d="${dc}" fill="#fff" stroke="#fff" stroke-width="${fmt(gap * 2.2)}" stroke-linejoin="round"/>` : "";
-    return `${halo}<path d="${dc}" fill="#fff" stroke="none"/>${inner}${el(d, "none", strStroke * 1.1)}`;
+    const halo = front && rich && p.halo !== false ? `<path d="${dc}" fill="#fff" stroke="#fff" stroke-width="${fmt(gap * 2.2)}" stroke-linejoin="round"/>` : "";
+    // Margen blanco interior: las celdas del tangle cortadas en el contorno se
+    // unen al borde en vez de quedar como astillas (como en las secciones).
+    const margin = rich && inner ? `<path d="${dc}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.5)}" stroke-linejoin="round"/>` : "";
+    return `${halo}<path d="${dc}" fill="#fff" stroke="none"/>${inner}${margin}${el(d, "none", strStroke * 1.1)}`;
   };
   const pieces = (list, front = false) => list.flatMap((p) => (p.mirror ? [piece(p, false, front), piece(p, true, front)] : [piece(p, false, front)]));
 
@@ -2184,7 +2226,8 @@ export async function generateZenFigure(doc, opts) {
         const od = `M ${fmt(cx + r)} ${fmt(cy)} A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx - r)} ${fmt(cy)} A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx + r)} ${fmt(cy)} Z`;
         const ot = pickTangle(POOL.filter((x) => x.id !== t.id));
         const ring = rng() < 0.5 ? `<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(r + gap * 1.1)}" fill="#fff" stroke="#000" stroke-width="${fmt(stroke)}"/>` : "";
-        extra += `${ring}<path d="${od}" fill="#fff" stroke="none"/><g clip-path="url(#${clipOf(od)})">${tangleIn(ot, { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }, 0.85)}</g>${el(od, "none", strStroke)}`;
+        extra += `${ring}<path d="${od}" fill="#fff" stroke="none"/><g clip-path="url(#${clipOf(od)})">${tangleIn(ot, { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }, 0.85)}</g>` +
+          `<path d="${od}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.2)}" stroke-linejoin="round"/>${el(od, "none", strStroke)}`;
       }
     }
     return extra;
@@ -2256,6 +2299,9 @@ export async function generateZenFigure(doc, opts) {
     const edgeD = `${lines.d} ${dc}`;
     for (const q of sec.sections) {
       if (empty || q.area < gap * gap * 14) continue; // «Tu turno» o astilla: queda lisa
+      // Muy alargada (p. ej. 60 × 5 mm en cola o pata): con el margen blanco el
+      // tangle quedaría en astillas; se deja lisa (un canal fácil de colorear).
+      { const w = q.x1 - q.x0, h = q.y1 - q.y0; if (Math.max(w / h, h / w) > 4.5 && Math.min(w, h) < gap * 5) continue; }
       // Respiro: como mucho una sección lisa por parte, y nunca una grande
       // (una banda vacía de media figura se lee como un error).
       if (!plainUsed && q.area < Math.min(900, totalArea * 0.12) && rng() < 0.25) { plainUsed = true; continue; }

@@ -38,9 +38,9 @@ Coordenadas en unidades de figura (x, y de −1 a 1, y hacia abajo):
 
 ```js
 trex: {
-  parts:  [{ cmds: TREX2, strings: { angle: 0.35, a: [3, 4], b: [3, 4] } }], // se subdivide
-  back:   [{ cmds: FAR_LEG2, tangle: "detail" }],   // detrás, con un tangle
-  front:  [{ cmds: ARM2, tangle: null }],           // delante, lisa
+  parts:  [{ cmds: TREX2, strings: { angle: 0.35, a: [2, 3], b: [2, 3] } }], // se subdivide
+  back:   [{ cmds: FAR_LEG2, tangle: "round" }],    // detrás, con un tangle amplio
+  front:  [{ cmds: NEAR_LEG2, tangle: "round" }, { cmds: ARM2, tangle: null }], // delante
   deco:   () => [{ cmds: ell(0.74, -0.46, 0.028), fill: W }],             // ojo
   silhouette: [TREX2, FAR_LEG2],  // contorno exterior (auras, encaje)
   branch: 0.9,                    // suelo a esta altura
@@ -62,7 +62,8 @@ girar, escalar), comandos `M/L/Q/C/Z`.
 | Encuadres | `layouts` en `generateZenFigure` | 40/35/25 % |
 | Auras | `figureAuras` del estilo | 1–2 |
 | Figuritas escondidas | `nHidden` | 2–3 |
-| Márgenes antiastillas | `gap * 1.5` en cuerdas, aristas, marco | — |
+| Márgenes antiastillas | `gap * 1.5` en cuerdas, aristas, marco, piezas con tangle y orbes | — |
+| Secciones muy alargadas | `partSvg`: proporción > 4.5 y ancho < 5 huecos quedan lisas | — |
 | Límite de calidad | `QUALITY_LIMITS` en `pageQuality.js` | 13 zonas/dm², 25 % tinta |
 
 ## Ideas de mejora (para decidir juntos)
