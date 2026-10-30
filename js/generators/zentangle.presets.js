@@ -896,6 +896,7 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_dino: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.dino,
+    origamiMix: FIGURE_SETS.dinoOrigamiMix, // páginas alternas en origami
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
@@ -908,7 +909,7 @@ export const ZENTANGLE_PRESETS = {
     cellLayout: "zen_figure",
     figureStyle: "facet",
     figureAngular: true,
-    figures: FIGURE_SETS.dino,
+    figures: FIGURE_SETS.dinoOrigami,
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,

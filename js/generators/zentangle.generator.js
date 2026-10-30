@@ -68,11 +68,17 @@ export async function generateZentangle(doc, {
   // mismo gato no se repite igual dentro de un libro.
   let mirror = false;
   if (finalOpts.cellLayout === "zen_figure" && !finalOpts.emptySections && Number.isInteger(pageIndex) && pageIndex >= 0) {
-    const n = Number.isInteger(randomOverrides.figurePage) ? randomOverrides.figurePage : pageIndex;
+    let n = Number.isInteger(randomOverrides.figurePage) ? randomOverrides.figurePage : pageIndex;
     // El estilo decide el repertorio (adultas + abstractas, o infantiles).
-    const ids = Array.isArray(finalOpts.figures) && finalOpts.figures.length ? finalOpts.figures : FIGURE_IDS;
+    let ids = Array.isArray(finalOpts.figures) && finalOpts.figures.length ? finalOpts.figures : FIGURE_IDS;
+    const nPal = n;
+    // origamiMix: una página de figura de cada dos va en origami, con su propio repertorio.
+    if (Array.isArray(finalOpts.origamiMix) && finalOpts.origamiMix.length) {
+      if (n % 2 === 1) { ids = finalOpts.origamiMix; finalOpts.figureStyle = "facet"; finalOpts.figureAngular = true; }
+      n = Math.floor(n / 2);
+    }
     if (!finalOpts.figureName) finalOpts.figureName = figureForPage(bookSeed ?? seed, n, ids);
-    if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(bookSeed ?? seed, n);
+    if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(bookSeed ?? seed, nPal);
     mirror = Math.floor(n / ids.length) % 2 === 1;
   }
 

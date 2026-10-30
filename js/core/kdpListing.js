@@ -32,7 +32,7 @@ export const THEME_LISTING = {
   },
   dino: {
     titles: ["Dinosaurios para colorear: patrones prehistóricos", "Mundo prehistórico para colorear: T. rex, triceratops y más", "Dinosaurios con patrones: libro para colorear de fácil a difícil"],
-    lead: (n) => `${n} ilustraciones de criaturas prehistóricas: T. rex, triceratops, estegosaurio, braquiosaurio, velociraptor, plesiosaurio, amonite y más, cada una llena de patrones.`,
+    lead: (n) => `${n} ilustraciones de criaturas prehistóricas: triceratops, estegosaurio, braquiosaurio, pterosaurio, plesiosaurio, amonite y más, cada una llena de patrones.`,
     keywords: ["dinosaurios para colorear", "libro colorear dinosaurios niños y adultos", "prehistoria para colorear", "t rex triceratops colorear", "regalo amantes de los dinosaurios", "colorear ciencia paleontología", "dinosaurios patrones zen"],
   },
   bio: {

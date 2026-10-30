@@ -1473,7 +1473,7 @@ const FIGURES = {
     front: [{ cmds: ARM4, tangle: null }],
     deco: () => [{ cmds: ell(0.74, -0.6, 0.026), fill: W }, { cmds: THIGH_LINE4, fill: "none" }, ...TREX4_TEETH.map((cmds) => ({ cmds, fill: "none" }))],
     silhouette: [TREX4], branch: 0.9,
-    science: "dino", hide: true,
+    science: "dino",
   },
   spinosaurus: {
     parts: [{ cmds: SPINO4, strings: { angle: Math.PI / 2 + 0.25, a: [1, 2], b: [4, 5] } }],
@@ -1532,7 +1532,7 @@ const FIGURES = {
     front: [{ cmds: ARM4, tangle: null }],
     deco: () => [{ cmds: ell(0.74, -0.6, 0.026), fill: W }, { cmds: THIGH_LINE4, fill: "none" }],
     silhouette: [ALLO4], branch: 0.9,
-    science: "dino", hide: true,
+    science: "dino",
   },
   velociraptor: {
     parts: [{ cmds: RAPTOR4, strings: { angle: Math.PI / 2 + 0.25, a: [1, 2], b: [4, 5] } }],
@@ -1540,7 +1540,7 @@ const FIGURES = {
     front: [{ cmds: ARM4, tangle: null }],
     deco: () => [{ cmds: ell(0.74, -0.58, 0.026), fill: W }, { cmds: THIGH_LINE4, fill: "none" }],
     silhouette: [RAPTOR4, ...RAPTOR4_FEATHERS], branch: 0.9,
-    science: "dino", hide: true,
+    science: "dino",
   },
   pachycephalosaurus: {
     parts: [{ cmds: PACHY4, strings: { angle: Math.PI / 2 + 0.25, a: [1, 2], b: [4, 5] } }],
@@ -1813,7 +1813,16 @@ export const FIGURE_SETS = {
   kids: ["owl", "cat", "fish", "turtle", "elephant", "snail", "bird", "whale", "mushroom", "tree", "bear", "rabbit", "penguin", "fox"],
 };
 // Temas de ciencia: se leen de la etiqueta `science` de cada figura.
-FIGURE_SETS.dino = FIGURE_IDS.filter((f) => FIGURES[f].science === "dino");
+// Bípedos por esqueleto: solo en origami (en el estilo normal no se ven bien).
+const BIPEDS = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurolophus", "pachycephalosaurus", "iguanodon"];
+// Estilo normal: solo los que se ven bien con contorno suave (estegosaurio y
+// triceratops tienen patas en bloque: van en origami).
+FIGURE_SETS.dino = ["brachiosaurus", "diplodocus", "ankylosaurus", "dimetrodon", "pterosaur", "plesiosaur", "mosasaurus", "ammonite"];
+// Mitad origami del libro de dinosaurios.
+FIGURE_SETS.dinoOrigamiMix = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurolophus", "stegosaurus", "triceratops"];
+// Origami: todos los que se leen bien simplificados (paquicefalosaurio e
+// iguanodonte quedaban idénticos al T. rex).
+FIGURE_SETS.dinoOrigami = [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix];
 FIGURE_SETS.bio = FIGURE_IDS.filter((f) => FIGURES[f].science === "bio");
 FIGURE_SETS.cryptids = FIGURE_IDS.filter((f) => FIGURES[f].cryptid);
 export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
@@ -2081,6 +2090,8 @@ export async function generateZenFigure(doc, opts) {
   let layout = layouts[opts.figureLayout] !== undefined ? opts.figureLayout : null;
   const lr = rng();
   if (!layout) layout = empty ? "center" : lr < 0.4 ? "center" : lr < 0.75 ? "offset" : "zoom";
+  // Origami recortado por el marco deja de leerse: se queda entero.
+  if (opts.figureAngular && layout === "zoom") layout = "center";
   const s = sFit * (layout === "offset" ? rFloat(rng, 0.66, 0.8) : layout === "zoom" ? rFloat(rng, 1.25, 1.45) : 1);
   const figW = (ub.x1 - ub.x0) * s, figH = (ub.y1 - ub.y0) * s;
   // Holgura para mover la figura: dentro del marco (offset) o hasta un ~25 %
