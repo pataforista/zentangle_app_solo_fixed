@@ -14,6 +14,8 @@ python3 -m http.server 8000   # o: npx serve .
 # http://localhost:8000
 ```
 
+0. **⚡ Atajo**: elige un tipo de libro (adultos, vitral, dinosaurios, biología,
+   críptidos, infantil…) y la app configura estilo y opciones de un clic.
 1. **Estilo**: «Más vendidos» (mezcla por defecto), «Figura zentangle» u otro.
 2. **Página**: tamaño de papel, margen, semilla.
 3. **Tu libro**: nº de diseños (50 por defecto, hasta 300), reverso en blanco

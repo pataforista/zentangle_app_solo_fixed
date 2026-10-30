@@ -9,6 +9,19 @@ no cubre.
 
 ## El proceso en 7 pasos
 
+### 0. Atajo: un clic
+
+En **① Elige un estilo**, el recuadro **⚡ ¿Qué libro quieres hacer?** trae
+tipos de libro listos: Zentangle para adultos, Mezcla más vendida, Vitral
+relajante, Dinosaurios, Biología, Críptidos e Infantil. Un clic elige el
+estilo, el nº de diseños y las opciones (dificultad, guía, dobles páginas).
+Después pulsa **📖 Preparar libro**: con «🛠 Arreglar solas…» marcado, las
+páginas con zonas difíciles se rehacen sin más clics. La revisión muestra
+**Para terminar: Revisar → ⬇ PDF → 📝 Ficha KDP → 🧾 Receta** y marca cada
+paso con ✓. La ficha usa el tema del libro (títulos y palabras clave de
+dinosaurios, críptidos…). Los pasos 1–7 explican cada decisión por si
+quieres ajustarla a mano.
+
 ### 1. Decide el libro antes de abrir la app
 
 | Decisión | Recomendado | Por qué |

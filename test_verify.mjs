@@ -689,6 +689,19 @@ async function runTests() {
         assert.ok(l.keywords.length <= 7, "ERROR: KDP admite 7 palabras clave.");
       }
       assert.ok(kdpListingText({ designs: 50, pages: 120 }).includes("REGLAS DE PROPIEDAD INTELECTUAL"));
+      // Fichas por tema: sin marcas, 7 palabras clave y el tema en el título.
+      const { THEME_LISTING } = await import("./js/core/kdpListing.js");
+      const { BOOK_RECIPES, STYLE_THEME } = await import("./js/core/bookRecipes.js");
+      const { ZENTANGLE_PRESETS: PR } = await import("./js/generators/zentangle.presets.js");
+      for (const theme of Object.keys(THEME_LISTING)) {
+        const l = kdpListing({ designs: 30, pages: 64, theme });
+        for (const t of [...l.titles, l.subtitle, ...l.keywords]) assert.strictEqual(containsBlocked(t), null, `ERROR: marca en la ficha ${theme}: «${t}».`);
+        assert.ok(l.keywords.length === 7 && l.keywords.every((k) => k.length <= 50), `ERROR: palabras clave de ${theme}.`);
+        assert.ok(l.description.includes(ATTRIBUTION_ES));
+      }
+      assert.ok(/Dinosaurios/.test(kdpListing({ designs: 30, pages: 64, theme: "dino" }).titles[0]));
+      for (const r of BOOK_RECIPES) assert.ok(PR[r.style] || r.style === "best_sellers", `ERROR: la receta ${r.id} usa un estilo inexistente.`);
+      for (const k of Object.keys(STYLE_THEME)) assert.ok(PR[k] && THEME_LISTING[STYLE_THEME[k]], `ERROR: tema de ${k}.`);
       // Portada: 8.5×11 in, 120 págs en papel blanco → lomo 0.270 in; ancho 0.125+8.5+0.270+8.5+0.125.
       const { coverSpec } = await import("./js/core/kdpListing.js");
       const cv = coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4 });

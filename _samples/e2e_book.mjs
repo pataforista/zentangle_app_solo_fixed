@@ -43,14 +43,19 @@ try {
   await page.route("**/jspdf.umd.min.js", (r) => r.fulfill({ contentType: "text/javascript", body: readFileSync(JSPDF) }));
   await page.route("**/d3-delaunay*", (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
   // Umbral de calidad bajo: fuerza páginas marcadas para probar «Arreglar».
-  await page.addInitScript(() => { window.ZT_QUALITY_BAD_DM2 = 7; });
+  await page.addInitScript(() => { window.ZT_QUALITY_BAD_DM2 = 2; });
   await page.goto(`${base}/index.html`);
   await page.waitForFunction(() => window.jspdf, null, { timeout: 30000 });
+  // Tipo de libro de un clic: Dinosaurios (estilo, nº de diseños y opciones).
+  await page.click(".recipe[data-id=dino]");
+  const quick = await page.evaluate(() => ({ style: document.getElementById("zPreset").value, n: document.getElementById("bookPages").value, prog: document.getElementById("bookProgressive").checked }));
+  if (quick.style !== "zen_figure_dino" || quick.n !== "34" || !quick.prog) fail(`el atajo «Dinosaurios» no configuró el libro (${JSON.stringify(quick)}).`);
   await page.evaluate(({ n, blank }) => {
     const set = (id, v) => { const e = document.getElementById(id); if (e.type === "checkbox") e.checked = v; else e.value = v; e.dispatchEvent(new Event("change", { bubbles: true })); };
     set("bookPages", String(n)); set("bookBlank", blank);
     ["bookProgressive", "bookGuide", "bookSpreads", "bookTurn"].forEach((id) => set(id, true));
     set("showSafeZone", true); // guía de pantalla: no debe llegar al libro
+    set("bookAutoFix", false); // «Arreglar» se prueba a mano más abajo
   }, { n: N, blank: BLANK });
 
   await page.click("#btnBook");
@@ -113,6 +118,9 @@ try {
   if (/zentangle|zendoodle|zendala/i.test(title)) fail("la ficha de KDP usa una marca en título o subtítulo.");
   if (!/Zentangle® es una marca registrada/.test(txt)) fail("la ficha de KDP no lleva la atribución.");
   if (!/Lomo: [\d.]+ in/.test(txt)) fail("la ficha de KDP no trae las medidas de la portada.");
+  if (!/Dinosaurios/.test(title)) fail("la ficha de KDP no usa el tema del libro (dinosaurios).");
+  const next = await page.textContent("#nextSteps");
+  if (!/✓ ⬇ PDF/.test(next) || !/✓ 📝 Ficha KDP/.test(next) || !/✓ 🧾 Receta/.test(next)) fail(`los pasos para terminar no se marcan (${next}).`);
 
   if (errors.length) fail(`errores en la página: ${errors.join(" | ")}`);
   if (!process.exitCode) console.log(`✓ Libro de ${N} diseños (${BLANK === "1" ? "con" : "sin"} hojas en blanco): ${pages} páginas en el PDF, revisión completa y ficha KDP correcta.`);

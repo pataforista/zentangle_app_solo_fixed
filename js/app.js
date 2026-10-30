@@ -13,6 +13,7 @@ import { generateSpread, SPREAD_FIGURES } from "./generators/spread.js";
 import { figureForPage, FIGURE_IDS } from "./generators/figure.js";
 import { kdpListingText } from "./core/kdpListing.js";
 import { analyzeColorability, qualityVerdict, qualityScore, QUALITY_LIMITS } from "./core/pageQuality.js";
+import { BOOK_RECIPES, STYLE_THEME } from "./core/bookRecipes.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
 
 const $ = (id) => document.getElementById(id);
@@ -81,6 +82,7 @@ const ui = {
   bookGuide: $("bookGuide"),
   bookSpreads: $("bookSpreads"),
   bookTurn: $("bookTurn"),
+  bookAutoFix: $("bookAutoFix"),
   bookSummary: $("bookSummary"),
   bookBar: $("bookBar"),
   btnBook: $("btnBook"),
@@ -520,7 +522,11 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
     // Las dobles páginas recorren sus figuras en orden (la n-ésima doble de
     // este libro), en vez de sortearlas: así no se repiten seguidas.
     const nth = plan.units.slice(0, pageIndex).filter((u) => u.kind === "spread").length;
-    const figureName = SPREAD_FIGURES[(nth + (bookSeed >>> 0)) % SPREAD_FIGURES.length];
+    // Del repertorio del estilo: un libro de dinosaurios no lleva mariposas.
+    const themeFigs = ZENTANGLE_PRESETS[g.zPresetKey]?.figures;
+    const wide = themeFigs ? SPREAD_FIGURES.filter((f) => themeFigs.includes(f)) : SPREAD_FIGURES;
+    const spreadPool = wide.length ? wide : themeFigs;
+    const figureName = spreadPool[(nth + (bookSeed >>> 0)) % spreadPool.length];
     const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, figureName, rasterize: rasterizeSvg });
     const right = appendToSvg(sp.right, footer);
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
@@ -622,7 +628,10 @@ function showBookReview() {
   qsum.id = "qSummary";
   qsum.className = "q-summary";
   const titleBox = document.createElement("div");
-  titleBox.append(title, qsum);
+  const next = document.createElement("p");
+  next.id = "nextSteps";
+  next.className = "next-steps";
+  titleBox.append(title, qsum, next);
   const fix = document.createElement("button");
   fix.type = "button";
   fix.id = "btnFixFlagged";
@@ -667,6 +676,29 @@ function showBookReview() {
   wrap.append(head, grid);
   ui.previewInner.replaceChildren(wrap);
   updateQualitySummary();
+  updateNextSteps();
+}
+
+// Lo que falta para terminar el libro, en orden, con el siguiente paso en botón.
+function updateNextSteps() {
+  const el = $("nextSteps");
+  if (!el || !bookReview) return;
+  const d = bookReview.done, flagged = flaggedPages(bookReview).length;
+  const steps = [
+    ["Revisar", !flagged, null],
+    ["⬇ PDF", d.pdf, () => createBook()],
+    ["📝 Ficha KDP", d.listing, downloadListing],
+    ["🧾 Receta", d.recipe, downloadBookRecipe],
+  ];
+  el.replaceChildren("Para terminar: ");
+  steps.forEach(([label, ok, fn], k) => {
+    if (k) el.append(" → ");
+    if (ok) { const sp = document.createElement("span"); sp.className = "done"; sp.textContent = `✓ ${label}`; el.append(sp); return; }
+    if (!fn) { el.append(`${label} (${flagged} marcada${flagged > 1 ? "s" : ""})`); return; }
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "link-btn"; b.textContent = label; b.addEventListener("click", fn);
+    el.append(b);
+  });
 }
 
 const flaggedPages = (review) => review.pages.map((p, i) => (p.quality && !p.quality.ok ? i : -1)).filter((i) => i >= 0);
@@ -686,6 +718,7 @@ function updateQualitySummary() {
     fix.textContent = `🛠 Arreglar ${flagged.length === 1 ? "la marcada" : `las ${flagged.length} marcadas`}`;
     fix.disabled = !!bookJob;
   }
+  updateNextSteps();
 }
 
 // Cambia cada página marcada: hasta 3 intentos y se queda con el mejor.
@@ -905,6 +938,8 @@ function downloadBookRecipe() {
   if (!bookReview) return;
   const r = bookReview;
   downloadTextFile(`receta_libro_${r.n}disenos_${r.g.paperKey}_seed${r.baseSeed}.json`, JSON.stringify(bookRecipe(r), null, 2), "application/json;charset=utf-8");
+  r.done.recipe = true;
+  updateNextSteps();
   ui.status.textContent = "✓ Receta descargada: guárdala junto al PDF";
 }
 
@@ -979,7 +1014,7 @@ async function prepareBook() {
   const others = busyButtons().filter((b) => b && b !== ui.btnBook);
   others.forEach((b) => (b.disabled = true));
   freeBookReview();
-  const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0 };
+  const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0, done: {} };
   ui.btnBook.textContent = "✖ Cancelar";
   ui.bookBar.hidden = false; ui.bookBar.value = 0;
   try {
@@ -1018,7 +1053,9 @@ async function prepareBook() {
 async function onBookButton() {
   if (bookJob) { bookJob.cancelled = true; ui.status.textContent = "Cancelando…"; return; }
   if (reviewIsFresh()) return createBook();
-  return prepareBook();
+  await prepareBook();
+  // Arreglo automático: las páginas marcadas se rehacen sin otro clic.
+  if (ui.bookAutoFix?.checked && bookReview && flaggedPages(bookReview).length) await fixFlaggedPages();
 }
 
 async function createBook() {
@@ -1059,8 +1096,10 @@ async function createBook() {
     if (!doc) { ui.status.textContent = "PDF cancelado"; return; }
     const name = `libro_${n}disenos_${g.paperKey}_${g.zPresetKey}_seed${baseSeed}.pdf`;
     doc.save(name);
+    bookReview.done.pdf = true;
+    updateNextSteps();
     const changed = pages.filter((p) => p.tries).length;
-    ui.status.textContent = `✓ Libro listo: ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
+    ui.status.textContent = `✓ PDF listo (${total} páginas). Siguiente: 📝 ficha KDP y 🧾 receta, arriba en la revisión. · ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
   } catch (err) {
     ui.status.textContent = `✗ No se pudo crear el libro: ${err.message}`;
     console.error("Error al crear libro:", err);
@@ -1074,9 +1113,38 @@ async function createBook() {
   }
 }
 
+
+// Ficha de KDP con el libro tal como está configurado (o revisado), según su tema.
+function downloadListing() {
+  const plan = bookPlan();
+  const g = pageGeometry();
+  const fresh = reviewIsFresh();
+  const text = kdpListingText({
+    designs: plan.n,
+    pages: fresh ? bookReview.total : plan.total,
+    paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
+    trimWmm: g.paper.w,
+    trimHmm: g.paper.h,
+    flags: plan.flags,
+    spreads: plan.units.filter((u) => u.kind === "spread").length,
+    turnPages: plan.turnPages,
+    blank: plan.blank,
+    // Qué describe la ficha: tema del libro (dinosaurios, críptidos…), solo
+    // figuras, mezcla o estilos sin figura; y si hay rellenos negros.
+    theme: STYLE_THEME[g.zPresetKey] || null,
+    content: /^zen_figure/.test(g.zPresetKey) ? "figures" : g.zPresetKey === BESTSELLER_KEY || isRandomKey(g.zPresetKey) ? "mixed" : "other",
+    noBlack: g.zPresetKey === BESTSELLER_KEY || g.zPresetKey === RANDOM_COLOR_KEY || (!isRandomKey(g.zPresetKey) && isColoringSafe(ZENTANGLE_PRESETS[g.zPresetKey] || {})),
+  });
+  downloadTextFile(`ficha_kdp_${plan.n}disenos.txt`, text, "text/plain;charset=utf-8");
+  if (fresh) { bookReview.done.listing = true; updateNextSteps(); }
+  ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción, palabras clave y medidas de portada";
+}
+
+let picker = null;
+
 // ---------- Recordar ajustes entre sesiones (uso personal) ----------
 const SETTINGS_KEY = "zentangle.settings.v1";
-const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
+const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "bookAutoFix", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || {}; } catch { return {}; }
 }
@@ -1513,29 +1581,32 @@ function bind() {
   ui.btnRender?.addEventListener("click", () => withBusy(render));
   ui.btnBook.addEventListener("click", onBookButton);
   $("btnBookReview")?.addEventListener("click", showBookReview);
-  // Ficha de KDP con el libro tal como está configurado (o revisado).
-  $("btnKdpListing")?.addEventListener("click", () => {
-    const plan = bookPlan();
-    const g = pageGeometry();
-    const fresh = reviewIsFresh();
-    const text = kdpListingText({
-      designs: plan.n,
-      pages: fresh ? bookReview.total : plan.total,
-      paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
-      trimWmm: g.paper.w,
-      trimHmm: g.paper.h,
-      flags: plan.flags,
-      spreads: plan.units.filter((u) => u.kind === "spread").length,
-      turnPages: plan.turnPages,
-      blank: plan.blank,
-      // Qué describe la ficha: solo figuras, mezcla o estilos sin figura; y si
-      // hay rellenos negros (aleatorio con todo o muestrarios de tinta).
-      content: /^zen_figure/.test(g.zPresetKey) ? "figures" : g.zPresetKey === BESTSELLER_KEY || isRandomKey(g.zPresetKey) ? "mixed" : "other",
-      noBlack: g.zPresetKey === BESTSELLER_KEY || g.zPresetKey === RANDOM_COLOR_KEY || (!isRandomKey(g.zPresetKey) && isColoringSafe(ZENTANGLE_PRESETS[g.zPresetKey] || {})),
-    });
-    downloadTextFile(`ficha_kdp_${plan.n}disenos.txt`, text, "text/plain;charset=utf-8");
-    ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción y palabras clave sin marcas ajenas";
+  $("btnKdpListing")?.addEventListener("click", downloadListing);
+  // Tipos de libro de un clic.
+  const recipeBox = $("bookRecipes");
+  const markRecipe = () => recipeBox?.querySelectorAll(".recipe").forEach((b) => {
+    const r = BOOK_RECIPES.find((x) => x.id === b.dataset.id);
+    b.setAttribute("aria-pressed", String(r.style === ui.zPreset.value && int(ui.bookPages.value) === r.designs));
   });
+  BOOK_RECIPES.forEach((r) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "recipe"; b.dataset.id = r.id; b.textContent = r.label; b.title = r.hint;
+    b.addEventListener("click", () => {
+      ui.zPreset.value = r.style;
+      ui.bookPages.value = String(r.designs);
+      ui.bookProgressive.checked = r.progressive; ui.bookGuide.checked = r.guide;
+      ui.bookSpreads.checked = r.spreads; ui.bookTurn.checked = r.turn;
+      ui.zPreset.dispatchEvent(new Event("change"));
+      picker?.sync();
+      updateBookSummary(); saveSettings(); markRecipe();
+      const h = $("recipeHint"); if (h) h.textContent = `${r.label}: ${r.hint} Ahora pulsa «📖 Preparar libro».`;
+      ui.status.textContent = `✓ Libro «${r.label.replace(/^\S+\s/, "")}» configurado: ${r.designs} diseños · pulsa «Preparar libro»`;
+    });
+    recipeBox?.append(b);
+  });
+  [ui.zPreset, ui.bookPages].forEach((el) => el?.addEventListener("change", markRecipe));
+  markRecipe();
+
 
   // Resumen del libro en vivo (páginas totales, tamaño, avisos KDP).
   const bookOptEls = [ui.bookProgressive, ui.bookGuide, ui.bookSpreads, ui.bookTurn];
@@ -1559,7 +1630,7 @@ function bind() {
   // "change", así el resto de la app no cambia.
   const pickerRoot = $("stylePicker");
   if (pickerRoot) {
-    createStylePicker({
+    picker = createStylePicker({
       select: ui.zPreset,
       root: pickerRoot,
       renderThumb,
