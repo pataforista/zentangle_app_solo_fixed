@@ -74,8 +74,10 @@ export async function generateZentangle(doc, {
     const nPal = n;
     // origamiMix: una página de figura de cada dos va en origami, con su propio repertorio.
     if (Array.isArray(finalOpts.origamiMix) && finalOpts.origamiMix.length) {
-      if (n % 2 === 1) { ids = finalOpts.origamiMix; finalOpts.figureStyle = "facet"; finalOpts.figureAngular = true; }
-      n = Math.floor(n / 2);
+      // origamiEvery: cada cuántas páginas de figura va una en origami (2 = alternas).
+      const every = Math.max(2, finalOpts.origamiEvery || 2);
+      if (n % every === every - 1) { ids = finalOpts.origamiMix; finalOpts.figureStyle = "facet"; finalOpts.figureAngular = true; n = Math.floor(n / every); }
+      else n -= Math.floor((n + 1) / every);
     }
     if (!finalOpts.figureName) finalOpts.figureName = figureForPage(bookSeed ?? seed, n, ids);
     if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(bookSeed ?? seed, nPal);

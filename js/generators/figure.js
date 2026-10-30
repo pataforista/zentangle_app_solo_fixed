@@ -1824,7 +1824,11 @@ FIGURE_SETS.dinoOrigamiMix = ["trex", "allosaurus", "velociraptor", "spinosaurus
 // iguanodonte quedaban idénticos al T. rex).
 FIGURE_SETS.dinoOrigami = [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix];
 FIGURE_SETS.bio = FIGURE_IDS.filter((f) => FIGURES[f].science === "bio");
-FIGURE_SETS.cryptids = FIGURE_IDS.filter((f) => FIGURES[f].cryptid);
+// Críptidos: los que se ven bien con contorno suave y, en origami (1 de cada
+// 3 páginas), los que solo funcionan simplificados. Fuera: serpiente marina y
+// monstruo de Flatwoods (no se leen en ningún estilo).
+FIGURE_SETS.cryptids = ["bigfoot", "yeti", "mothman", "nessie", "kraken", "jackalope", "wendigo", "greyalien", "ufo"];
+FIGURE_SETS.cryptidsOrigami = ["chupacabra", "jerseydevil", "thunderbird"];
 export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
 // En los estilos para adultos, las figuritas escondidas también son adultas.
@@ -2092,12 +2096,14 @@ export async function generateZenFigure(doc, opts) {
   if (!layout) layout = empty ? "center" : lr < 0.4 ? "center" : lr < 0.75 ? "offset" : "zoom";
   // Origami recortado por el marco deja de leerse: se queda entero.
   if (opts.figureAngular && layout === "zoom") layout = "center";
-  const s = sFit * (layout === "offset" ? rFloat(rng, 0.66, 0.8) : layout === "zoom" ? rFloat(rng, 1.25, 1.45) : 1);
+  const s = sFit * (layout === "offset" ? rFloat(rng, 0.66, 0.8) : layout === "zoom" ? rFloat(rng, 1.1, 1.22) : 1);
   const figW = (ub.x1 - ub.x0) * s, figH = (ub.y1 - ub.y0) * s;
   // Holgura para mover la figura: dentro del marco (offset) o hasta un ~25 %
   // fuera de él (zoom).
-  const slackX = layout === "zoom" ? (figW - a.w) / 2 + figW * 0.12 : Math.max(0, (a.w - 2 * room - figW) / 2);
-  const slackY = layout === "zoom" ? (figH - a.h) / 2 + figH * 0.12 : Math.max(0, (a.h - 2 * room - figH * (1 + bottomRoom)) / 2);
+  // Primer plano suave: sale del marco como mucho un ~6 % (antes ~12 %: se
+  // perdían cabezas y la figura dejaba de leerse).
+  const slackX = layout === "zoom" ? Math.max(0, (figW - a.w) / 2) + figW * 0.06 : Math.max(0, (a.w - 2 * room - figW) / 2);
+  const slackY = layout === "zoom" ? Math.max(0, (figH - a.h) / 2) + figH * 0.06 : Math.max(0, (a.h - 2 * room - figH * (1 + bottomRoom)) / 2);
   const ox = layout === "center" ? 0 : rFloat(rng, -1, 1) * Math.max(0, slackX);
   let oy = layout === "center" ? 0 : rFloat(rng, -1, 1) * Math.max(0, slackY);
   // Con suelo (rama, tallo) la figura va de la mitad hacia abajo: no flota.
