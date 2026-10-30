@@ -31,9 +31,14 @@ export const isRandomKey = (key) => key === RANDOM_STYLE_KEY || key === RANDOM_C
 // La figura zentangle (zen_figure) lleva casi la mitad del libro: es el
 // formato de los títulos líderes del nicho (figura grande llena de tangles).
 // Los muestrarios bajan: se leen más como libro infantil que como zentangle.
+// Dos de las 8 figuras van facetadas (cubista) y en vitral: misma figura,
+// otra manera de colorear (piezas lisas grandes).
+// spiral_modern: espiral áurea con arcos dibujados (rectángulos rectos, sin
+// deformar ni partir al azar). Fuera: sampler_icon_fractal (repetía iconos y
+// era de los peores en colorabilidad).
 export const BESTSELLERS = [
-  ["zen_figure", 8], ["icon_mandala", 2], ["zen_star", 2], ["classic_z_string", 2],
-  ["sampler_icons", 2], ["eye_focus", 1], ["sampler_hex", 1], ["sampler_icon_fractal", 1], ["sampler_cairo", 1],
+  ["zen_figure", 6], ["zen_figure_facet", 1], ["zen_figure_glass", 1], ["icon_mandala", 2], ["zen_star", 2], ["classic_z_string", 2],
+  ["sampler_icons", 2], ["eye_focus", 1], ["sampler_hex", 1], ["spiral_modern", 1], ["sampler_cairo", 1],
 ];
 
 // Mazo del libro: las 20 cartas de BESTSELLERS barajadas con la semilla del

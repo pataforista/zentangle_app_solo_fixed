@@ -8,10 +8,12 @@ import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
 import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey, isColoringSafe } from "./generators/randomStyle.js";
 import { createStylePicker } from "./ui/stylePicker.js";
-import { designUnits, planSequence, difficultyAt, kdpInsideMarginMm } from "./core/bookPlan.js";
+import { designUnits, planSequence, difficultyAt, kdpInsideMarginMm, printSafeOpts } from "./core/bookPlan.js";
 import { generateSpread, SPREAD_FIGURES } from "./generators/spread.js";
 import { figureForPage, FIGURE_IDS } from "./generators/figure.js";
 import { kdpListingText } from "./core/kdpListing.js";
+import { analyzeColorability, qualityVerdict, qualityScore, QUALITY_LIMITS } from "./core/pageQuality.js";
+import { BOOK_RECIPES, STYLE_THEME } from "./core/bookRecipes.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
 
 const $ = (id) => document.getElementById(id);
@@ -80,6 +82,7 @@ const ui = {
   bookGuide: $("bookGuide"),
   bookSpreads: $("bookSpreads"),
   bookTurn: $("bookTurn"),
+  bookAutoFix: $("bookAutoFix"),
   bookSummary: $("bookSummary"),
   bookBar: $("bookBar"),
   btnBook: $("btnBook"),
@@ -350,7 +353,8 @@ async function renderGallery(count = 8) {
 function kdpWarning(marginMm, bleedMm = 0) {
   const artEdgeMm = marginMm - (bleedMm || 0);
   if (artEdgeMm < 6.35) return " | ⚠ Arte a menos de 6.35 mm del borde: KDP lo rechazaría (sube el margen o quita el sangrado)";
-  if (marginMm < 9.5) return " | ⚠ Margen menor a 9.5 mm: insuficiente como gutter KDP";
+  const minIn = kdpInsideMarginMm(KDP_MIN_PAGES);
+  if (marginMm < minIn) return ` | ⚠ Margen menor a ${minIn} mm: por debajo del margen interior (lomo) mínimo de KDP`;
   return "";
 }
 
@@ -360,7 +364,7 @@ function kdpWarning(marginMm, bleedMm = 0) {
 const THUMB_SEED = 7;
 // Con la misma semilla, las tarjetas de figura mostraban la misma hoja: cada
 // una enseña una figura distinta y reconocible.
-const THUMB_OVERRIDES = { zen_figure: { figureName: "owl" }, zen_figure_light: { figureName: "cat" } };
+const THUMB_OVERRIDES = { zen_figure: { figureName: "nautilus" }, zen_figure_light: { figureName: "hummingbird" }, zen_figure_facet: { figureName: "hamsa" }, zen_figure_glass: { figureName: "lunamoth" }, zen_figure_kids: { figureName: "owl" }, zen_figure_dino: { figureName: "triceratops" }, zen_figure_dino_origami: { figureName: "stegosaurus" }, zen_figure_bio: { figureName: "neuron" }, zen_figure_cryptids: { figureName: "kraken" } };
 async function renderThumb(key) {
   const p = PAPER_SIZES_MM.LETTER, m = 10;
   const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "patrones" } });
@@ -495,7 +499,20 @@ function keepOrDropSvg(review, page, freed = 0) {
   page.svg = page.left = page.right = null;
 }
 
-async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true } = {}) {
+// Control de calidad de cada página: se rasteriza a 6 px/mm y se cuentan las
+// zonas donde no cabe la punta de un rotulador (core/pageQuality.js).
+const QPX = 6;
+const stripFooter = (svg) => svg.replace(/<g data-footer="1">[\s\S]*?<\/g>/, "");
+async function measurePage(svg, wMm, hMm, artAreaMm2) {
+  const r = await rasterizeSvg(svg, Math.round(wMm * QPX), Math.round(hMm * QPX));
+  const q = analyzeColorability(r, QPX);
+  // ZT_QUALITY_BAD_DM2: solo para pruebas (fuerza páginas marcadas).
+  const v = qualityVerdict(q, artAreaMm2, { ...QUALITY_LIMITS, badPerDm2: Number(globalThis.ZT_QUALITY_BAD_DM2) || QUALITY_LIMITS.badPerDm2 });
+  return { bad: q.bad, ink: Math.round(q.ink * 10) / 10, ok: v.ok, reasons: v.reasons, maxBad: v.maxBad };
+}
+const artArea = (g, spread = false) => g.inner.w * g.inner.h * (spread ? 2 : 1);
+
+async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, quality = true } = {}) {
   const geo = { w: g.paper.w, h: g.paper.h, m: g.marginMm };
   const kind = plan?.units?.[pageIndex]?.kind || "single";
   const difficulty = plan?.flags?.progressive ? difficultyAt(pageIndex, plan.n) : null;
@@ -505,22 +522,37 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true }
     // Las dobles páginas recorren sus figuras en orden (la n-ésima doble de
     // este libro), en vez de sortearlas: así no se repiten seguidas.
     const nth = plan.units.slice(0, pageIndex).filter((u) => u.kind === "spread").length;
-    const figureName = SPREAD_FIGURES[(nth + (bookSeed >>> 0)) % SPREAD_FIGURES.length];
+    // Del repertorio del estilo: un libro de dinosaurios no lleva mariposas.
+    const themeFigs = ZENTANGLE_PRESETS[g.zPresetKey]?.figures;
+    const wide = themeFigs ? SPREAD_FIGURES.filter((f) => themeFigs.includes(f)) : SPREAD_FIGURES;
+    const spreadPool = wide.length ? wide : themeFigs;
+    const figureName = spreadPool[(nth + (bookSeed >>> 0)) % spreadPool.length];
     const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, figureName, rasterize: rasterizeSvg });
     const right = appendToSvg(sp.right, footer);
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
-    return { kind, seed, svg: sp.wide, left: sp.left, right, url, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure };
+    const q = quality ? await measurePage(sp.wide, g.paper.w * 2, g.paper.h, artArea(g, true)) : null;
+    return { kind, seed, svg: sp.wide, left: sp.left, right, url, quality: q, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure };
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
-  const overrides = { ...g.opts, seed, ...(difficulty === null ? {} : { difficulty }) };
+  // printSafeOpts: guías de zona segura, textura y sombreado nunca se imprimen.
+  const overrides = { ...printSafeOpts(g.opts), seed, ...(difficulty === null ? {} : { difficulty }) };
   // En los modos aleatorios, la página original (tries 0) toma su estilo de la
   // secuencia del libro, que evita vecinas repetidas. Un ↻ cambia la semilla:
   // esa página sortea un estilo nuevo con ella (en «Más vendidos» sigue el mazo).
   const rerolled = isRandomKey(g.zPresetKey) && g.zPresetKey !== BESTSELLER_KEY && seed !== pageSeed(bookSeed, pageIndex, 0);
   const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides, areaMm: g.inner, pageIndex: rerolled ? null : pageIndex, bookSeed, rasterize: rasterizeSvg });
-  const svg = appendToSvg(renderSvgToString(d), footer);
+  const bare = renderSvgToString(d);
+  // Pie: nivel (si es progresivo) y cuántas figuras hay escondidas para buscar.
+  const nHidden = (bare.match(/data-hidden="/g) || []).length;
+  const seek = nHidden ? `busca ${nHidden} figura${nHidden > 1 ? "s" : ""} escondida${nHidden > 1 ? "s" : ""}` : "";
+  const pageFooter = lv
+    ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min${seek ? ` · ${seek}` : ""}`, level: lv.level })
+    : seek ? footerSvg(geo, { text: `${seek[0].toUpperCase()}${seek.slice(1)}` }) : ""; // sin emoji: se imprimiría en color
+  const svg = appendToSvg(bare, pageFooter);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
-  return { kind, seed, svg, url, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null };
+  // El pie (texto) no cuenta: se mide el dibujo solo.
+  const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g)) : null;
+  return { kind, seed, svg, url, quality: q, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null };
 }
 
 // Páginas que no son diseños: guía y pasaporte (con los tangles que de
@@ -537,11 +569,13 @@ async function buildBookExtras(review) {
   }
   // «Tu turno» usa figuras que no salen en el libro (si quedan).
   const usedFigs = new Set(review.pages.map((p) => p.figure).filter(Boolean));
-  const freshFigs = FIGURE_IDS.filter((f) => !usedFigs.has(f));
+  // Del repertorio del estilo elegido (adultas o tiernas).
+  const turnSet = ZENTANGLE_PRESETS[g.zPresetKey]?.figures || ZENTANGLE_PRESETS.zen_figure.figures;
+  const freshFigs = turnSet.filter((f) => !usedFigs.has(f));
   for (let k = 0; k < turnPages; k++) {
     const seed = pageSeed(baseSeed, 1000 + k, 0);
     const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
-    await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: freshFigs.length ? freshFigs[k % freshFigs.length] : figureForPage(baseSeed ^ 0x7777, k) }, areaMm: g.inner });
+    await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: freshFigs.length ? freshFigs[k % freshFigs.length] : figureForPage(baseSeed ^ 0x7777, k, turnSet) }, areaMm: g.inner });
     const text = flags.guide ? "Tu turno: dibuja en cada sección un tangle de la guía" : "Tu turno: dibuja tus propios tangles en cada sección";
     out.turn.push(appendToSvg(renderSvgToString(d), footerSvg(geo, { text })));
   }
@@ -557,6 +591,7 @@ const extrasList = (ex) => [
 const bookSequence = (review, ex) => planSequence(review.units, { blank: review.blank, guidePages: ex.guide.length, passport: !!ex.passport, turnPages: ex.turn.length });
 
 function freeBookReview() {
+  closeViewer();
   bookReview?.pages.forEach((p) => p && URL.revokeObjectURL(p.url));
   bookReview?.extraUrls?.forEach((u) => URL.revokeObjectURL(u));
   bookReview = null;
@@ -588,13 +623,31 @@ function showBookReview() {
   head.className = "book-review-head";
   const title = document.createElement("p");
   title.className = "book-review-title";
-  title.textContent = `Revisa tu libro: ${bookReview.n} diseños. ¿Alguno no te gusta? Pulsa ↻ y se reemplaza por otro al instante.`;
+  title.textContent = `Revisa tu libro: ${bookReview.n} diseños. Toca una página para verla a tamaño real; ↻ la cambia por otra al instante.`;
+  const qsum = document.createElement("p");
+  qsum.id = "qSummary";
+  qsum.className = "q-summary";
+  const titleBox = document.createElement("div");
+  const next = document.createElement("p");
+  next.id = "nextSteps";
+  next.className = "next-steps";
+  titleBox.append(title, qsum, next);
+  const fix = document.createElement("button");
+  fix.type = "button";
+  fix.id = "btnFixFlagged";
+  fix.className = "btn btn-secondary";
+  fix.addEventListener("click", fixFlaggedPages);
   const dl = document.createElement("button");
   dl.type = "button";
   dl.className = "btn btn-primary";
-  dl.textContent = "⬇ Descargar PDF";
-  dl.addEventListener("click", () => createBook());
-  head.append(title, dl);
+  dl.id = "btnDownloadAll";
+  dl.textContent = "📦 Descargar todo";
+  dl.title = "PDF del interior + ficha de KDP + receta del libro (el navegador puede pedir permiso para varias descargas)";
+  dl.addEventListener("click", downloadAll);
+  const actions = document.createElement("div");
+  actions.className = "book-review-actions";
+  actions.append(fix, dl);
+  head.append(titleBox, actions);
 
   const grid = document.createElement("div");
   grid.className = "gallery-grid book-grid";
@@ -618,18 +671,296 @@ function showBookReview() {
   });
   wrap.append(head, grid);
   ui.previewInner.replaceChildren(wrap);
+  updateQualitySummary();
+  updateNextSteps();
+}
+
+// Todo en un clic: PDF del interior, ficha de KDP y receta.
+async function downloadAll() {
+  if (bookJob || !bookReview) return;
+  const review = bookReview;
+  await createBook();
+  if (bookReview !== review || !review.done.pdf) return; // cancelado o con error
+  downloadListing();
+  downloadBookRecipe();
+  ui.status.textContent = "✓ Listo: PDF, ficha de KDP y receta descargados. Sube el PDF como interior y pega la ficha en KDP.";
+}
+
+// Lo que falta para terminar el libro, en orden, con el siguiente paso en botón.
+function updateNextSteps() {
+  const el = $("nextSteps");
+  if (!el || !bookReview) return;
+  const d = bookReview.done, flagged = flaggedPages(bookReview).length;
+  const steps = [
+    ["Revisar", !flagged, null],
+    ["⬇ PDF", d.pdf, () => createBook()],
+    ["📝 Ficha KDP", d.listing, downloadListing],
+    ["🧾 Receta", d.recipe, downloadBookRecipe],
+  ];
+  el.replaceChildren("Para terminar: ");
+  steps.forEach(([label, ok, fn], k) => {
+    if (k) el.append(" → ");
+    if (ok) { const sp = document.createElement("span"); sp.className = "done"; sp.textContent = `✓ ${label}`; el.append(sp); return; }
+    if (!fn) { el.append(`${label} (${flagged} marcada${flagged > 1 ? "s" : ""})`); return; }
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "link-btn"; b.textContent = label; b.addEventListener("click", fn);
+    el.append(b);
+  });
+}
+
+const flaggedPages = (review) => review.pages.map((p, i) => (p.quality && !p.quality.ok ? i : -1)).filter((i) => i >= 0);
+
+// Resumen de calidad en la cabecera de la revisión y botón «Arreglar».
+function updateQualitySummary() {
+  const el = $("qSummary"), fix = $("btnFixFlagged");
+  if (!bookReview || !el) return;
+  const flagged = flaggedPages(bookReview);
+  const measured = bookReview.pages.filter((p) => p.quality).length;
+  el.className = `q-summary${flagged.length ? " warn" : ""}`;
+  el.textContent = !measured ? "" : flagged.length
+    ? `Control de calidad: ${measured - flagged.length} páginas bien · ${flagged.length} marcada${flagged.length > 1 ? "s" : ""} (zonas donde no cabe la punta del rotulador).`
+    : `Control de calidad: las ${measured} páginas pasan.`;
+  if (fix) {
+    fix.hidden = !flagged.length;
+    fix.textContent = `🛠 Arreglar ${flagged.length === 1 ? "la marcada" : `las ${flagged.length} marcadas`}`;
+    fix.disabled = !!bookJob;
+  }
+  updateNextSteps();
+}
+
+// Cambia cada página marcada: hasta 3 intentos y se queda con el mejor.
+async function fixFlaggedPages() {
+  if (!bookReview || bookJob) return;
+  const review = bookReview;
+  const flagged = flaggedPages(review);
+  if (!flagged.length) return;
+  const job = (bookJob = { cancelled: false });
+  const others = busyButtons().filter((b) => b && b !== ui.btnBook);
+  others.forEach((b) => (b.disabled = true));
+  document.querySelectorAll(".tile-redo, #btnFixFlagged").forEach((b) => (b.disabled = true));
+  ui.btnBook.textContent = "✖ Detener";
+  let fixed = 0, done = 0;
+  try {
+    for (const i of flagged) {
+      if (job.cancelled || bookReview !== review) break;
+      const tile = document.querySelector(`.book-tile[data-index="${i}"]`);
+      tile?.classList.add("busy");
+      ui.status.textContent = `Arreglando la página ${i + 1} (${done + 1} de ${flagged.length})…`;
+      const old = review.pages[i];
+      let best = old, tries = old.tries || 0;
+      const score = (p) => qualityScore(p.quality, p.quality.maxBad);
+      for (let a = 0; a < 3 && !best.quality.ok && !job.cancelled; a++) {
+        tries++;
+        const cand = await makeBookPage(review.g, pageSeed(review.baseSeed, i, tries), i, review.baseSeed, review);
+        cand.tries = tries;
+        if (score(cand) < score(best)) { if (best !== old) URL.revokeObjectURL(best.url); best = cand; }
+        else URL.revokeObjectURL(cand.url);
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      if (bookReview !== review) { if (best !== old) URL.revokeObjectURL(best.url); break; }
+      if (best !== old) {
+        keepOrDropSvg(review, best, svgSize(old));
+        review.pages[i] = best;
+        URL.revokeObjectURL(old.url);
+      }
+      if (best.quality.ok) fixed++;
+      done++;
+      const fresh = bookTile(i);
+      if (tile) tile.replaceWith(fresh);
+      fresh.querySelector(".tile-redo").disabled = true;
+    }
+    const left = flaggedPages(review).length;
+    ui.status.textContent = `✓ ${fixed} de ${flagged.length} páginas arregladas` + (left ? ` · ${left} siguen marcadas: ábrelas para ver las zonas en rojo y decide si las dejas o las cambias con ↻` : "");
+  } catch (err) {
+    ui.status.textContent = `✗ No se pudieron arreglar las páginas: ${err.message}`;
+    console.error("Error al arreglar páginas:", err);
+  } finally {
+    bookJob = null;
+    others.forEach((b) => (b.disabled = false));
+    document.querySelectorAll(".tile-redo").forEach((b) => (b.disabled = false));
+    updateBookButton();
+    updateQualitySummary();
+  }
+}
+
+// ---------- Visor a tamaño real ----------
+// Muestra la página como vector (nitidez a cualquier zoom) y, encima, en rojo,
+// las zonas donde no cabe la punta de un rotulador.
+let viewer = null;
+
+function closeViewer() {
+  if (!viewer) return;
+  document.removeEventListener("keydown", viewer.onKey);
+  if (viewer.url) URL.revokeObjectURL(viewer.url);
+  viewer.el.remove();
+  viewer = null;
+}
+
+function viewerButton(text, title, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn btn-secondary";
+  b.textContent = text;
+  if (title) b.title = title;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+function openViewer(i) {
+  if (!bookReview) return;
+  if (!viewer) {
+    const el = document.createElement("div");
+    el.className = "viewer";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    const bar = document.createElement("div");
+    bar.className = "viewer-bar";
+    const label = document.createElement("span");
+    label.className = "grow";
+    const zooms = [["fit", "Ajustar"], ["real", "Tamaño real"], ["double", "200 %"]].map(([z, t]) => {
+      const b = viewerButton(t, z === "real" ? "Como se imprime (en pantalla de ~96 ppp)" : "", () => { viewer.zoom = z; layoutViewer(); });
+      b.dataset.zoom = z;
+      return b;
+    });
+    const marks = document.createElement("label");
+    marks.className = "check";
+    const marksBox = document.createElement("input");
+    marksBox.type = "checkbox";
+    marksBox.checked = true;
+    marksBox.addEventListener("change", () => { viewer.marks = marksBox.checked; showViewerMarks(); });
+    marks.append(marksBox, " Zonas difíciles en rojo");
+    const prev = viewerButton("‹", "Página anterior (←)", () => moveViewer(-1));
+    const next = viewerButton("›", "Página siguiente (→)", () => moveViewer(1));
+    const redo = viewerButton("↻ Cambiar", "Cambiar este diseño por otro", async () => {
+      const tile = document.querySelector(`.book-tile[data-index="${viewer.i}"]`);
+      if (!tile || bookJob) return;
+      redo.disabled = true;
+      await replaceBookPage(viewer.i, tile);
+      redo.disabled = false;
+      if (viewer) showViewerPage();
+    });
+    const close = viewerButton("✕ Cerrar", "Cerrar (Esc)", closeViewer);
+    bar.append(prev, next, label, ...zooms, marks, redo, close);
+    const scroll = document.createElement("div");
+    scroll.className = "viewer-scroll";
+    const pageEl = document.createElement("div");
+    pageEl.className = "viewer-page";
+    const img = document.createElement("img");
+    img.alt = "";
+    const canvas = document.createElement("canvas");
+    pageEl.append(img, canvas);
+    const note = document.createElement("p");
+    note.className = "viewer-note";
+    scroll.append(pageEl, note);
+    el.append(bar, scroll);
+    document.body.append(el);
+    const onKey = (e) => {
+      if (e.key === "Escape") closeViewer();
+      else if (e.key === "ArrowLeft") moveViewer(-1);
+      else if (e.key === "ArrowRight") moveViewer(1);
+    };
+    document.addEventListener("keydown", onKey);
+    viewer = { el, label, zooms, scroll, pageEl, img, canvas, note, onKey, zoom: "fit", marks: true, i, url: null, svg: null, token: 0 };
+  }
+  viewer.i = i;
+  showViewerPage();
+}
+
+function moveViewer(d) {
+  if (!viewer || !bookReview) return;
+  const n = bookReview.pages.length;
+  viewer.i = (viewer.i + d + n) % n;
+  showViewerPage();
+}
+
+function viewerSize() {
+  const page = bookReview.pages[viewer.i];
+  return { wMm: bookReview.g.paper.w * (page.kind === "spread" ? 2 : 1), hMm: bookReview.g.paper.h };
+}
+
+function layoutViewer() {
+  if (!viewer || !bookReview) return;
+  const { wMm, hMm } = viewerSize();
+  const p = viewer.pageEl;
+  p.style.aspectRatio = `${wMm} / ${hMm}`;
+  if (viewer.zoom === "fit") {
+    const sw = viewer.scroll.clientWidth - 32, sh = viewer.scroll.clientHeight - 56;
+    p.style.width = `${Math.max(120, Math.min(sw, (sh * wMm) / hMm))}px`;
+  } else p.style.width = `${viewer.zoom === "double" ? 2 * wMm : wMm}mm`;
+  viewer.zooms.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.zoom === viewer.zoom)));
+}
+
+async function showViewerPage() {
+  if (!viewer || !bookReview) return;
+  const review = bookReview, i = viewer.i, page = review.pages[i];
+  const token = ++viewer.token;
+  const q = page.quality;
+  const style = isRandomKey(review.g.zPresetKey) ? ` · ${styleLabel(page.presetName)}` : "";
+  viewer.label.textContent = `Diseño ${i + 1} de ${review.pages.length}${page.kind === "spread" ? " · doble página" : ""}${style}` +
+    (q ? (q.ok ? ` · ✓ calidad (${q.bad} zonas diminutas)` : ` · ⚠ ${q.reasons.join(" · ")}`) : "");
+  layoutViewer();
+  viewer.canvas.width = viewer.canvas.height = 0;
+  viewer.note.textContent = "Cargando…";
+  const svg = page.svg || (await makeBookPage(review.g, page.seed, i, review.baseSeed, review, { thumb: false, quality: false })).svg;
+  if (!viewer || viewer.token !== token) return;
+  if (viewer.url) URL.revokeObjectURL(viewer.url);
+  viewer.url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  viewer.svg = svg;
+  viewer.img.src = viewer.url;
+  showViewerMarks();
+}
+
+async function showViewerMarks() {
+  if (!viewer) return;
+  const token = viewer.token, c = viewer.canvas;
+  if (!viewer.marks || !viewer.svg) { c.width = c.height = 0; viewer.note.textContent = ""; return; }
+  const { wMm, hMm } = viewerSize();
+  const r = await rasterizeSvg(stripFooter(viewer.svg), Math.round(wMm * QPX), Math.round(hMm * QPX));
+  if (!viewer || viewer.token !== token || !viewer.marks) return;
+  const q = analyzeColorability(r, QPX, { mark: true });
+  c.width = r.width; c.height = r.height;
+  const ctx = c.getContext("2d");
+  const out = ctx.createImageData(r.width, r.height);
+  for (let k = 0; k < q.mask.length; k++) if (q.mask[k]) { out.data[k * 4] = 230; out.data[k * 4 + 3] = 220; }
+  ctx.putImageData(out, 0, 0);
+  viewer.note.textContent = q.bad
+    ? `En rojo: ${q.bad} zonas donde no cabe la punta de un rotulador. Unas pocas esquinas pequeñas son normales; muchas juntas, mejor ↻ Cambiar.`
+    : "Sin zonas difíciles.";
+}
+
+// Receta del libro: todo lo necesario para auditar o rehacer exactamente las
+// páginas aprobadas (incluidos los ↻). Rehacerla idéntica exige el mismo commit
+// de la app: las correcciones de geometría cambian los dibujos.
+function bookRecipe(review) {
+  const { g, n, blank, flags, baseSeed, pages, total } = review;
+  return {
+    app: "generador-libros-colorear", recipeVersion: 1, createdAt: new Date().toISOString(),
+    paper: { key: g.paperKey, wMm: g.paper.w, hMm: g.paper.h }, marginMm: g.marginMm,
+    style: g.zPresetKey, opts: printSafeOpts(g.opts), designs: n, blankBacks: blank, flags, baseSeed, totalPages: total,
+    pages: pages.map((p, i) => ({ design: i + 1, kind: p.kind, seed: p.seed, tries: p.tries || 0, style: p.presetName, figure: p.figure || null, tangles: p.tangles || [], quality: p.quality ? { bad: p.quality.bad, ink: p.quality.ink, ok: p.quality.ok } : null })),
+  };
+}
+
+function downloadBookRecipe() {
+  if (!bookReview) return;
+  const r = bookReview;
+  downloadTextFile(`receta_libro_${r.n}disenos_${r.g.paperKey}_seed${r.baseSeed}.json`, JSON.stringify(bookRecipe(r), null, 2), "application/json;charset=utf-8");
+  r.done.recipe = true;
+  updateNextSteps();
+  ui.status.textContent = "✓ Receta descargada: guárdala junto al PDF";
 }
 
 function bookTile(i) {
   const page = bookReview.pages[i];
   const tile = document.createElement("figure");
-  tile.className = `gallery-item book-tile${page.kind === "spread" ? " spread" : ""}`;
+  const flagged = page.quality && !page.quality.ok;
+  tile.className = `gallery-item book-tile${page.kind === "spread" ? " spread" : ""}${flagged ? " flagged" : ""}`;
   tile.dataset.index = String(i);
   const img = document.createElement("img");
   img.src = page.url;
   img.alt = `Diseño ${i + 1}`;
-  img.title = "Clic para ampliar";
-  img.addEventListener("click", () => tile.classList.toggle("zoomed"));
+  img.title = "Ver a tamaño real";
+  img.addEventListener("click", () => openViewer(i));
   const cap = document.createElement("figcaption");
   const label = document.createElement("span");
   label.className = "gallery-label";
@@ -642,7 +973,13 @@ function bookTile(i) {
   redo.textContent = "↻ Cambiar";
   redo.title = "Borrar este diseño y generar otro en su lugar";
   redo.addEventListener("click", () => replaceBookPage(i, tile));
-  cap.append(label, redo);
+  if (page.quality) {
+    const badge = document.createElement("span");
+    badge.className = `q-badge${flagged ? " bad" : ""}`;
+    badge.textContent = flagged ? "⚠ revisar" : "✓";
+    badge.title = flagged ? page.quality.reasons.join(" · ") : `Calidad correcta (${page.quality.bad} zonas diminutas)`;
+    cap.append(label, badge, redo);
+  } else cap.append(label, redo);
   tile.append(img, cap);
   return tile;
 }
@@ -664,7 +1001,9 @@ async function replaceBookPage(i, tile) {
     review.pages[i] = page;
     URL.revokeObjectURL(old.url);
     tile.replaceWith(bookTile(i));
-    ui.status.textContent = `✓ Diseño ${i + 1} reemplazado`;
+    updateQualitySummary();
+    const q = page.quality;
+    ui.status.textContent = `✓ Diseño ${i + 1} reemplazado` + (q && !q.ok ? ` · sigue marcado: ${q.reasons.join(" · ")}` : "");
   } catch (err) {
     btn.disabled = false;
     btn.textContent = "↻ Cambiar";
@@ -682,7 +1021,7 @@ async function prepareBook() {
   const others = busyButtons().filter((b) => b && b !== ui.btnBook);
   others.forEach((b) => (b.disabled = true));
   freeBookReview();
-  const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0 };
+  const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0, done: {} };
   ui.btnBook.textContent = "✖ Cancelar";
   ui.bookBar.hidden = false; ui.bookBar.value = 0;
   try {
@@ -702,7 +1041,8 @@ async function prepareBook() {
     review.total = bookSequence(review, review.extras).length;
     bookReview = review;
     showBookReview();
-    ui.status.textContent = `✓ ${n} diseños listos para revisar (${review.total} páginas) · cambia los que no te gusten y descarga el PDF`;
+    const nFlag = flaggedPages(review).length;
+    ui.status.textContent = `✓ ${n} diseños listos (${review.total} páginas)` + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad: pulsa «🛠 Arreglar»` : " · todas pasan el control de calidad") + " · luego descarga el PDF";
   } catch (err) {
     review.pages.forEach((p) => URL.revokeObjectURL(p.url));
     ui.status.textContent = `✗ No se pudo preparar el libro: ${err.message}`;
@@ -712,6 +1052,7 @@ async function prepareBook() {
     ui.bookBar.hidden = true;
     others.forEach((b) => (b.disabled = false));
     updateBookButton();
+    updateQualitySummary();
   }
 }
 
@@ -719,7 +1060,9 @@ async function prepareBook() {
 async function onBookButton() {
   if (bookJob) { bookJob.cancelled = true; ui.status.textContent = "Cancelando…"; return; }
   if (reviewIsFresh()) return createBook();
-  return prepareBook();
+  await prepareBook();
+  // Arreglo automático: las páginas marcadas se rehacen sin otro clic.
+  if (ui.bookAutoFix?.checked && bookReview && flaggedPages(bookReview).length) await fixFlaggedPages();
 }
 
 async function createBook() {
@@ -742,7 +1085,7 @@ async function createBook() {
     let regen = null;
     const full = async (i) => {
       if (pages[i].svg) return pages[i];
-      if (regen?.i !== i) regen = { i, page: await makeBookPage(g, pages[i].seed, i, baseSeed, bookReview, { thumb: false }) };
+      if (regen?.i !== i) regen = { i, page: await makeBookPage(g, pages[i].seed, i, baseSeed, bookReview, { thumb: false, quality: false }) };
       return regen.page;
     };
     const svgOf = async (e) => ({ design: async () => (await full(e.i)).svg, spreadL: async () => (await full(e.i)).left, spreadR: async () => (await full(e.i)).right,
@@ -760,8 +1103,10 @@ async function createBook() {
     if (!doc) { ui.status.textContent = "PDF cancelado"; return; }
     const name = `libro_${n}disenos_${g.paperKey}_${g.zPresetKey}_seed${baseSeed}.pdf`;
     doc.save(name);
+    bookReview.done.pdf = true;
+    updateNextSteps();
     const changed = pages.filter((p) => p.tries).length;
-    ui.status.textContent = `✓ Libro listo: ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
+    ui.status.textContent = `✓ PDF listo (${total} páginas). Siguiente: 📝 ficha KDP y 🧾 receta, arriba en la revisión. · ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
   } catch (err) {
     ui.status.textContent = `✗ No se pudo crear el libro: ${err.message}`;
     console.error("Error al crear libro:", err);
@@ -771,12 +1116,42 @@ async function createBook() {
     others.forEach((b) => (b.disabled = false));
     document.querySelectorAll(".tile-redo").forEach((b) => (b.disabled = false));
     updateBookButton();
+    updateQualitySummary();
   }
 }
 
+
+// Ficha de KDP con el libro tal como está configurado (o revisado), según su tema.
+function downloadListing() {
+  const plan = bookPlan();
+  const g = pageGeometry();
+  const fresh = reviewIsFresh();
+  const text = kdpListingText({
+    designs: plan.n,
+    pages: fresh ? bookReview.total : plan.total,
+    paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
+    trimWmm: g.paper.w,
+    trimHmm: g.paper.h,
+    flags: plan.flags,
+    spreads: plan.units.filter((u) => u.kind === "spread").length,
+    turnPages: plan.turnPages,
+    blank: plan.blank,
+    // Qué describe la ficha: tema del libro (dinosaurios, críptidos…), solo
+    // figuras, mezcla o estilos sin figura; y si hay rellenos negros.
+    theme: STYLE_THEME[g.zPresetKey] || null,
+    content: /^zen_figure/.test(g.zPresetKey) ? "figures" : g.zPresetKey === BESTSELLER_KEY || isRandomKey(g.zPresetKey) ? "mixed" : "other",
+    noBlack: g.zPresetKey === BESTSELLER_KEY || g.zPresetKey === RANDOM_COLOR_KEY || (!isRandomKey(g.zPresetKey) && isColoringSafe(ZENTANGLE_PRESETS[g.zPresetKey] || {})),
+  });
+  downloadTextFile(`ficha_kdp_${plan.n}disenos.txt`, text, "text/plain;charset=utf-8");
+  if (fresh) { bookReview.done.listing = true; updateNextSteps(); }
+  ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción, palabras clave y medidas de portada";
+}
+
+let picker = null;
+
 // ---------- Recordar ajustes entre sesiones (uso personal) ----------
 const SETTINGS_KEY = "zentangle.settings.v1";
-const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
+const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "bookAutoFix", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || {}; } catch { return {}; }
 }
@@ -789,7 +1164,9 @@ function saveSettings() {
   } catch { /* modo privado o sin permiso: no pasa nada */ }
 }
 
-async function render() {
+// forPrint: genera la página para descargar (sin guías de zona segura, textura
+// ni sombreado) y no toca la vista previa.
+async function render({ forPrint = false } = {}) {
   updateBookButton(); // cualquier cambio de ajustes deja vieja la revisión del libro
   ui.status.textContent = "Renderizando...";
   if (ui.previewPanel) ui.previewPanel.classList.remove("gallery-active");
@@ -798,7 +1175,9 @@ async function render() {
 
   let marginMm = Math.max(0, num(ui.marginMm.value, 12.7));
 
-  const { opts, zPresetKey } = buildOptsFromUI();
+  const built = buildOptsFromUI();
+  const zPresetKey = built.zPresetKey;
+  const opts = forPrint ? printSafeOpts(built.opts) : built.opts;
 
   // KDP Bleed Safety: Amazon KDP requiere ~12.5mm si hay sangrado
   if (needsWideMargin(zPresetKey)) {
@@ -840,6 +1219,10 @@ async function render() {
   const shownKey = isRandomKey(zPresetKey) ? used.presetName : zPresetKey;
 
   const svg = renderSvgToString(doc);
+  if (forPrint) {
+    ui.status.textContent = "Preparando descarga…";
+    return { svg, opts, paperKey, zPresetKey: shownKey };
+  }
   ui.previewInner.innerHTML = svg;
 
   setStateToURL({
@@ -1205,27 +1588,32 @@ function bind() {
   ui.btnRender?.addEventListener("click", () => withBusy(render));
   ui.btnBook.addEventListener("click", onBookButton);
   $("btnBookReview")?.addEventListener("click", showBookReview);
-  // Ficha de KDP con el libro tal como está configurado (o revisado).
-  $("btnKdpListing")?.addEventListener("click", () => {
-    const plan = bookPlan();
-    const g = pageGeometry();
-    const fresh = reviewIsFresh();
-    const text = kdpListingText({
-      designs: plan.n,
-      pages: fresh ? bookReview.total : plan.total,
-      paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
-      flags: plan.flags,
-      spreads: plan.units.filter((u) => u.kind === "spread").length,
-      turnPages: plan.turnPages,
-      blank: plan.blank,
-      // Qué describe la ficha: solo figuras, mezcla o estilos sin figura; y si
-      // hay rellenos negros (aleatorio con todo o muestrarios de tinta).
-      content: /^zen_figure/.test(g.zPresetKey) ? "figures" : g.zPresetKey === BESTSELLER_KEY || isRandomKey(g.zPresetKey) ? "mixed" : "other",
-      noBlack: g.zPresetKey === BESTSELLER_KEY || g.zPresetKey === RANDOM_COLOR_KEY || (!isRandomKey(g.zPresetKey) && isColoringSafe(ZENTANGLE_PRESETS[g.zPresetKey] || {})),
-    });
-    downloadTextFile(`ficha_kdp_${plan.n}disenos.txt`, text, "text/plain;charset=utf-8");
-    ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción y palabras clave sin marcas ajenas";
+  $("btnKdpListing")?.addEventListener("click", downloadListing);
+  // Tipos de libro de un clic.
+  const recipeBox = $("bookRecipes");
+  const markRecipe = () => recipeBox?.querySelectorAll(".recipe").forEach((b) => {
+    const r = BOOK_RECIPES.find((x) => x.id === b.dataset.id);
+    b.setAttribute("aria-pressed", String(r.style === ui.zPreset.value && int(ui.bookPages.value) === r.designs));
   });
+  BOOK_RECIPES.forEach((r) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "recipe"; b.dataset.id = r.id; b.textContent = r.label; b.title = r.hint;
+    b.addEventListener("click", () => {
+      ui.zPreset.value = r.style;
+      ui.bookPages.value = String(r.designs);
+      ui.bookProgressive.checked = r.progressive; ui.bookGuide.checked = r.guide;
+      ui.bookSpreads.checked = r.spreads; ui.bookTurn.checked = r.turn;
+      ui.zPreset.dispatchEvent(new Event("change"));
+      picker?.sync();
+      updateBookSummary(); saveSettings(); markRecipe();
+      const h = $("recipeHint"); if (h) h.textContent = `${r.label}: ${r.hint} Ahora pulsa «📖 Preparar libro».`;
+      ui.status.textContent = `✓ Libro «${r.label.replace(/^\S+\s/, "")}» configurado: ${r.designs} diseños · pulsa «Preparar libro»`;
+    });
+    recipeBox?.append(b);
+  });
+  [ui.zPreset, ui.bookPages].forEach((el) => el?.addEventListener("change", markRecipe));
+  markRecipe();
+
 
   // Resumen del libro en vivo (páginas totales, tamaño, avisos KDP).
   const bookOptEls = [ui.bookProgressive, ui.bookGuide, ui.bookSpreads, ui.bookTurn];
@@ -1249,7 +1637,7 @@ function bind() {
   // "change", así el resto de la app no cambia.
   const pickerRoot = $("stylePicker");
   if (pickerRoot) {
-    createStylePicker({
+    picker = createStylePicker({
       select: ui.zPreset,
       root: pickerRoot,
       renderThumb,
@@ -1297,7 +1685,7 @@ function bind() {
   ui.btnDownloadSVG.addEventListener("click", () => withBusy(async () => {
     try {
       ui.status.innerText = "Preparando SVG...";
-      const { svg, paperKey, zPresetKey } = await render();
+      const { svg, paperKey, zPresetKey } = await render({ forPrint: true });
       downloadTextFile(`diseno_${paperKey}_${zPresetKey}.svg`, svg);
       ui.status.innerText = "✓ Descargado SVG";
     } catch (err) {
@@ -1308,7 +1696,7 @@ function bind() {
 
   ui.btnDownloadPNG.addEventListener("click", () => withBusy(async () => {
     try {
-      const { svg, paperKey, zPresetKey } = await render();
+      const { svg, paperKey, zPresetKey } = await render({ forPrint: true });
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Preparando PNG...";
       await downloadPng(`diseno_${paperKey}_${zPresetKey}_300dpi.png`, svg, presetPaper.w, presetPaper.h);
@@ -1321,7 +1709,7 @@ function bind() {
 
   ui.btnDownloadPDF.addEventListener("click", () => withBusy(async () => {
     try {
-      const { svg, paperKey, zPresetKey } = await render();
+      const { svg, paperKey, zPresetKey } = await render({ forPrint: true });
       const presetPaper = PAPER_SIZES_MM[paperKey] ?? PAPER_SIZES_MM.A4;
       ui.status.innerText = "Generando PDF (KDP)...";
       await downloadPdf(`diseno_${paperKey}_${zPresetKey}_kdp.pdf`, svg, presetPaper.w, presetPaper.h);

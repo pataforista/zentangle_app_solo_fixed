@@ -464,6 +464,189 @@ function cactus(rng, r, cfg) {
   return layers;
 }
 
+
+/* ============ Iconos añadidos (taza, globo, pájaro, caracol, ballena,
+   casa, árbol, arcoíris) ============ */
+
+// Taza con platito y vapor; la taza lleva un tangle.
+const CUP = [["M", -0.62, -0.18], ["L", 0.5, -0.18], ["C", 0.5, 0.3, 0.3, 0.52, -0.06, 0.52], ["C", -0.42, 0.52, -0.62, 0.3, -0.62, -0.18], ["Z"]];
+function teacup(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.86, oy = cy + s * 0.12;
+  const handle = mk(rng, cfg), hole = mk(rng, cfg), saucer = mk(rng, cfg), cup = mk(rng, cfg), steam = mk(rng, cfg);
+  emit(handle, ELL, cx + s * 0.52, oy + s * 0.06, s * 0.22, s * 0.2);
+  emit(hole, ELL, cx + s * 0.52, oy + s * 0.06, s * 0.11, s * 0.09);
+  emit(saucer, ELL, cx - s * 0.06, oy + s * 0.58, s * 0.88, s * 0.13);
+  emit(cup, CUP, cx, oy, s, s);
+  for (const u of [-0.32, -0.04, 0.24]) {
+    emit(steam, [["M", u, -0.3], ["C", u - 0.12, -0.44, u + 0.12, -0.56, u, -0.72], ["C", u - 0.08, -0.82, u + 0.04, -0.9, u, -0.96]], cx, oy, s, s);
+  }
+  const box = { x0: cx - s, y0: oy - s * 0.3, x1: cx + s * 0.6, y1: oy + s * 0.6 };
+  const kind = pickKinds(rng, 1, ["scallops", "waves"])[0];
+  return [{ d: handle.d, fill: W }, { d: hole.d, fill: "none" }, { d: saucer.d, fill: W }, { d: cup.d, fill: W },
+    ...zen(kind, rng, box, cfg, gFor(cfg, s, 0.16), shapeD(CUP, cx, oy, s, s), rFloat(rng, 0, 0.4)),
+    { d: cup.d, fill: "none" }, { d: steam.d, fill: "none" }];
+}
+
+// Globo aerostático: gajo central con tangle, cuerdas y cesta.
+const ENVELOPE = [["M", 0, -1], ["C", 0.62, -1, 0.82, -0.55, 0.72, -0.2], ["C", 0.62, 0.1, 0.3, 0.3, 0.2, 0.42], ["L", -0.2, 0.42],
+  ["C", -0.3, 0.3, -0.62, 0.1, -0.72, -0.2], ["C", -0.82, -0.55, -0.62, -1, 0, -1], ["Z"]];
+const GORE = [["M", 0, -1], ["C", 0.36, -0.8, 0.32, 0.1, 0.1, 0.42], ["L", -0.1, 0.42], ["C", -0.32, 0.1, -0.36, -0.8, 0, -1], ["Z"]];
+const BASKET = [["M", -0.2, 0.64], ["L", 0.2, 0.64], ["L", 0.16, 0.94], ["L", -0.16, 0.94], ["Z"]];
+function balloon(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.9;
+  const env = mk(rng, cfg), gore = mk(rng, cfg), ropes = mk(rng, cfg), basket = mk(rng, cfg);
+  emit(env, ENVELOPE, cx, cy, s, s);
+  emit(gore, GORE, cx, cy, s, s);
+  emit(gore, [["M", 0, -1], ["C", 0.66, -0.78, 0.6, 0.02, 0.2, 0.42], ["M", 0, -1], ["C", -0.66, -0.78, -0.6, 0.02, -0.2, 0.42]], cx, cy, s, s);
+  emit(ropes, [["M", -0.2, 0.42], ["L", -0.18, 0.64], ["M", 0.2, 0.42], ["L", 0.18, 0.64]], cx, cy, s, s);
+  emit(basket, BASKET, cx, cy, s, s);
+  const box = { x0: cx - s, y0: cy - s, x1: cx + s, y1: cy + s };
+  // Líneas a lo largo del gajo: en un gajo estrecho el zigzag dejaba picos.
+  const kind = pickFrom(rng, ["hatch", "waves"], 1)[0];
+  return [{ d: env.d, fill: W }, ...zen(kind, rng, box, cfg, gFor(cfg, s, 0.13), shapeD(GORE, cx, cy, s, s), Math.PI / 2),
+    { d: gore.d, fill: "none" }, { d: ropes.d, fill: "none" }, { d: basket.d, fill: W },
+    ...zen("hatch", rng, box, cfg, gFor(cfg, s, 0.1), shapeD(BASKET, cx, cy, s, s), Math.PI / 4)];
+}
+
+// Pájaro posado en una rama; el ala lleva un tangle.
+const BIRD = [["M", 0.6, -0.35], ["C", 0.86, -0.35, 0.92, -0.05, 0.76, 0.06], ["C", 0.7, 0.48, 0.3, 0.64, -0.1, 0.62],
+  ["C", -0.46, 0.6, -0.68, 0.42, -0.78, 0.22], ["L", -1.0, 0.06], ["L", -0.74, 0.04], ["C", -0.54, -0.16, -0.2, -0.22, 0.3, -0.26],
+  ["C", 0.4, -0.33, 0.5, -0.35, 0.6, -0.35], ["Z"]];
+const BIRD_W = [["M", 0.26, -0.04], ["C", -0.06, -0.04, -0.4, 0.1, -0.52, 0.36], ["C", -0.16, 0.46, 0.16, 0.36, 0.32, 0.14], ["Z"]];
+function bird(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.84, oy = cy - s * 0.08, flip = rng() < 0.5 ? 1 : -1;
+  const body = mk(rng, cfg), wing = mk(rng, cfg), beak = mk(rng, cfg), eye = mk(rng, cfg), legs = mk(rng, cfg);
+  emit(body, BIRD, cx, oy, s * flip, s);
+  emit(wing, BIRD_W, cx, oy, s * flip, s);
+  emit(beak, [["M", 0.86, -0.22], ["L", 1.04, -0.14], ["L", 0.84, -0.06], ["Z"]], cx, oy, s * flip, s);
+  eye.circle(cx + 0.6 * s * flip, oy - 0.16 * s, s * 0.07);
+  emit(legs, [["M", 0, 0.62], ["L", 0, 0.8], ["M", 0.2, 0.58], ["L", 0.2, 0.8], ["M", -0.7, 0.8], ["Q", 0, 0.76, 0.85, 0.82]], cx, oy, s * flip, s);
+  const box = { x0: cx - s, y0: oy - s, x1: cx + s, y1: oy + s };
+  return [{ d: body.d, fill: W }, { d: wing.d, fill: W },
+    ...zen(pickKinds(rng, 1, ["scallops"])[0], rng, box, cfg, gFor(cfg, s, 0.13), shapeD(BIRD_W, cx, oy, s * flip, s), 0.5 * flip),
+    { d: wing.d, fill: "none" }, { d: beak.d, fill: W }, { d: legs.d, fill: "none" }, { d: eye.d, fill: ink(cfg) === "none" ? W : ink(cfg) }];
+}
+
+// Caracol: concha en espiral (línea) y cuerpo con tangle.
+const SNAIL_FOOT = [["M", -0.92, 0.6], ["C", -0.7, 0.34, 0.3, 0.44, 0.5, 0.3], ["C", 0.58, 0.08, 0.66, -0.1, 0.8, -0.12],
+  ["C", 0.94, -0.12, 0.98, 0.04, 0.92, 0.2], ["C", 0.86, 0.42, 0.82, 0.7, 0.56, 0.74], ["L", -0.74, 0.76], ["C", -0.88, 0.76, -0.98, 0.68, -0.9, 0.62], ["Z"]];
+function snail(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.86, oy = cy - s * 0.02;
+  const foot = mk(rng, cfg), shell = mk(rng, cfg), spiral = mk(rng, cfg), feelers = mk(rng, cfg);
+  emit(foot, SNAIL_FOOT, cx, oy, s, s);
+  const scx = cx - s * 0.22, scy = oy - s * 0.12, sr = s * 0.6;
+  shell.circle(scx, scy, sr);
+  // Espiral de Arquímedes: 2.3 vueltas, el paso nunca baja de ~2 huecos.
+  const turns = 2.3, n = 90;
+  for (let k = 0; k <= n; k++) {
+    const t = k / n, a = t * turns * TAU, rad = sr * 0.92 * t;
+    const x = scx + Math.cos(a) * rad, y = scy + Math.sin(a) * rad;
+    if (k) spiral.lineTo(x, y); else spiral.moveTo(x, y);
+  }
+  emit(feelers, [["M", 0.78, -0.1], ["Q", 0.72, -0.3, 0.72, -0.44], ["M", 0.9, -0.1], ["Q", 0.94, -0.28, 0.98, -0.42]], cx, oy, s, s);
+  for (const [u, v] of [[0.72, -0.5], [0.98, -0.48]]) feelers.circle(cx + u * s, oy + v * s, s * 0.075);
+  const box = { x0: cx - s, y0: oy - s, x1: cx + s, y1: oy + s };
+  return [{ d: foot.d, fill: W }, ...zen(pickKinds(rng, 1, ["dots"])[0], rng, box, cfg, gFor(cfg, s, 0.12), shapeD(SNAIL_FOOT, cx, oy, s, s), 0.2),
+    { d: foot.d, fill: "none" }, { d: shell.d, fill: W }, { d: spiral.d, fill: "none" }, { d: feelers.d, fill: "none" }];
+}
+
+// Ballena con chorro y una ola; el cuerpo lleva un tangle.
+const WHALE = [["M", 0.92, 0.04], ["C", 0.92, -0.36, 0.52, -0.5, 0, -0.44], ["C", -0.4, -0.4, -0.6, -0.24, -0.72, -0.06],
+  ["L", -0.98, -0.42], ["C", -0.96, -0.24, -0.92, -0.08, -0.82, 0.02], ["C", -0.96, 0.1, -1.0, 0.24, -1.0, 0.36], ["L", -0.7, 0.12],
+  ["C", -0.48, 0.32, -0.1, 0.42, 0.34, 0.38], ["C", 0.68, 0.35, 0.92, 0.3, 0.92, 0.04], ["Z"]];
+function whale(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.88, oy = cy + s * 0.12;
+  const body = mk(rng, cfg), spout = mk(rng, cfg), eye = mk(rng, cfg), sea = mk(rng, cfg);
+  emit(body, WHALE, cx, oy, s, s);
+  emit(spout, [["M", 0.5, -0.46], ["C", 0.48, -0.62, 0.36, -0.74, 0.2, -0.8], ["M", 0.54, -0.46], ["C", 0.58, -0.64, 0.7, -0.76, 0.86, -0.8], ["M", 0.52, -0.46], ["L", 0.52, -0.9]], cx, oy, s, s);
+  eye.circle(cx + 0.6 * s, oy - 0.02 * s, s * 0.09);
+  emit(sea, [["M", -1, 0.66], ["Q", -0.75, 0.52, -0.5, 0.66], ["Q", -0.25, 0.8, 0, 0.66], ["Q", 0.25, 0.52, 0.5, 0.66], ["Q", 0.75, 0.8, 1, 0.66]], cx, oy, s, s);
+  const box = { x0: cx - s, y0: oy - s, x1: cx + s, y1: oy + s };
+  return [{ d: body.d, fill: W },
+    ...zen(pickKinds(rng, 1, ["hatch"])[0], rng, box, cfg, gFor(cfg, s, 0.1), shapeD(WHALE, cx, oy, s, s), rFloat(rng, -0.2, 0.2)),
+    { d: body.d, fill: "none" }, { d: spout.d, fill: "none" }, { d: sea.d, fill: "none" }, { d: eye.d, fill: ink(cfg) === "none" ? W : ink(cfg) }];
+}
+
+// Casa: tejado de escamas (tejas), puerta, ventana y chimenea.
+const ROOF = [["M", -0.9, -0.06], ["L", 0, -0.82], ["L", 0.9, -0.06], ["Z"]];
+const WALL = [["M", -0.7, -0.06], ["L", 0.7, -0.06], ["L", 0.7, 0.86], ["L", -0.7, 0.86], ["Z"]];
+function house(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.86, oy = cy + s * 0.02;
+  const chimney = mk(rng, cfg), roof = mk(rng, cfg), wall = mk(rng, cfg), door = mk(rng, cfg), win = mk(rng, cfg);
+  emit(chimney, [["M", 0.34, -0.5], ["L", 0.34, -0.84], ["L", 0.56, -0.84], ["L", 0.56, -0.3], ["Z"]], cx, oy, s, s);
+  emit(wall, WALL, cx, oy, s, s);
+  emit(roof, ROOF, cx, oy, s, s);
+  emit(door, [["M", -0.46, 0.86], ["L", -0.46, 0.34], ["C", -0.46, 0.16, -0.12, 0.16, -0.12, 0.34], ["L", -0.12, 0.86]], cx, oy, s, s);
+  emit(win, [["M", 0.12, 0.18], ["L", 0.52, 0.18], ["L", 0.52, 0.56], ["L", 0.12, 0.56], ["Z"], ["M", 0.32, 0.18], ["L", 0.32, 0.56], ["M", 0.12, 0.37], ["L", 0.52, 0.37]], cx, oy, s, s);
+  const box = { x0: cx - s, y0: oy - s, x1: cx + s, y1: oy + s };
+  return [{ d: chimney.d, fill: W }, { d: wall.d, fill: W }, { d: roof.d, fill: W },
+    ...zen("scallops", rng, box, cfg, gFor(cfg, s, 0.12), shapeD(ROOF, cx, oy, s, s), 0),
+    { d: roof.d, fill: "none" }, { d: door.d, fill: W }, { d: win.d, fill: W }];
+}
+
+// Árbol: copa de lóbulos con tangle y tronco.
+const CROWN = (() => {
+  const out = [], n = 7;
+  const P = (a, rr) => [Math.cos(a) * rr * 0.92, -0.28 + Math.sin(a) * rr * 0.78];
+  for (let k = 0; k <= n; k++) {
+    const a = -Math.PI / 2 + (k / n) * TAU;
+    if (!k) { out.push(["M", ...P(a, 0.78)]); continue; }
+    out.push(["Q", ...P(a - Math.PI / n, 1.08), ...P(a, 0.78)]);
+  }
+  return [...out, ["Z"]];
+})();
+const TRUNK = [["M", -0.12, 0.3], ["C", -0.12, 0.6, -0.18, 0.8, -0.32, 0.94], ["L", 0.32, 0.94], ["C", 0.18, 0.8, 0.12, 0.6, 0.12, 0.3], ["Z"]];
+function tree(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.88;
+  const trunk = mk(rng, cfg), crown = mk(rng, cfg);
+  emit(trunk, TRUNK, cx, cy, s, s);
+  emit(crown, CROWN, cx, cy, s, s);
+  const box = { x0: cx - s, y0: cy - s, x1: cx + s, y1: cy + s };
+  return [{ d: trunk.d, fill: W }, ...zen("hatch", rng, box, cfg, gFor(cfg, s, 0.1), shapeD(TRUNK, cx, cy, s, s), Math.PI / 2),
+    { d: trunk.d, fill: "none" }, { d: crown.d, fill: W },
+    ...zen(pickKinds(rng, 1, ["scallops", "dots"])[0], rng, box, cfg, gFor(cfg, s, 0.14), shapeD(CROWN, cx, cy, s, s), rFloat(rng, 0, 1)),
+    { d: crown.d, fill: "none" }];
+}
+
+// Arcoíris: cuatro bandas (una con tangle) y dos nubes en los extremos.
+const CLOUD = [["M", -0.5, 0.2], ["C", -0.72, 0.2, -0.72, -0.12, -0.46, -0.1], ["C", -0.44, -0.36, -0.06, -0.4, 0, -0.16],
+  ["C", 0.12, -0.36, 0.5, -0.28, 0.44, -0.04], ["C", 0.7, -0.04, 0.7, 0.2, 0.5, 0.2], ["Z"]];
+function rainbow(rng, r, cfg) {
+  const { x: cx, y: cy } = centerOf(r);
+  const R = sideOf(r) / 2, s = R * 0.94, oy = cy + s * 0.3;
+  const radii = [0.95, 0.8, 0.65, 0.5, 0.35];
+  const bands = [], layers = [];
+  const band = (ro, ri) => [["M", -ro, 0], ...[0, 1, 2, 3].map((k) => {
+    const t0 = Math.PI + (k * Math.PI) / 4, t1 = t0 + Math.PI / 4, kk = (4 / 3) * Math.tan(Math.PI / 16);
+    return ["C", ro * (Math.cos(t0) - kk * Math.sin(t0)), ro * (Math.sin(t0) + kk * Math.cos(t0)), ro * (Math.cos(t1) + kk * Math.sin(t1)), ro * (Math.sin(t1) - kk * Math.cos(t1)), ro * Math.cos(t1), ro * Math.sin(t1)];
+  }), ["L", ri, 0], ...[0, 1, 2, 3].map((k) => {
+    const t0 = -(k * Math.PI) / 4, t1 = t0 - Math.PI / 4, kk = (4 / 3) * Math.tan(Math.PI / 16);
+    return ["C", ri * (Math.cos(t0) + kk * Math.sin(t0)), ri * (Math.sin(t0) - kk * Math.cos(t0)), ri * (Math.cos(t1) - kk * Math.sin(t1)), ri * (Math.sin(t1) + kk * Math.cos(t1)), ri * Math.cos(t1), ri * Math.sin(t1)];
+  }), ["Z"]];
+  const zb = rInt(rng, 0, 3);
+  const box = { x0: cx - s, y0: oy - s, x1: cx + s, y1: oy };
+  for (let k = 0; k < 4; k++) {
+    const cmds = band(radii[k], radii[k + 1]), b = mk(rng, cfg);
+    emit(b, cmds, cx, oy, s, s);
+    layers.push({ d: b.d, fill: W });
+    if (k === zb) layers.push(...zen(pickKinds(rng, 1)[0], rng, box, cfg, gFor(cfg, s, 0.07), shapeD(cmds, cx, oy, s, s), 0.3));
+    bands.push(b);
+  }
+  bands.forEach((b) => layers.push({ d: b.d, fill: "none" }));
+  const clouds = mk(rng, cfg);
+  emit(clouds, CLOUD, cx - s * 0.66, oy + s * 0.02, s * 0.5, s * 0.5);
+  emit(clouds, CLOUD, cx + s * 0.66, oy + s * 0.02, -s * 0.5, s * 0.5);
+  layers.push({ d: clouds.d, fill: W });
+  return layers;
+}
+
 export const ICONS = [
   { id: "starfield", fn: starfield },
   { id: "moonStars", fn: moonStars },
@@ -479,4 +662,12 @@ export const ICONS = [
   { id: "owl", fn: owl },
   { id: "tulips", fn: tulips },
   { id: "cactus", fn: cactus },
+  { id: "teacup", fn: teacup },
+  { id: "balloon", fn: balloon },
+  { id: "bird", fn: bird },
+  { id: "snail", fn: snail },
+  { id: "whale", fn: whale },
+  { id: "house", fn: house },
+  { id: "tree", fn: tree },
+  { id: "rainbow", fn: rainbow },
 ];

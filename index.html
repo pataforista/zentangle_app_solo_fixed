@@ -438,7 +438,7 @@
 
     /* ---------- Panel por pasos ---------- */
     .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    .steps { display: flex; gap: 6px; list-style: none; margin: 10px 0 0; padding: 0; counter-reset: st; }
+    .steps { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 10px 0 0; padding: 0; counter-reset: st; }
     .steps li { counter-increment: st; }
     .steps a { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); text-decoration: none; padding: 4px 10px 4px 4px; border-radius: 999px; background: #f1f5f9; }
     .steps a::before { content: counter(st); display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; }
@@ -498,6 +498,37 @@
     .book-tile figcaption { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
     .book-tile .tile-redo { padding: 4px 8px; font-size: 12px; }
     .book-tile.busy img { opacity: .35; }
+    /* Tipos de libro (atajo) */
+    .all-styles { margin: 8px 0 0; }
+    .all-styles > summary { cursor: pointer; font-size: 12px; color: var(--accent-hover); padding: 6px 2px; }
+    .all-styles[open] > summary { margin-bottom: 8px; }
+    .recipes-box { margin: 0 0 12px; padding: 10px; border: 1px dashed #c7d2fe; border-radius: 10px; background: #fff; }
+    .recipes-title { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+    .recipes { display: flex; flex-wrap: wrap; gap: 6px; }
+    .recipe { border: 1px solid var(--border-light); background: #f8fafc; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+    .recipe:hover { border-color: var(--accent); }
+    .recipe[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    /* Pasos siguientes en la revisión */
+    .next-steps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 0; font-size: 12px; }
+    .next-steps .done { color: #166534; }
+    /* Calidad: aviso en la miniatura y resumen en la cabecera */
+    .q-badge { flex: none; font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #dcfce7; color: #166534; }
+    .q-badge.bad { background: #fef3c7; color: #92400e; }
+    .book-tile.flagged { outline: 2px solid #f59e0b; outline-offset: -2px; }
+    .book-review-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .q-summary { margin: 4px 0 0; font-size: 12px; color: var(--text-muted, #64748b); }
+    .q-summary.warn { color: #92400e; }
+    /* Visor a tamaño real */
+    .viewer { position: fixed; inset: 0; z-index: 50; background: rgba(15, 23, 42, .88); display: flex; flex-direction: column; }
+    .viewer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--border-light); font-size: 13px; }
+    .viewer-bar .grow { flex: 1 1 200px; min-width: 0; }
+    .viewer-bar .btn { padding: 5px 10px; font-size: 12px; }
+    .viewer-bar .btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .viewer-scroll { flex: 1; overflow: auto; padding: 16px; }
+    .viewer-page { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
+    .viewer-page img, .viewer-page canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .viewer-page canvas { image-rendering: pixelated; pointer-events: none; }
+    .viewer-note { color: #fff; text-align: center; font-size: 12px; margin: 8px 0 0; }
     @media (max-width: 1100px) { .book-grid { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 720px) { .book-grid { grid-template-columns: repeat(2, 1fr); } .book-review-head { flex-direction: column; align-items: stretch; } }
 
@@ -523,9 +554,10 @@
       <div class="panel-header">
         <h1>Zentangle Creator</h1>
         <ol class="steps" aria-label="Pasos">
-          <li><a href="#stepStyle">Estilo</a></li>
+          <li><a href="#stepStyle">Tipo de libro</a></li>
           <li><a href="#stepPage">Página</a></li>
-          <li><a href="#stepBook">Libro</a></li>
+          <li><a href="#stepBook">Opciones</a></li>
+          <li><a href="#preview">Revisar y descargar</a></li>
         </ol>
       </div>
 
@@ -534,8 +566,13 @@
         <!-- ① Estilo -->
         <section class="step" id="stepStyle" aria-labelledby="stepStyleTitle">
           <div class="step-head">
-            <h2 id="stepStyleTitle"><span class="step-num">1</span> Elige un estilo</h2>
+            <h2 id="stepStyleTitle"><span class="step-num">1</span> ¿Qué libro quieres hacer?</h2>
             <button id="btnResetPreset" type="button" class="link-btn" title="Descarta tus ajustes finos y vuelve a los valores del estilo">↺ Restablecer</button>
+          </div>
+          <div class="recipes-box">
+            <p class="recipes-title">⚡ Elige un tipo de libro (lo más rápido)</p>
+            <div id="bookRecipes" class="recipes" role="group" aria-label="Tipos de libro"></div>
+            <p id="recipeHint" class="hint">Un clic elige el estilo y las opciones del libro. Luego pulsa «Preparar libro».</p>
           </div>
           <select id="zPreset" class="visually-hidden" tabindex="-1" aria-hidden="true">
                 <optgroup label="🎲 Aleatorio">
@@ -583,8 +620,15 @@
                   <option value="sampler_icon_fractal">🌀 Iconos fractales (grande → chico)</option>
                 </optgroup>
                 <optgroup label="✳️ Zentangle con figura">
-                  <option value="zen_figure">🦉 Figura zentangle (búho, gato, pez, mariposa...)</option>
+                  <option value="zen_figure">🪶 Figura zentangle (koi, colibrí, nautilus, abstractas...)</option>
                   <option value="zen_figure_light">🦉 Figura zentangle — fondo ligero</option>
+                  <option value="zen_figure_facet">🔷 Figura facetada (cubista, piezas grandes)</option>
+                  <option value="zen_figure_glass">🪟 Vitral (piezas lisas con plomo)</option>
+                  <option value="zen_figure_dino">🦖 Dinosaurios y prehistoria (ciencia)</option>
+                  <option value="zen_figure_dino_origami">🦕 Dinosaurios origami (líneas rectas)</option>
+                  <option value="zen_figure_bio">🧬 Biología: neurona, ADN, células... (ciencia)</option>
+                  <option value="zen_figure_cryptids">👣 Críptidos del mundo (Pie Grande, Nessie, kraken...)</option>
+                  <option value="zen_figure_kids">🧸 Animales tiernos (infantil: búho, gato, oso...)</option>
                   <option value="zen_star">⭐ Estrella subdividida (string)</option>
                   <option value="icon_mandala">🐱 Mandala de iconos con tangles</option>
                   <option value="facet_spiral">💎 Pétalos facetados en espiral</option>
@@ -596,8 +640,11 @@
                   <option value="spiral_modern">Espiral (Template)</option>
                 </optgroup>
               </select>
-          <div id="stylePicker" class="style-picker"></div>
           <p id="styleCurrent" class="style-current" aria-live="polite"></p>
+          <details class="all-styles" id="allStyles">
+            <summary>🎨 Ver todos los estilos (para elegir uno a mano)</summary>
+            <div id="stylePicker" class="style-picker"></div>
+          </details>
           <p id="randomHint" class="hint" hidden></p>
 
           <div class="form-row sampler-opts" id="samplerLayoutRow" hidden>
@@ -686,6 +733,7 @@
             <label class="check"><input type="checkbox" id="bookProgressive" /> 📈 Dificultad progresiva: de fácil a difícil, con nivel y tiempo en cada página</label>
             <label class="check"><input type="checkbox" id="bookGuide" /> 📘 Guía paso a paso de los tangles (al inicio) y pasaporte (al final)</label>
             <label class="check"><input type="checkbox" id="bookSpreads" /> ↔️ Dobles páginas: 1 de cada 8 diseños sigue en la página de enfrente (con franja segura en el lomo)</label>
+            <label class="check"><input type="checkbox" id="bookAutoFix" checked /> 🛠 Arreglar solas las páginas con zonas difíciles al prepararlas</label>
             <label class="check"><input type="checkbox" id="bookTurn" /> ✏️ Páginas «Tu turno»: figura vacía para dibujar tus propios tangles</label>
           </div>
           <p id="bookSummary" class="hint" aria-live="polite"></p>

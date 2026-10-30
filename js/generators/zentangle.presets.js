@@ -1,5 +1,6 @@
 // zentangle.presets.js
 // Curated presets. You can start from one and override any field in buildZentangleOpts().
+import { ADULT_FIGURES, FIGURE_SETS } from "./figure.js";
 
 export const ZENTANGLE_PRESETS = {
   editorial_airy: {
@@ -380,7 +381,14 @@ export const ZENTANGLE_PRESETS = {
     innerOrganicBorderInsetMm: 0.8,
     innerOrganicJitterMm: 0.45,
     innerOrganicRoundMm: 1.0,
-    patternFamily: "organic",
+    // Solo tangles reconocibles y sin invitados de otras familias (abanicos de
+    // líneas y círculos sueltos hacían la página caótica).
+    // Líneas rectas y cortes siempre horizontales/verticales (sin ondas ni
+    // cambios de ángulo al azar: se leían como descuido).
+    stringWarpMm: 0,
+    cutJitter: 0,
+    patternFamily: "tangles",
+    guestPatternCount: 0,
     focusMode: true,
     borderStrokeMultiplier: 1.5,
   },
@@ -400,7 +408,14 @@ export const ZENTANGLE_PRESETS = {
     innerOrganicBorderInsetMm: 0.7,
     innerOrganicJitterMm: 0.5,
     innerOrganicRoundMm: 0.9,
-    patternFamily: "geometric",
+    // Solo tangles reconocibles y sin invitados de otras familias (abanicos de
+    // líneas y círculos sueltos hacían la página caótica).
+    // Líneas rectas y cortes siempre horizontales/verticales (sin ondas ni
+    // cambios de ángulo al azar: se leían como descuido).
+    stringWarpMm: 0,
+    cutJitter: 0,
+    patternFamily: "tangles",
+    guestPatternCount: 0,
     focusMode: true,
     borderStrokeMultiplier: 1.4,
   },
@@ -427,6 +442,9 @@ export const ZENTANGLE_PRESETS = {
   spiral_modern: {
     cellLayout: "template",
     templateName: "spiral",
+    // Rectángulos áureos en espiral, rectos (sin deformar ni partir al azar).
+    stringWarpMm: 0,
+    templateCellCount: 6,
     cellBorderWidthMm: 0.90,
     patternStrokeMm: 0.40,
     minGapMm: 1.8,
@@ -435,11 +453,14 @@ export const ZENTANGLE_PRESETS = {
     whiteSpaceMm: 1.0,
     rotatePatterns: true,
     rotationSet: "ergonomic",
-    innerOrganicBorderEnabled: true,
+    innerOrganicBorderEnabled: false,
     innerOrganicBorderInsetMm: 0.9,
     innerOrganicJitterMm: 0.5,
     innerOrganicRoundMm: 1.2,
-    patternFamily: "organic",
+    // Solo tangles reconocibles y sin invitados: los abanicos de líneas y los
+    // círculos sueltos de otras familias hacían la página caótica.
+    patternFamily: "tangles",
+    guestPatternCount: 0,
     focusMode: true,
     borderStrokeMultiplier: 1.5,
   },
@@ -870,6 +891,68 @@ export const ZENTANGLE_PRESETS = {
   // zentangle más vendidos.
   zen_figure: {
     cellLayout: "zen_figure",
+    // Figuras para adultos y composiciones abstractas (las tiernas van en zen_figure_kids).
+    figures: ADULT_FIGURES,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+  // Animales tiernos (búho, gato, oso, conejo…): para libros infantiles.
+  zen_figure_kids: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.kids,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },  // Temas de ciencia: prehistoria (dinosaurios, reptiles marinos, amonites) y biología.
+  zen_figure_dino: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.dino,
+    origamiMix: FIGURE_SETS.dinoOrigamiMix, // páginas alternas en origami
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },  // Dinosaurios origami: contorno de pocos vértices y caras rectas, como papel doblado.
+  zen_figure_dino_origami: {
+    cellLayout: "zen_figure",
+    figureStyle: "facet",
+    figureAngular: true,
+    figures: FIGURE_SETS.dinoOrigami,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },  zen_figure_bio: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.bio,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },  // Críptidos del mundo (Pie Grande, Nessie, Mothman, chupacabras, kraken…).
+  zen_figure_cryptids: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.cryptids,
+    origamiMix: FIGURE_SETS.cryptidsOrigami, // 1 de cada 3 páginas en origami
+    origamiEvery: 3,
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
@@ -882,12 +965,41 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_light: {
     cellLayout: "zen_figure",
     figureBackground: "airy",
+    figureAuras: [2, 4], // fondo ligero: la figura destaca (más fácil)
+    figures: ADULT_FIGURES,
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.38,
     stringStrokeMm: 0.75,
     minGapMm: 2.2,
     sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+  // Figura facetada (cubista / origami): cortes rectos en piezas grandes; la
+  // mitad quedan lisas para colorear en bloque y el resto lleva un tangle.
+  zen_figure_facet: {
+    cellLayout: "zen_figure",
+    figureStyle: "facet",
+    figures: ADULT_FIGURES,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.36,
+    stringStrokeMm: 0.7,
+    minGapMm: 2.1,
+    sketchy: 0.2,
+    fillDeadSpace: false,
+  },
+  // Vitral: figura y fondo en piezas pequeñas y lisas con plomo grueso.
+  zen_figure_glass: {
+    cellLayout: "zen_figure",
+    figureStyle: "glass",
+    figures: ADULT_FIGURES,
+    cellCount: 1,
+    cellBorderWidthMm: 1.3,
+    patternStrokeMm: 0.4,
+    stringStrokeMm: 0.65,
+    minGapMm: 2.2,
+    sketchy: 0,
     fillDeadSpace: false,
   },
   // Mandala de iconos: uno al centro y anillos de copias giradas hacia afuera.

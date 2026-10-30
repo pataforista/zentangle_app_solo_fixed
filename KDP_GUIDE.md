@@ -13,11 +13,10 @@
   extiende el marco artístico hacia el borde dentro de la misma página; úsalo
   solo si margen − sangrado ≥ 6.35mm (la app avisa si lo incumples).
 
-### Linaje y Claridad:
-- ✓ Líneas limpias, sin antialiasing borroso
-- ✓ Contraste máximo blanco/negro
-- ✓ Sin grises intermedios (salvo gradientes suaves)
-- ✓ Peso de línea consistente
+### Calidad de línea:
+- El PDF lleva cada página como imagen a 300 ppp a tamaño de corte.
+- Los bordes de las líneas están suavizados (antialiasing): es lo normal y KDP lo imprime bien.
+- Sin grises de relleno: la textura de papel y el sombreado nunca llegan al libro.
 
 ---
 
@@ -85,15 +84,46 @@
 
 ### 9. **Figura zentangle** ⭐⭐ (el formato de los libros líderes)
 - **Estilos:** `zen_figure` (fondo con tangles) y `zen_figure_light` (fondo ligero)
-- **Qué es:** una figura grande a página completa (búho, gato, pez, mariposa,
-  corazón, tortuga, flor u hoja). Strings curvos dividen su interior en
+- **Qué es:** una figura grande a página completa. Tres repertorios:
+  - **Adultas** («Figura zentangle», por defecto): koi, colibrí, pluma,
+    nautilus, polilla luna, mano hamsa, ánfora, loto, mariposa, libélula,
+    hoja, flor, luna y corazón.
+  - **Abstractas** (en el mismo estilo): cintas, gotas, orbes y cristales.
+  - **Animales tiernos** («Animales tiernos (infantil)»): búho, gato, pez,
+    tortuga, elefante, caracol, pájaro, ballena, hongo, árbol, oso, conejo,
+    pingüino y zorro.
+  - **Temas** (un libro por tema): «Dinosaurios y prehistoria» (15: mitad con patrones y mitad origami),
+    «Biología» (13: neurona, ADN, células, virus…) y «Críptidos del mundo»
+    (12: Pie Grande, yeti, Mothman, Nessie, kraken, jackalope, Wendigo, alien
+    gris y ovni; y en origami, 1 de cada 3 páginas, chupacabras, Diablo de
+    Jersey y Thunderbird). Las figuritas escondidas son del mismo tema.
+  - Para adultos también: rosa, suculenta, caballito de mar, pulpo, lobo,
+    caballo, pavo real, gato sentado, tetera y sol.
+- **Encuadre variable:** la figura sale centrada, más pequeña en un lado o en
+  primer plano recortada por el marco.
+- **Sin huecos vacíos:** solo quedan lisas secciones pequeñas (≤ 2 % del
+  marco); la prueba exige que el mayor círculo vacío mida < 15 mm de radio. Strings curvos dividen su interior en
   secciones y cada una lleva un tangle clásico denso (Hollibaugh, Printemps,
   Purk, Bales, 'Nzeppel, Cubine, Paradox, Keeko, Cadent, Florz…). Auras de
   eco la rodean y el fondo lleva secciones con tangles más abiertos; algunas
   quedan lisas para colorear con calma.
+- **Relleno rico:** además de los tangles, algunas secciones llevan una banda
+  de eco junto a sus bordes y las grandes un «orbe» con otro tangle. Un margen
+  blanco fino junto a cuerdas, auras y marco evita las astillas (≈ 26 zonas
+  difíciles por página, antes ≈ 50).
+- **Figuras escondidas:** la figura lleva una copia pequeña de sí misma
+  escondida dentro (como el corazón dentro del corazón) y el fondo esconde
+  2–3 figuritas camufladas. El pie de cada página dice cuántas buscar. Una
+  sola aura (1–2) para que la figura se funda con el fondo; «fondo ligero»
+  mantiene 2–4 auras y es la versión fácil.
 - **Sin negros:** todo es contorno, apto para marcadores y lápices.
-- **En un libro:** recorre las 8 figuras antes de repetir ninguna.
-- **Más vendidos** dedica 8 de cada 20 páginas a este estilo.
+- **En un libro:** recorre las 20 figuras antes de repetir ninguna; si vuelve
+  a salir una, va en espejo y con otra paleta de tangles.
+- **Variantes:** «Figura facetada» (cortes rectos, estilo cubista u origami,
+  con piezas lisas grandes) y «Vitral» (piezas pequeñas y lisas con plomo
+  grueso, la página más fácil de colorear: casi sin zonas difíciles).
+- **Más vendidos** dedica 8 de cada 20 páginas a figuras: 6 zentangle,
+  1 facetada y 1 vitral.
 
 ---
 
@@ -116,79 +146,10 @@ El motor incluye mecanismos anti-repetición aplicables a CUALQUIER preset:
 
 ---
 
-## 🖥️ Cómo Usar la App
+## 🖥️ Cómo producir el libro
 
-### Paso 1: Seleccionar Estilo
-```
-1. En el panel izquierdo, abre "Estilo"
-2. Elige un preset KDP (recomendado: "KDP Balanceado" ya seleccionado)
-3. El preview se actualiza automáticamente
-```
-
-### Paso 2: Ajustar Parámetros (Opcional)
-
-**Para más detalle:**
-- Reduce `Cantidad de Celdas` (ej: 28 → 20)
-- Reduce `Prob. Saltar` (ej: 0.20 → 0.10)
-- Aumenta `Max Capas` (ej: 2 → 3)
-
-**Para menos detalle:**
-- Aumenta `Cantidad de Celdas` (ej: 28 → 35)
-- Aumenta `Prob. Saltar` (ej: 0.20 → 0.30)
-- Reduce `Max Capas` (ej: 2 → 1)
-
-### Paso 3: Generar Variaciones
-- Haz clic `🎲 Random Seed` para generar diferentes diseños
-- Cada seed produce un diseño único
-- Usa el campo "Semilla" para reproducir diseños exactos
-
-### Paso 4: Descargar
-**Para Amazon KDP (Recomendado):**
-- Click `⚡ PDF (KDP)` para PDF profesional optimizado
-  - O click `📄 PNG (300DPI)` para PNG de alta resolución
-- PDF es más versátil para multi-página
-- Archivos: `zentangle_A4_[preset]_kdp.pdf` o `zentangle_A4_[preset]_300dpi.png`
-
-**Alternativas:**
-- `📊 SVG Escalable`: Para edición posterior en Inkscape
-- `⚙️ JSON Config`: Guarda los parámetros exactos
-
----
-
-## 🎯 Flujo Completo para Vender en KDP
-
-### Fase 1: Diseño & Revisión
-1. ✓ Genera 3-5 variaciones con diferentes seeds
-2. ✓ Elige la que más te guste visualmente
-3. ✓ Exporta como PDF KDP o PNG 300DPI
-4. ✓ Abre en editor (Photoshop, GIMP, Paint.NET) para verificar líneas limpias
-
-### Fase 2: Validación de Calidad
-Checklista antes de subir a KDP:
-- [ ] Archivo es 300 DPI (PDF/PNG debe ser ~3500x4960px para A4)
-- [ ] Imagen es blanco & negro puro (sin grises)
-- [ ] Líneas son claras y nítidas (zoom 100% - no borroso)
-- [ ] No hay artefactos ni antialiasing
-- [ ] Márgenes son de al menos 12.7mm desde el borde
-
-### Fase 3: Crear el libro (un clic)
-1. Elige **Papel** (8.5×11 in es el estándar), **Estilo** y una **Seed**
-2. En **📖 Tu libro** indica el nº de diseños (30 es un buen punto de partida)
-   y deja **Hojas en blanco: Entre diseños** (evita que la tinta traspase
-   al diseño siguiente; es lo habitual en libros de una cara)
-3. Mira el resumen verde: confirma páginas totales (KDP exige mínimo 24)
-4. Pulsa **📖 Crear libro (PDF para KDP)**. Cada diseño usa una semilla distinta
-   derivada de la Seed; con los mismos ajustes obtienes el mismo libro
-5. Se descarga un único PDF listo para subir como interior. La portada se
-   crea aparte (KDP Cover Creator)
-
-### Fase 4: Subir a KDP
-1. Ingresa a Amazon KDP
-2. Crea nuevo libro
-3. Sube el PDF del libro (interior) con la opción **Sin sangrado**
-4. Selecciona opciones de impresión (color, blanco&negro, etc.)
-5. Revisa preview
-6. Publica
+El proceso completo, paso a paso, con la lista de control antes de subir y
+los huecos que la app aún no cubre, está en **[PRODUCCION.md](PRODUCCION.md)**.
 
 ---
 
@@ -203,9 +164,8 @@ Checklista antes de subir a KDP:
    - "Zen Patterns for Stress Relief"
 
 ### Control de Calidad:
-- ✓ Siempre descarga el PDF/PNG y verifica en Zoom 200%
-- ✓ Busca líneas rotas o artefactos (indica problema)
-- ✓ Las líneas deben ser sólidas, no con pixeles
+- ✓ Revisa el PDF final a 200 %: las miniaturas de la revisión no muestran defectos finos
+- ✓ Guarda la 🧾 receta del libro junto al PDF
 
 ### Optimización Visual:
 - **Más blanco:** Usa presets con más `whiteSpaceMm` (KDP Relajado)
@@ -215,25 +175,12 @@ Checklista antes de subir a KDP:
 
 ---
 
-## 🔧 Troubleshooting
+## 🔧 Problemas frecuentes
 
-### Problema: Líneas borrosas en PDF/PNG
-**Solución:**
-- Verifica que sea 300 DPI
-- Revisa propiedades: A4 (300 DPI) = 3508×4961px
-- Si es más pequeño, aumenta los parámetros de renderizado
-
-### Problema: Patrones demasiado simples
-**Solución:**
-- Reduce "Prob. Saltar" (ahora más patrones se dibujan)
-- Aumenta "Max Capas"
-- Elige preset más denso (KDP Masterpiece, KDP Denso Meditativo)
-
-### Problema: Patrones demasiado complejos
-**Solución:**
-- Aumenta "Prob. Saltar"
-- Reduce "Max Capas"
-- Elige preset más relajado (KDP Relajado)
+- **Patrones demasiado simples o complejos**: cambia de estilo o activa
+  📈 Dificultad progresiva; en «Más vendidos» los ajustes finos no aplican.
+- **No se descarga el PDF**: jsPDF se carga desde internet; revisa la conexión y recarga.
+- **Aviso de margen en el resumen**: sube el margen hasta la cifra que indica.
 
 ---
 
@@ -251,23 +198,6 @@ Checklista antes de subir a KDP:
 
 ---
 
-## 🚀 Próximos Pasos
-
-1. **Genera 10-20 diseños** con diferentes seeds y presets
-2. **Revisa cada uno** en zoom 200% para calidad
-3. **Elige 25-50 favoritos** para empezar
-4. **Descarga PDF KDP o PNG** de cada uno
-5. **Crea una serie de libros** combinando diferentes presets
-6. **Sube a Amazon KDP** y comienza a vender
-
----
-
-**¡Éxito! Tus libros para colorear profesionales están listos para el mercado.** 🎨📚
-
-Generado para zentangle_app_solo_fixed - 300 DPI optimizado para impresión
-
----
-
 ## 🔵 Muestrarios (un motivo por unidad)
 
 Retícula de círculos o cuadros iguales; cada unidad lleva un motivo distinto.
@@ -275,7 +205,7 @@ Elige el estilo en **Muestrarios** y usa **Celdas** para el número de unidades.
 
 | Preset | Para qué sirve |
 |---|---|
-| **Iconos para colorear** (`sampler_icons`) | El más memorable: siluetas con el interior lleno de tangles (búho, mariposa, peces, corazones, tulipanes, cactus, luna) y otros iconos (sol, gato, loto, paraguas, hongos, estrellas, pluma). Unidades grandes (12), sin rellenos negros. ~20 regiones no coloreables por página (media de 20 semillas; `kdp_balanced` ronda 62). Los tangles agregan detalle: puntas de pétalos, alrededor de los ojos. |
+| **Iconos para colorear** (`sampler_icons`) | El más memorable: siluetas con el interior lleno de tangles (búho, mariposa, peces, corazones, tulipanes, cactus, luna) y otros iconos (sol, gato, loto, paraguas, hongos, estrellas, pluma, taza, globo aerostático, pájaro, caracol, ballena, casa, árbol, arcoíris): 22 en total. Unidades grandes (12), sin rellenos negros. ~20 regiones no coloreables por página (media de 20 semillas; `kdp_balanced` ronda 62). Los tangles agregan detalle: puntas de pétalos, alrededor de los ojos. |
 | Iconos (tinta) (`sampler_icons_ink`) | Mismos iconos con detalles en negro (ojos, manchas, puntos). Los corazones nunca van rellenos: llevan tangles. |
 | Círculos (tinta) / cuadros (tinta) | Texturas y motivos variados con masas negras repartidas. ~34 y ~35 regiones no coloreables por página (media de 20 semillas). |
 | Círculos (para colorear) | Texturas sin rellenos negros. ~29 regiones no coloreables por página. |

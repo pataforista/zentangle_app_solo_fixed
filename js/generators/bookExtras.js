@@ -330,7 +330,9 @@ export function levelInfo(difficulty) {
 // KDP). Devuelve "" si el margen no deja sitio.
 export function footerSvg({ w, h, m }, { text = "", level = 0 } = {}) {
   if (m < 10 || (!text && !level)) return "";
-  const y = h - m + 5;
+  // 5 mm bajo el área del dibujo, pero nunca a menos de 7.6 mm del borde: KDP
+  // pide el contenido a ≥ 6.35 mm del corte y el texto baja ~1 mm de la línea base.
+  const y = Math.min(h - m + 5, h - 7.6);
   const parts = [];
   let x = w / 2;
   if (level) {

@@ -138,8 +138,10 @@ function gridUnits(rng, a, count, gap, borderMm, pool, solids, heavyShare, shape
 // Solo los iconos de un objeto se repiten (los que ya son composiciones, como el
 // campo de estrellas o los hongos, se vuelven confeti), cada uno con un diámetro
 // mínimo por copia para que sus detalles sigan siendo coloreables.
-const REPEATABLE = { cat: 28, cactus: 24, umbrella: 24, lotus: 24, owl: 30, butterfly: 28, sun: 34, feather: 24 };
-const UPRIGHT = new Set(["cat", "cactus", "mushrooms", "umbrella", "tulips", "lotus", "owl"]);
+const REPEATABLE = { cat: 28, cactus: 24, umbrella: 24, lotus: 24, owl: 30, butterfly: 28, sun: 34, feather: 24,
+  // La ballena no se repite: a tamaño de anillo su cola deja astillas.
+  teacup: 26, balloon: 28, bird: 26, snail: 26, house: 24, tree: 26 };
+const UPRIGHT = new Set(["cat", "cactus", "mushrooms", "umbrella", "tulips", "lotus", "owl", "teacup", "balloon", "bird", "snail", "whale", "house", "tree", "rainbow"]);
 const GROUPS_UPRIGHT = ["p1", "pm", "pg"];
 const GROUPS_FREE = ["p1", "pm", "pg", "p2", "pmm", "p4", "p3", "p6"];
 const SQUARE_GROUPS = new Set(["p2", "pmm", "p4"]);

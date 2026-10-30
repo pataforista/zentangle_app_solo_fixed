@@ -648,6 +648,15 @@ async function runTests() {
       // Pie: dentro del margen inferior y nunca con margen < 10 mm.
       assert.ok(footerSvg(geo, { text: "Nivel 1", level: 1 }).includes("Nivel 1"));
       assert.strictEqual(footerSvg({ w: W, h: H, m: 8 }, { text: "x", level: 1 }), "");
+      // Con margen justo (10 mm) el texto no baja de la zona segura de KDP (6.35 mm del corte).
+      for (const m of [10, 11, 12.7, 20]) {
+        const ys = [...footerSvg({ w: W, h: H, m }, { text: "Nivel 1", level: 1 }).matchAll(/<text[^>]* y="([\d.]+)"/g)].map((x) => Number(x[1]));
+        assert.ok(ys.length && ys.every((y) => H - y >= 7.5), `ERROR: pie a menos de 7.5 mm del borde con margen ${m} mm.`);
+      }
+      // Lo que es solo de pantalla nunca llega a la página impresa.
+      const { printSafeOpts } = await import("./js/core/bookPlan.js");
+      const ps = printSafeOpts({ showSafeZone: true, paperTextureEnabled: true, cellShadowEnabled: true, seed: 5 });
+      assert.deepStrictEqual([ps.showSafeZone, ps.paperTextureEnabled, ps.cellShadowEnabled, ps.seed], [false, false, false, 5]);
       console.log(`✓ Secuencia de páginas correcta, dificultad ${easy} → ${hard} tangles, «Tu turno» vacío, dobles páginas con franja segura, guía de ${guide.length} páginas y pasaporte.`);
     }
 
@@ -680,6 +689,28 @@ async function runTests() {
         assert.ok(l.keywords.length <= 7, "ERROR: KDP admite 7 palabras clave.");
       }
       assert.ok(kdpListingText({ designs: 50, pages: 120 }).includes("REGLAS DE PROPIEDAD INTELECTUAL"));
+      // Fichas por tema: sin marcas, 7 palabras clave y el tema en el título.
+      const { THEME_LISTING } = await import("./js/core/kdpListing.js");
+      const { BOOK_RECIPES, STYLE_THEME } = await import("./js/core/bookRecipes.js");
+      const { ZENTANGLE_PRESETS: PR } = await import("./js/generators/zentangle.presets.js");
+      for (const theme of Object.keys(THEME_LISTING)) {
+        const l = kdpListing({ designs: 30, pages: 64, theme });
+        for (const t of [...l.titles, l.subtitle, ...l.keywords]) assert.strictEqual(containsBlocked(t), null, `ERROR: marca en la ficha ${theme}: «${t}».`);
+        assert.ok(l.keywords.length === 7 && l.keywords.every((k) => k.length <= 50), `ERROR: palabras clave de ${theme}.`);
+        assert.ok(l.description.includes(ATTRIBUTION_ES));
+      }
+      assert.ok(/Dinosaurios/.test(kdpListing({ designs: 30, pages: 64, theme: "dino" }).titles[0]));
+      for (const r of BOOK_RECIPES) assert.ok(PR[r.style] || r.style === "best_sellers", `ERROR: la receta ${r.id} usa un estilo inexistente.`);
+      for (const k of Object.keys(STYLE_THEME)) assert.ok(PR[k] && THEME_LISTING[STYLE_THEME[k]], `ERROR: tema de ${k}.`);
+      // Portada: 8.5×11 in, 120 págs en papel blanco → lomo 0.270 in; ancho 0.125+8.5+0.270+8.5+0.125.
+      const { coverSpec } = await import("./js/core/kdpListing.js");
+      const cv = coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4 });
+      assert.strictEqual(cv.spineIn, 0.27);
+      assert.strictEqual(cv.widthIn, 17.52);
+      assert.strictEqual(cv.heightIn, 11.25);
+      assert.ok(cv.spineText && !coverSpec({ pages: 60, trimWmm: 215.9, trimHmm: 279.4 }).spineText, "ERROR: KDP solo admite texto en el lomo con más de 79 páginas.");
+      assert.ok(coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4, paper: "premium" }).spineIn > cv.spineIn);
+      assert.ok(kdpListingText({ designs: 50, pages: 120, trimWmm: 215.9, trimHmm: 279.4 }).includes("Lomo: 0.27 in"));
       // La ficha no promete lo que el libro no trae.
       const figOnly = kdpListing({ designs: 30, pages: 60, content: "figures" }).description;
       assert.ok(!/mandalas/.test(figOnly), "ERROR: la ficha promete mandalas en un libro solo de figuras.");
@@ -832,6 +863,125 @@ async function runTests() {
       }
       assert.ok(total <= 250, `ERROR: la suma de regiones no coloreables subió a ${total.toFixed(0)} (referencia 197, techo 250).`);
       console.log(`✓ ${pairs} combinaciones relleno × celda bajo su techo; suma ${total.toFixed(0)} regiones no coloreables (techo 250).`);
+    }
+
+    console.log("\nPrueba 19: Control de calidad por página y variedad de figuras...");
+    {
+      const { analyzeColorability, qualityVerdict, QUALITY_LIMITS } = await import("./js/core/pageQuality.js");
+      // Raster sintético 100×100 px a 10 px/mm: fondo blanco, un marco negro y,
+      // dentro, una ranura de 0.4 mm (no coloreable) y un cuadro de 4×4 mm (sí).
+      const w = 100, h = 100, px = 10, data = new Uint8ClampedArray(w * h * 4).fill(255);
+      const ink = (x0, y0, x1, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3); };
+      ink(0, 0, 100, 2); ink(0, 98, 100, 100); ink(0, 0, 2, 100); ink(98, 0, 100, 100); // marco
+      ink(10, 10, 60, 12); ink(10, 16, 60, 18); ink(10, 10, 12, 18); ink(58, 10, 60, 18); // ranura de 4 px = 0.4 mm
+      ink(10, 30, 54, 32); ink(10, 72, 54, 74); ink(10, 30, 12, 74); ink(52, 30, 54, 74); // cuadro de 4 mm
+      const q = analyzeColorability({ data, width: w, height: h }, px, { mark: true });
+      assert.strictEqual(q.bad, 1, `ERROR: la ranura de 0.4 mm debía contar como 1 zona difícil (contó ${q.bad}).`);
+      assert.ok(q.mask[(13 * w + 30)] === 1 && q.mask[(50 * w + 30)] === 0, "ERROR: la máscara no marca solo la ranura.");
+      // El límite escala con el área del dibujo: Letter con margen 12.7 mm ≈ 63 zonas.
+      const letterArt = (215.9 - 25.4) * (279.4 - 25.4);
+      const v = qualityVerdict({ bad: 70, ink: 12 }, letterArt);
+      assert.ok(!v.ok && v.maxBad === Math.round(QUALITY_LIMITS.badPerDm2 * letterArt / 10000) && v.maxBad > 55 && v.maxBad < 70);
+      assert.ok(qualityVerdict({ bad: 10, ink: 12 }, letterArt).ok);
+      assert.ok(!qualityVerdict({ bad: 10, ink: 40 }, letterArt).ok, "ERROR: una página casi negra debe marcarse.");
+      assert.ok(qualityVerdict({ bad: 70, ink: 12 }, letterArt * 2).ok, "ERROR: una doble página admite el doble de zonas.");
+
+      // Variedad: paletas de 8 tangles por página de figura, que cubren todos en 3 páginas.
+      const { figurePalette, figureForPage, FIGURE_TANGLES, FIGURE_PALETTE_SIZE, ADULT_FIGURES: FIGURE_IDS } = await import("./js/generators/figure.js");
+      const all = new Set(FIGURE_TANGLES.map((t) => t.id));
+      const p0 = figurePalette(42, 0), p1 = figurePalette(42, 1);
+      assert.strictEqual(new Set(p0).size, FIGURE_PALETTE_SIZE);
+      assert.ok(p0.every((t) => all.has(t)));
+      assert.notDeepStrictEqual(p0, p1);
+      assert.strictEqual(new Set([0, 1, 2].flatMap((n) => figurePalette(42, n))).size, all.size, "ERROR: 3 páginas de figura no recorren todos los tangles.");
+      assert.deepStrictEqual(figurePalette(42, 5), figurePalette(42, 5));
+      // En un libro la figura usa su paleta y, en su segunda aparición, va en espejo.
+      const { generateZentangle } = await import("./js/generators/zentangle.generator.js");
+      const { createSvgDoc } = await import("./js/core/svgDoc.js");
+      const { renderSvgToString } = await import("./js/core/svgRender.js");
+      const { tanglesInSvgs } = await import("./js/generators/bookExtras.js");
+      const fig = async (pageIndex) => {
+        const d = createSvgDoc({ wMm: 215.9, hMm: 279.4, meta: { seed: 9 } });
+        await generateZentangle(d, { seed: 9 + pageIndex, presetName: "zen_figure", overrides: {}, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex, bookSeed: 42 });
+        return renderSvgToString(d);
+      };
+      const L = FIGURE_IDS.length;
+      const repeatAt = L + [...Array(L).keys()].find((k) => figureForPage(42, L + k, FIGURE_IDS) === figureForPage(42, 0, FIGURE_IDS));
+      const first = await fig(0), again = await fig(repeatAt);
+      const pal = new Set(figurePalette(42, 0));
+      const used = tanglesInSvgs([first]).filter((t) => all.has(t));
+      // Fuera de la paleta solo el respaldo de un grupo con menos de 3 (fondo o detalle).
+      assert.ok(used.length >= 4 && used.filter((t) => !pal.has(t)).length <= 2, `ERROR: la figura usa tangles fuera de su paleta (${used.join(", ")}).`);
+      // El espejo de página es un elemento propio del cuerpo (va seguido de salto de línea).
+      const pageMirror = /scale\(-1 1\)">\n/;
+      assert.ok(!pageMirror.test(first), "ERROR: la primera aparición de la figura no debe ir en espejo.");
+      assert.ok(pageMirror.test(again) && (again.match(/data-figure="([^"]+)"/) || [])[1] === (first.match(/data-figure="([^"]+)"/) || [])[1], "ERROR: la figura repetida no va en espejo.");
+      // La mezcla «Más vendidos» ya no usa el muestrario de iconos fractales.
+      const { BESTSELLERS } = await import("./js/generators/randomStyle.js");
+      assert.ok(!BESTSELLERS.some(([k]) => k === "sampler_icon_fractal") && BESTSELLERS.reduce((a, [, w]) => a + w, 0) === 20);
+      console.log(`✓ Calidad por página (zonas difíciles, tinta, límite por área) y figuras con paleta propia de ${FIGURE_PALETTE_SIZE} tangles, en espejo al repetirse.`);
+    }
+
+    console.log("\nPrueba 20: Repertorio ampliado (figuras, iconos, facetado y vitral)...");
+    {
+      const { FIGURE_IDS } = await import("./js/generators/figure.js");
+      const { ICONS } = await import("./js/generators/patterns/icons.js");
+      assert.ok(FIGURE_IDS.length >= 20, `ERROR: el repertorio bajó a ${FIGURE_IDS.length} figuras.`);
+      assert.ok(ICONS.length >= 22, `ERROR: el repertorio bajó a ${ICONS.length} iconos.`);
+      const { Resvg } = await import("@resvg/resvg-js");
+      const { analyzeColorability } = await import("./js/core/pageQuality.js");
+      const page = { x: 12.7, y: 12.7, w: 190.5, h: 254 };
+      const bad = {};
+      for (const preset of ["zen_figure_facet", "zen_figure_glass"]) {
+        let tot = 0;
+        for (const fig of FIGURE_IDS) {
+          const run = async () => { const d = { body: [], defs: [] }; await generateZentangle(d, { seed: 21, presetName: preset, areaMm: page, overrides: { figureName: fig } }); return d; };
+          const d1 = await run(), d2 = await run(), html = d1.body.join("");
+          assert.strictEqual(html, d2.body.join(""), `ERROR: ${preset}/${fig} no es determinista.`);
+          assert.ok(html.includes(`data-figure="${fig}"`) && !/fill="#000"/.test(html), `ERROR: ${preset}/${fig} sin figura o con negros.`);
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d1.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${html}</svg>`;
+          const img = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 5 } }).render();
+          tot += analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5).bad;
+        }
+        bad[preset] = tot / FIGURE_IDS.length;
+      }
+      // Vitral y facetado tienen piezas grandes: menos zonas difíciles que la figura con strings (~50).
+      assert.ok(bad.zen_figure_glass < 25 && bad.zen_figure_facet < 45, `ERROR: zonas difíciles de media: facetado ${bad.zen_figure_facet.toFixed(1)}, vitral ${bad.zen_figure_glass.toFixed(1)}.`);
+      // Figura zentangle con relleno rico y figuras escondidas: el margen
+      // blanco junto a cuerdas, auras y marco mantiene las astillas a raya.
+      let tot = 0, hidden = 0, nested = 0;
+      for (const fig of FIGURE_IDS) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 21, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig } });
+        const html = d.body.join("");
+        hidden += (html.match(/data-hidden="/g) || []).length;
+        if (html.includes(`data-hidden="${fig}"`)) nested++;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${html}</svg>`;
+        const img = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 5 } }).render();
+        const qa = analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5, { inner: { x0: 74, y0: 74, x1: 1006, y1: 1323 } });
+        tot += qa.bad;
+        // Sin huecos vacíos grandes: el mayor círculo blanco del dibujo < 15 mm de radio.
+        assert.ok(qa.blankMm < 15, `ERROR: ${fig} deja un hueco vacío de ${qa.blankMm.toFixed(1)} mm de radio.`);
+      }
+      bad.zen_figure = tot / FIGURE_IDS.length;
+      assert.ok(bad.zen_figure < 40, `ERROR: la figura zentangle sube a ${bad.zen_figure.toFixed(1)} zonas difíciles de media (techo 40).`);
+      assert.ok(hidden >= FIGURE_IDS.length * 2 && nested >= 15, `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
+      // Repertorio por estilo: adulto (y abstracto) frente a infantil, en libro.
+      const { FIGURE_SETS } = await import("./js/generators/figure.js");
+      for (const [preset, allowed] of [["zen_figure", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_glass", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_kids", FIGURE_SETS.kids], ["zen_figure_dino", [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix]], ["zen_figure_dino_origami", FIGURE_SETS.dinoOrigami], ["zen_figure_bio", FIGURE_SETS.bio], ["zen_figure_cryptids", [...FIGURE_SETS.cryptids, ...FIGURE_SETS.cryptidsOrigami]]]) {
+        const seen = new Set();
+        for (let i = 0; i < 24; i++) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 100 + i, presetName: preset, areaMm: page, pageIndex: i, bookSeed: 7, overrides: { richFill: false } });
+          seen.add((d.body.join("").match(/data-figure="([^"]+)"/) || [])[1]);
+        }
+        for (const f of seen) assert.ok(allowed.includes(f), `ERROR: ${preset} sacó la figura ${f}, que no es de su repertorio.`);
+        assert.ok(seen.size >= Math.min(14, allowed.length), `ERROR: ${preset} solo usó ${seen.size} figuras en 24 páginas.`);
+      }
+      const turn = { body: [], defs: [] };
+      await generateZentangle(turn, { seed: 4, presetName: "zen_figure", areaMm: page, overrides: { figureName: "cat", emptySections: true } });
+      assert.ok(!turn.body.join("").includes("data-hidden"), "ERROR: «Tu turno» no debe llevar figuras escondidas.");
+      console.log(`✓ ${FIGURE_IDS.length} figuras y ${ICONS.length} iconos; zonas difíciles de media: zentangle ${bad.zen_figure.toFixed(0)}, facetado ${bad.zen_figure_facet.toFixed(0)}, vitral ${bad.zen_figure_glass.toFixed(0)}; ${hidden} figuras escondidas (${nested} dentro de su figura).`);
     }
 
     console.log("\n==============================================");

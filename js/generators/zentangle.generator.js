@@ -4,7 +4,7 @@ import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
 import { fillDeadSpace } from "./deadSpace.js";
-import { generateZenFigure, figureForPage } from "./figure.js";
+import { generateZenFigure, figureForPage, figurePalette, FIGURE_IDS } from "./figure.js";
 import { isRandomKey, resolveBookStyle } from "./randomStyle.js";
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
@@ -63,11 +63,34 @@ export async function generateZentangle(doc, {
   }
   // Figura zentangle dentro de un libro: cada página de figura toma la
   // siguiente figura del libro (no se repite hasta agotar todas).
-  if (finalOpts.cellLayout === "zen_figure" && !finalOpts.figureName && Number.isInteger(pageIndex) && pageIndex >= 0) {
-    finalOpts.figureName = figureForPage(bookSeed ?? seed, Number.isInteger(randomOverrides.figurePage) ? randomOverrides.figurePage : pageIndex);
+  // Además, cada página de figura lleva su propia paleta de tangles y, cuando
+  // una figura vuelve a salir (segunda vuelta, cuarta…), va en espejo: el
+  // mismo gato no se repite igual dentro de un libro.
+  let mirror = false;
+  if (finalOpts.cellLayout === "zen_figure" && !finalOpts.emptySections && Number.isInteger(pageIndex) && pageIndex >= 0) {
+    let n = Number.isInteger(randomOverrides.figurePage) ? randomOverrides.figurePage : pageIndex;
+    // El estilo decide el repertorio (adultas + abstractas, o infantiles).
+    let ids = Array.isArray(finalOpts.figures) && finalOpts.figures.length ? finalOpts.figures : FIGURE_IDS;
+    const nPal = n;
+    // origamiMix: una página de figura de cada dos va en origami, con su propio repertorio.
+    if (Array.isArray(finalOpts.origamiMix) && finalOpts.origamiMix.length) {
+      // origamiEvery: cada cuántas páginas de figura va una en origami (2 = alternas).
+      const every = Math.max(2, finalOpts.origamiEvery || 2);
+      if (n % every === every - 1) { ids = finalOpts.origamiMix; finalOpts.figureStyle = "facet"; finalOpts.figureAngular = true; n = Math.floor(n / every); }
+      else n -= Math.floor((n + 1) / every);
+    }
+    if (!finalOpts.figureName) finalOpts.figureName = figureForPage(bookSeed ?? seed, n, ids);
+    if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(bookSeed ?? seed, nPal);
+    mirror = Math.floor(n / ids.length) % 2 === 1;
   }
 
+  const start = doc.body.length;
   await drawStyle(doc, finalOpts);
+  if (mirror) {
+    const cx = area.x + area.w / 2;
+    const drawn = doc.body.splice(start);
+    doc.body.push(`<g transform="translate(${Math.round(2 * cx * 1000) / 1000} 0) scale(-1 1)">`, ...drawn, "</g>");
+  }
   // La figura deja secciones lisas a propósito (respiro para colorear): el
   // relleno de huecos con burbujas no aplica.
   if (rasterize && finalOpts.fillDeadSpace !== false && finalOpts.cellLayout !== "zen_figure") {

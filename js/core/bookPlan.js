@@ -62,3 +62,9 @@ export function kdpInsideMarginMm(pages) {
   // Redondeo hacia arriba: el mínimo nunca debe quedar corto.
   return Math.ceil(inches * 254 - 1e-9) / 10;
 }
+
+// Opciones de pantalla que nunca deben llegar a una página impresa: las guías
+// de zona segura (líneas rojas), la textura de papel y el sombreado (grises
+// que ensucian el coloreado). Pueden venir activadas desde la URL o los
+// ajustes finos; el libro y las descargas de página las apagan siempre.
+export const printSafeOpts = (opts = {}) => ({ ...opts, showSafeZone: false, paperTextureEnabled: false, cellShadowEnabled: false });
