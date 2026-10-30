@@ -94,7 +94,8 @@
     pingüino y zorro.
   - **Temas** (un libro por tema): «Dinosaurios y prehistoria» (17),
     «Biología» (13: neurona, ADN, células, virus…) y «Críptidos del mundo»
-    (Pie Grande, Nessie, Mothman, chupacabras, kraken, yeti, ovni, Diablo de
+    (14: Pie Grande, Nessie, Mothman, chupacabras, kraken, yeti, ovni,
+    alien gris, serpiente marina, Wendigo, monstruo de Flatwoods, Diablo de
     Jersey, Thunderbird, jackalope). Las figuritas escondidas son del mismo tema.
   - Para adultos también: rosa, suculenta, caballito de mar, pulpo, lobo,
     caballo, pavo real, gato sentado, tetera y sol.

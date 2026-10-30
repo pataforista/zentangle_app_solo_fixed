@@ -845,6 +845,47 @@ const JACK2_ANTLERS = [
   taper([[0.56, -0.48], [0.68, -0.62], [0.78, -0.72], [0.9, -0.86]], 0.024, 0.012),
   taper([[0.72, -0.66], [0.84, -0.64], [0.96, -0.7]], 0.018, 0.01),
 ];
+// Pie Grande de pie (tres cuartos, mira a la izquierda): cabeza en cono
+// sobre hombros altos, brazos colgando largos, piernas cortas y gruesas.
+const BF3 = smoothPoly([[-0.12, -0.98], [0.06, -0.96], [0.16, -0.86], [0.22, -0.74], [0.42, -0.66], [0.52, -0.5], [0.56, -0.2], [0.52, 0.1], [0.5, 0.36], [0.46, 0.62],
+  [0.5, 0.86], [0.56, 0.97], [0.16, 0.97], [0.16, 0.7], [0.06, 0.56], [-0.06, 0.7], [-0.04, 0.97], [-0.44, 0.97], [-0.38, 0.84], [-0.4, 0.6], [-0.44, 0.34],
+  [-0.48, 0.0], [-0.48, -0.36], [-0.42, -0.6], [-0.3, -0.7], [-0.26, -0.8], [-0.22, -0.92]]);
+const BF3_ARM_FRONT = smoothPoly([[-0.38, -0.56], [-0.56, -0.36], [-0.66, -0.04], [-0.7, 0.3], [-0.68, 0.46], [-0.58, 0.5], [-0.52, 0.36], [-0.5, 0.04], [-0.4, -0.26]]);
+const BF3_ARM_BACK = smoothPoly([[0.42, -0.58], [0.6, -0.34], [0.66, 0.0], [0.68, 0.3], [0.62, 0.42], [0.54, 0.36], [0.54, 0.06], [0.46, -0.24]]);
+const BF3_FACE = smoothPoly([[-0.2, -0.86], [-0.06, -0.86], [-0.02, -0.76], [-0.06, -0.64], [-0.16, -0.6], [-0.24, -0.68], [-0.25, -0.78]]);
+
+// Alien gris: cabeza grande, ojos almendrados, cuerpo delgado (simétrico).
+const ALIEN_HEAD = [["M", 0, -0.98], ["C", 0.42, -0.98, 0.52, -0.66, 0.42, -0.42], ["C", 0.32, -0.2, 0.12, -0.12, 0, -0.12], ["C", -0.12, -0.12, -0.32, -0.2, -0.42, -0.42],
+  ["C", -0.52, -0.66, -0.42, -0.98, 0, -0.98], ["Z"]];
+const ALIEN_BODY = smoothPoly([[0, -0.14], [0.08, -0.1], [0.18, 0.0], [0.2, 0.3], [0.16, 0.5], [0.18, 0.95], [0.08, 0.95], [0.04, 0.56], [-0.04, 0.56], [-0.08, 0.95],
+  [-0.18, 0.95], [-0.16, 0.5], [-0.2, 0.3], [-0.18, 0.0], [-0.08, -0.1]]);
+const ALIEN_ARMS = [1, -1].map((m) => taper([[0.17 * m, 0.0], [0.32 * m, 0.22], [0.4 * m, 0.48], [0.44 * m, 0.6]], 0.035, 0.022));
+const ALIEN_EYES = [1, -1].map((m) => xform(ell(0, 0, 0.15, 0.08), 0.17 * m, -0.5, -0.45 * m));
+
+// Serpiente marina enroscada en S, con cresta dorsal.
+const SERPENT = (() => {
+  const pts = [];
+  for (let i = 0; i <= 70; i++) { const t = i / 70, a = t * Math.PI * 3.2; pts.push([0.55 * Math.sin(a) * (0.6 + 0.4 * t), -0.85 + t * 1.7]); }
+  return { body: taper(pts.reverse(), 0.035, 0.15), spine: pts };
+})();
+const SERPENT_HEAD = [["M", -0.06, 0.82], ["C", 0.1, 0.72, 0.38, 0.74, 0.52, 0.84], ["L", 0.62, 0.9], ["L", 0.5, 0.94], ["C", 0.34, 1.0, 0.08, 0.98, -0.06, 0.94], ["Z"]];
+const SERPENT_FINS = [0.15, 0.3, 0.45, 0.6].map((t) => { const i = Math.round(t * 70), [x, y] = SERPENT.spine[i], [x2, y2] = SERPENT.spine[i + 2], a = Math.atan2(y2 - y, x2 - x);
+  return xform([["M", -0.08, 0], ["L", 0, -0.14], ["L", 0.08, 0], ["Z"]], x, y, a + Math.PI); });
+
+// Wendigo: figura alta y flaca con cráneo de ciervo y astas (simétrico).
+const WENDI = smoothPoly([[0, -0.62], [0.1, -0.6], [0.14, -0.5], [0.12, -0.4], [0.3, -0.34], [0.34, -0.1], [0.28, 0.1], [0.2, 0.3], [0.18, 0.62], [0.22, 0.95],
+  [0.1, 0.95], [0.06, 0.62], [0.02, 0.36], [-0.02, 0.36], [-0.06, 0.62], [-0.1, 0.95], [-0.22, 0.95], [-0.18, 0.62], [-0.2, 0.3], [-0.28, 0.1], [-0.34, -0.1],
+  [-0.3, -0.34], [-0.12, -0.4], [-0.14, -0.5], [-0.1, -0.6]]);
+const WENDI_ARMS = [1, -1].map((m) => taper([[0.3 * m, -0.3], [0.44 * m, -0.05], [0.5 * m, 0.25], [0.52 * m, 0.45], [0.56 * m, 0.55]], 0.05, 0.02));
+const WENDI_ANTLERS = [1, -1].flatMap((m) => [taper([[0.06 * m, -0.6], [0.16 * m, -0.78], [0.3 * m, -0.9], [0.48 * m, -0.96]], 0.028, 0.012),
+  taper([[0.2 * m, -0.84], [0.22 * m, -0.98]], 0.018, 0.008), taper([[0.34 * m, -0.92], [0.42 * m, -1.04]], 0.016, 0.008), taper([[0.12 * m, -0.72], [0.26 * m, -0.7]], 0.016, 0.008)]);
+
+// Monstruo de Flatwoods: capucha en pica, cara redonda, falda plisada (simétrico).
+const FLATWOODS_HOOD = [["M", 0, -0.98], ["C", 0.12, -0.8, 0.4, -0.66, 0.42, -0.36], ["C", 0.42, -0.2, 0.3, -0.12, 0.2, -0.14], ["L", -0.2, -0.14], ["C", -0.3, -0.12, -0.42, -0.2, -0.42, -0.36],
+  ["C", -0.4, -0.66, -0.12, -0.8, 0, -0.98], ["Z"]];
+const FLATWOODS_SKIRT = [["M", -0.24, -0.16], ["L", 0.24, -0.16], ["C", 0.42, 0.2, 0.55, 0.6, 0.62, 0.95], ["L", -0.62, 0.95], ["C", -0.55, 0.6, -0.42, 0.2, -0.24, -0.16], ["Z"]];
+const FLATWOODS_FACE = ell(0, -0.4, 0.15, 0.13);
+
 const FIGURES = {
   owl: {
     parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] } }],
@@ -1425,12 +1466,45 @@ const FIGURES = {
     adult: true,
   },
   bigfoot: {
-    parts: [{ cmds: BIGFOOT2, strings: { angle: 1.25, a: [3, 4], b: [2, 3] } }],
-    back: [{ cmds: BIGFOOT_BACKARM, tangle: "detail" }],
-    front: [{ cmds: BIGFOOT_FRONTARM, tangle: "detail" }],
-    deco: () => [{ cmds: ell(-0.4, -0.76, 0.025), fill: W }, { cmds: [["M", -0.47, -0.82], ["L", -0.34, -0.83]], fill: "none" }],
-    silhouette: [BIGFOOT2, BIGFOOT_FRONTARM, BIGFOOT_BACKARM], branch: 0.98,
+    parts: [{ cmds: BF3, strings: { angle: 1.3, a: [3, 4], b: [3, 4] } }],
+    back: [{ cmds: BF3_ARM_BACK, tangle: "detail" }],
+    front: [{ cmds: BF3_ARM_FRONT, tangle: "detail" }, { cmds: BF3_FACE, tangle: null }],
+    deco: () => [{ cmds: [["M", -0.22, -0.8], ["L", -0.06, -0.8]], fill: "none" }, { cmds: ell(-0.17, -0.75, 0.018), fill: W }, { cmds: ell(-0.08, -0.75, 0.018), fill: W },
+      { cmds: [["M", -0.18, -0.66], ["L", -0.08, -0.66]], fill: "none" }],
+    silhouette: [BF3, BF3_ARM_FRONT, BF3_ARM_BACK], branch: 0.98,
     cryptid: true, hide: true,
+  },
+  greyalien: {
+    mirror: true,
+    parts: [{ cmds: [["M", 0, -0.98], ["C", 0.42, -0.98, 0.52, -0.66, 0.42, -0.42], ["C", 0.32, -0.2, 0.12, -0.12, 0, -0.12], ["Z"]], strings: { angle: 0.6, a: [2, 3], b: [1, 2] } },
+      { cmds: polyCmds([[0, -0.13], [0.08, -0.1], [0.18, 0.0], [0.2, 0.3], [0.16, 0.5], [0.18, 0.95], [0.08, 0.95], [0.04, 0.56], [0, 0.56]]), strings: { angle: Math.PI / 2, a: [1, 1], b: [3, 4] } }],
+    center: () => [...ALIEN_ARMS.map((cmds) => ({ cmds, fill: W })), ...ALIEN_EYES.map((cmds) => ({ cmds, fill: W })),
+      { cmds: [["M", -0.04, -0.24], ["L", 0.04, -0.24]], fill: "none" }],
+    silhouette: [ALIEN_HEAD, ALIEN_BODY, ...ALIEN_ARMS],
+    cryptid: true, hide: true,
+  },
+  seaserpent: {
+    parts: [{ cmds: SERPENT.body, strings: { angle: Math.PI / 2, a: [1, 1], b: [9, 11] } }],
+    back: SERPENT_FINS.map((cmds) => ({ cmds, tangle: null })),
+    front: [{ cmds: SERPENT_HEAD, tangle: "detail" }],
+    deco: () => [{ cmds: ell(0.36, 0.82, 0.025), fill: W }],
+    silhouette: [SERPENT.body, SERPENT_HEAD, ...SERPENT_FINS],
+    cryptid: true,
+  },
+  wendigo: {
+    parts: [{ cmds: WENDI, strings: { angle: Math.PI / 2, a: [2, 3], b: [3, 4] } }],
+    back: [...WENDI_ARMS.map((cmds) => ({ cmds, tangle: null })), ...WENDI_ANTLERS.map((cmds) => ({ cmds, tangle: null }))],
+    front: [{ cmds: smoothPoly([[0, -0.62], [0.09, -0.6], [0.11, -0.5], [0.05, -0.38], [-0.05, -0.38], [-0.11, -0.5], [-0.09, -0.6]]), tangle: null }],
+    deco: () => [{ cmds: ell(-0.045, -0.52, 0.022), fill: W }, { cmds: ell(0.045, -0.52, 0.022), fill: W }],
+    silhouette: [WENDI, ...WENDI_ARMS, ...WENDI_ANTLERS], branch: 0.96,
+    cryptid: true,
+  },
+  flatwoods: {
+    parts: [{ cmds: FLATWOODS_HOOD, strings: { angle: Math.PI / 2, a: [2, 2], b: [3, 4], bShape: "chevron" } }, { cmds: FLATWOODS_SKIRT, strings: { angle: Math.PI / 2, a: [1, 1], b: [5, 6] } }],
+    front: [{ cmds: FLATWOODS_FACE, tangle: null }],
+    deco: () => [{ cmds: ell(-0.06, -0.42, 0.03), fill: W }, { cmds: ell(0.06, -0.42, 0.03), fill: W }],
+    silhouette: [FLATWOODS_HOOD, FLATWOODS_SKIRT],
+    cryptid: true,
   },
   nessie: {
     parts: [{ cmds: NESSIE_NECK, strings: { angle: 0.4, a: [1, 1], b: [5, 6], bShape: "chevron" } }, ...NESSIE_HUMPS.map((cmds) => ({ cmds, strings: { angle: 0, a: [1, 1], b: [2, 3] } }))],
