@@ -119,6 +119,7 @@ el armado:
 | Regiones imposibles de colorear | Control de calidad en cada página del libro, «🛠 Arreglar» y visor con zonas en rojo; además, compuerta por relleno y celda en `npm test`. |
 | Páginas casi negras | El control marca las páginas con más del 25 % de tinta. |
 | Estilos repetidos | Secuencia sin vecinas repetidas; las figuras no se repiten hasta agotarlas. |
+| Astillas junto a cuerdas y contornos | Margen blanco fino (sin línea) junto a cuerdas, auras y marco: los trozos cortados del tangle se unen a él. |
 | Figuras que se parecen | Cada página de figura usa su propia paleta de 8 tangles (en 3 páginas salen los 15), y cuando una figura vuelve a salir va en espejo. |
 | Marcas registradas | Ficha y páginas con la marca solo como atribución. |
 | Libro irreproducible | Semillas deterministas + receta JSON. |

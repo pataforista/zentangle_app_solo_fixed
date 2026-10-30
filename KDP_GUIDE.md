@@ -91,6 +91,15 @@
   Purk, Bales, 'Nzeppel, Cubine, Paradox, Keeko, Cadent, Florz…). Auras de
   eco la rodean y el fondo lleva secciones con tangles más abiertos; algunas
   quedan lisas para colorear con calma.
+- **Relleno rico:** además de los tangles, algunas secciones llevan una banda
+  de eco junto a sus bordes y las grandes un «orbe» con otro tangle. Un margen
+  blanco fino junto a cuerdas, auras y marco evita las astillas (≈ 26 zonas
+  difíciles por página, antes ≈ 50).
+- **Figuras escondidas:** la figura lleva una copia pequeña de sí misma
+  escondida dentro (como el corazón dentro del corazón) y el fondo esconde
+  2–3 figuritas camufladas. El pie de cada página dice cuántas buscar. Una
+  sola aura (1–2) para que la figura se funda con el fondo; «fondo ligero»
+  mantiene 2–4 auras y es la versión fácil.
 - **Sin negros:** todo es contorno, apto para marcadores y lápices.
 - **En un libro:** recorre las 20 figuras antes de repetir ninguna; si vuelve
   a salir una, va en espejo y con otra paleta de tangles.

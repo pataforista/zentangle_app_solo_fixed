@@ -932,7 +932,26 @@ async function runTests() {
       }
       // Vitral y facetado tienen piezas grandes: menos zonas difíciles que la figura con strings (~50).
       assert.ok(bad.zen_figure_glass < 25 && bad.zen_figure_facet < 45, `ERROR: zonas difíciles de media: facetado ${bad.zen_figure_facet.toFixed(1)}, vitral ${bad.zen_figure_glass.toFixed(1)}.`);
-      console.log(`✓ ${FIGURE_IDS.length} figuras y ${ICONS.length} iconos; facetado y vitral deterministas, sin negros (zonas difíciles: ${bad.zen_figure_facet.toFixed(0)} y ${bad.zen_figure_glass.toFixed(0)} de media).`);
+      // Figura zentangle con relleno rico y figuras escondidas: el margen
+      // blanco junto a cuerdas, auras y marco mantiene las astillas a raya.
+      let tot = 0, hidden = 0, nested = 0;
+      for (const fig of FIGURE_IDS) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 21, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig } });
+        const html = d.body.join("");
+        hidden += (html.match(/data-hidden="/g) || []).length;
+        if (html.includes(`data-hidden="${fig}"`)) nested++;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${html}</svg>`;
+        const img = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 5 } }).render();
+        tot += analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5).bad;
+      }
+      bad.zen_figure = tot / FIGURE_IDS.length;
+      assert.ok(bad.zen_figure < 40, `ERROR: la figura zentangle sube a ${bad.zen_figure.toFixed(1)} zonas difíciles de media (techo 40).`);
+      assert.ok(hidden >= FIGURE_IDS.length * 2 && nested >= FIGURE_IDS.length / 2, `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
+      const turn = { body: [], defs: [] };
+      await generateZentangle(turn, { seed: 4, presetName: "zen_figure", areaMm: page, overrides: { figureName: "cat", emptySections: true } });
+      assert.ok(!turn.body.join("").includes("data-hidden"), "ERROR: «Tu turno» no debe llevar figuras escondidas.");
+      console.log(`✓ ${FIGURE_IDS.length} figuras y ${ICONS.length} iconos; zonas difíciles de media: zentangle ${bad.zen_figure.toFixed(0)}, facetado ${bad.zen_figure_facet.toFixed(0)}, vitral ${bad.zen_figure_glass.toFixed(0)}; ${hidden} figuras escondidas (${nested} dentro de su figura).`);
     }
 
     console.log("\n==============================================");

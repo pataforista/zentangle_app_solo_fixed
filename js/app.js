@@ -536,7 +536,13 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
   const rerolled = isRandomKey(g.zPresetKey) && g.zPresetKey !== BESTSELLER_KEY && seed !== pageSeed(bookSeed, pageIndex, 0);
   const used = await generateZentangle(d, { seed, presetName: g.zPresetKey, overrides, areaMm: g.inner, pageIndex: rerolled ? null : pageIndex, bookSeed, rasterize: rasterizeSvg });
   const bare = renderSvgToString(d);
-  const svg = appendToSvg(bare, footer);
+  // Pie: nivel (si es progresivo) y cuántas figuras hay escondidas para buscar.
+  const nHidden = (bare.match(/data-hidden="/g) || []).length;
+  const seek = nHidden ? `busca ${nHidden} figura${nHidden > 1 ? "s" : ""} escondida${nHidden > 1 ? "s" : ""}` : "";
+  const pageFooter = lv
+    ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min${seek ? ` · ${seek}` : ""}`, level: lv.level })
+    : seek ? footerSvg(geo, { text: `${seek[0].toUpperCase()}${seek.slice(1)}` }) : ""; // sin emoji: se imprimiría en color
+  const svg = appendToSvg(bare, pageFooter);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
   // El pie (texto) no cuenta: se mide el dibujo solo.
   const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g)) : null;

@@ -882,6 +882,7 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_light: {
     cellLayout: "zen_figure",
     figureBackground: "airy",
+    figureAuras: [2, 4], // fondo ligero: la figura destaca (más fácil)
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.38,

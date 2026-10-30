@@ -559,6 +559,8 @@ const FIGURES = {
   },
 };
 export const FIGURE_IDS = Object.keys(FIGURES);
+// Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
+const HIDEABLE = ["cat", "fish", "heart", "bird", "whale", "rabbit", "bear", "penguin", "moon", "leaf", "turtle", "mushroom", "tree", "fox", "elephant"];
 
 // Figura de la n-ésima página de figura de un libro: recorre todas las
 // figuras (barajadas con la semilla del libro) antes de repetir ninguna, y
@@ -664,7 +666,16 @@ function makeSections(rng, rings, spec, gap, level) {
   for (let k = 0; k < nA; k++) { const pts = []; for (let a = amin - 4; a <= amax + 4; a += 2) pts.push(toP(a, curA(k, a))); lines.push(pts); }
   for (let m = 0; m < nB; m++) { const pts = []; for (let u = umin - 4; u <= umax + 4; u += 2) pts.push(toP(curB(m, u), u)); lines.push(pts); }
   const list = [...secs.values()].map((s) => ({ ...s, area: s.n * step * step, x1: s.x1 + step / 2, y1: s.y1 + step / 2, x0: s.x0 - step / 2, y0: s.y0 - step / 2 }));
-  return { sections: list, stripA, stripB, lines, nA, nB };
+  // Sección (clave i*100+j) de un punto, o -1 si cae fuera de la región.
+  const labelAt = (x, y) => {
+    if (!inside(rings, x, y)) return -1;
+    const { a, u } = toL(x, y);
+    let i = 0, j = 0;
+    for (let k = 0; k < nA; k++) if (u > curA(k, a)) i++;
+    for (let m = 0; m < nB; m++) if (a > curB(m, u)) j++;
+    return i * 100 + j;
+  };
+  return { sections: list, stripA, stripB, lines, nA, nB, labelAt };
 }
 
 /* ====================== Facetas (cubista / vitral) ====================== */
@@ -748,6 +759,8 @@ export async function generateZenFigure(doc, opts) {
   // pequeñas, todas lisas, con plomo grueso).
   const fStyle = ["facet", "glass"].includes(opts.figureStyle) ? opts.figureStyle : "strings";
   const facetPlain = fStyle === "glass" ? 1 : 0.45;
+  // Relleno rico (bandas de eco, orbes) y figuras escondidas; richFill: false los apaga.
+  const rich = !empty && opts.richFill !== false;
   const stroke = clampN(opts.patternStrokeMm, 0.15, 1.5, 0.35);
   const strStroke = clampN(opts.stringStrokeMm, 0.2, 2, 0.55);
   const outStroke = clampN(opts.cellBorderWidthMm, 0.3, 3, 1.0);
@@ -770,7 +783,10 @@ export async function generateZenFigure(doc, opts) {
   const silCmds = def.silhouetteFromParts ? [...parts, ...back].map((p) => p.cmds) : def.silhouette;
   const unitRings = silCmds.flatMap((c) => flatten(c, (u, v) => [u * Math.cos(rot) - v * Math.sin(rot), u * Math.sin(rot) + v * Math.cos(rot)]));
   const ub = bboxOf(unitRings);
-  const aura = fStyle === "glass" ? 1 : rInt(rng, 2, 4);
+  // Auras: pocas (1–2) para que la figura se funda con el fondo y haya que
+  // buscarla; figureAuras [mín, máx] lo cambia (el fondo ligero usa 2–4).
+  const [auraLo, auraHi] = Array.isArray(opts.figureAuras) ? opts.figureAuras : [1, 2];
+  const aura = fStyle === "glass" ? 1 : rInt(rng, auraLo, auraHi);
   const room = aura * gap * 1.6 + gap * 3; // margen para auras y respiro
   const bottomRoom = def.branch || def.stem ? 0.06 : 0;
   const s = Math.min((a.w - 2 * room) / (ub.x1 - ub.x0), (a.h - 2 * room) / ((ub.y1 - ub.y0) * (1 + bottomRoom)));
@@ -782,6 +798,14 @@ export async function generateZenFigure(doc, opts) {
   const pb = (sk = sketchy) => new PathBuilder({ sketchy: sk, rng });
   const shapeD = (cmds, sk = sketchy) => emitPath(pb(sk), cmds, tf).d;
   const clipOf = (d) => { const cid = id("c"); defs.push(`<clipPath id="${cid}"><path d="${d}"/></clipPath>`); return cid; };
+  // Silueta de varias piezas con un solo contorno exterior: trazo grueso de
+  // todas y, encima, su relleno blanco (tapa los contornos internos, que
+  // dejaban astillas). El tangle va después, recortado a la unión.
+  // Antes, un halo blanco sin línea: los cortes del tangle de debajo se unen
+  // al halo en vez de quedar como astillas pegadas al contorno.
+  const unionShape = (ds, w, inner) => `${ds.map((d) => `<path d="${d}" fill="#fff" stroke="#fff" stroke-width="${fmt(gap * 2.4)}" stroke-linejoin="round"/>`).join("")}` +
+    `${ds.map((d) => `<path d="${d}" fill="#fff" stroke="#000" stroke-width="${fmt(w * 2)}" stroke-linejoin="round"/>`).join("")}` +
+    `${ds.map((d) => `<path d="${d}" fill="#fff" stroke="none"/>`).join("")}${inner}`;
   const el = (d, fill = "none", w = stroke) => `<path d="${d}" fill="${fill}" stroke="#000" stroke-width="${fmt(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
 
   // Elegir tangle evitando repetir: cada uso divide el peso.
@@ -823,7 +847,9 @@ export async function generateZenFigure(doc, opts) {
   /* ---- 1) Fondo ---- */
   const frame = { x0: a.x, y0: a.y, x1: a.x + a.w, y1: a.y + a.h };
   const frameD = polyD([{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]);
-  const bgKind = fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : rng() < 0.45 ? "rays" : rng() < 0.65 ? "strings" : "airy");
+  // Fondo denso (rayos o strings) para que la figura se funda con él; el
+  // fondo ligero («airy») queda para «Tu turno» y el preset de fondo ligero.
+  const bgKind = fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : rng() < 0.5 ? "rays" : "strings");
   const frameRings = [[{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]];
   const frameClip = clipOf(frameD);
   const bg = [], bgLines = [];
@@ -855,6 +881,8 @@ export async function generateZenFigure(doc, opts) {
     }
     const lines = pb(sketchy * 0.6);
     for (const t of rays) lines.moveTo(fx, fy).lineTo(fx + Math.cos(t) * Rr, fy + Math.sin(t) * Rr);
+    // Margen blanco junto a las líneas del fondo (sin astillas en los cortes).
+    if (rich) bg.push(`<path d="${lines.d}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.6)}"/>`);
     bgLines.push(el(lines.d, "none", strStroke));
   } else if (bgKind === "strings") {
     const sec = makeSections(rng, frameRings, { angle: rFloat(rng, 0, Math.PI), a: [2, 3], b: [1, 2] }, gap);
@@ -868,6 +896,8 @@ export async function generateZenFigure(doc, opts) {
     }
     const lines = pb(sketchy * 0.6);
     for (const p of sec.lines) smoothPath(lines, p);
+    // Margen blanco junto a las líneas del fondo (sin astillas en los cortes).
+    if (rich) bg.push(`<path d="${lines.d}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.6)}"/>`);
     bgLines.push(el(lines.d, "none", strStroke));
   } else if (bgKind === "facets") {
     // Facetas rectas en todo el marco (la figura las tapa). Vitral: piezas
@@ -894,17 +924,71 @@ export async function generateZenFigure(doc, opts) {
   // recortada al marco (resvg pierde contenido con recortes anidados grandes).
   body.push(bg.join(""));
   if (bgLines.length) body.push(`<g clip-path="url(#${frameClip})">${bgLines.join("")}</g>`);
+  const minisAt = body.length; // las figuritas escondidas van aquí (ver más abajo)
 
   /* ---- 2) Auras (eco del contorno) mediante trazos anchos negro/blanco ---- */
   const silD = silCmds.map((cm) => shapeD(cm, 0)).join(" ");
   const ringGap = gap * rFloat(rng, 1.5, 2.0);
   const auraEls = [];
+  // Halo blanco por fuera del aura exterior y margen junto al marco: los
+  // tangles del fondo que cortan quedan unidos a ellos, no como astillas.
+  if (rich) auraEls.push(`<path d="${silD}" fill="none" stroke="#fff" stroke-width="${fmt(2 * aura * ringGap + stroke + gap * 3)}" stroke-linejoin="round"/>`,
+    `<path d="${frameD}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 3)}"/>`);
   for (let k = aura; k >= 1; k--) {
     const wOut = 2 * k * ringGap;
     auraEls.push(`<path d="${silD}" fill="none" stroke="#000" stroke-width="${fmt(wOut + stroke)}" stroke-linejoin="round"/>`);
     auraEls.push(`<path d="${silD}" fill="none" stroke="#fff" stroke-width="${fmt(wOut - stroke)}" stroke-linejoin="round"/>`);
   }
   body.push(`<g clip-path="url(#${frameClip})">${auraEls.join("")}</g>`);
+
+  /* ---- 2b) Figuritas escondidas en el fondo («busca y encuentra») ---- */
+  // 2–3 siluetas pequeñas de otras figuras, camufladas entre los tangles del
+  // fondo con un tangle propio. Nunca tocan la figura, sus auras ni el marco.
+  const nHidden = rich && fStyle === "strings" && opts.hiddenFigures !== false ? rInt(rng, 2, 3) : 0;
+  if (nHidden) {
+    const mainPts = silCmds.flatMap((cm) => flatten(cm, tf)).flat();
+    const keep = aura * 2 * ringGap + gap * 3;
+    const near = (x, y) => mainPts.some((pt) => (pt.x - x) ** 2 + (pt.y - y) ** 2 < keep * keep);
+    const mainSil = silCmds.flatMap((cm) => flatten(cm, tf));
+    let band = null;
+    if (def.branch) { const [, by] = tf(0, def.branch + 0.06), bh = Math.max(gap * 5, s * 0.1); band = [by - bh, by + bh]; }
+    // Solo siluetas que se reconocen pequeñas y sin detalles interiores.
+    const pool = HIDEABLE.filter((f) => f !== figName && FIGURES[f]);
+    const placed = [], out = [];
+    for (let n = 0; n < nHidden; n++) {
+      const other = FIGURES[pool[Math.floor(rng() * pool.length)]];
+      const unit = other.silhouette.flatMap((cm) => flatten(cm, (u, v) => [u, v]));
+      const ubm = bboxOf(unit), size = Math.min(a.w, a.h) * rFloat(rng, 0.14, 0.19);
+      const k = size / Math.max(ubm.x1 - ubm.x0, ubm.y1 - ubm.y0);
+      for (let tries = 0; tries < 60; tries++) {
+        const px = rFloat(rng, frame.x0, frame.x1), py = rFloat(rng, frame.y0, frame.y1), ang = rFloat(rng, -0.4, 0.4);
+        const cs = Math.cos(ang), ss = Math.sin(ang), cx0 = (ubm.x0 + ubm.x1) / 2, cy0 = (ubm.y0 + ubm.y1) / 2;
+        const T = (u, v) => [px + ((u - cx0) * cs - (v - cy0) * ss) * k, py + ((u - cx0) * ss + (v - cy0) * cs) * k];
+        const rings = other.silhouette.flatMap((cm) => flatten(cm, T));
+        const bm = bboxOf(rings), m = gap * 2.5;
+        if (bm.x0 < frame.x0 + m || bm.x1 > frame.x1 - m || bm.y0 < frame.y0 + m || bm.y1 > frame.y1 - m) continue;
+        if (band && bm.y1 > band[0] - m && bm.y0 < band[1] + m) continue;
+        if (placed.some((b) => bm.x0 < b.x1 + m && bm.x1 > b.x0 - m && bm.y0 < b.y1 + m && bm.y1 > b.y0 - m)) continue;
+        if (rings.some((rg) => rg.some((pt) => inside(mainSil, pt.x, pt.y) || near(pt.x, pt.y)))) continue;
+        if (def.stem && bm.x1 > a.x + a.w / 2 - 10 && bm.x0 < a.x + a.w / 2 + 10 && bm.y1 > fcy) continue;
+        placed.push(bm);
+        const ds = other.silhouette.map((cm) => emitPath(pb(0), cm, T).d);
+        const cid = clipOf(ds.join(" "));
+        // Interior liso con un eco del contorno: se camufla entre los tangles
+        // y, a este tamaño, un tangle recortado dejaba muchas astillas.
+        // Eco solo de la pieza mayor: en las uniones (cuerpo y cola) dibujaba
+        // líneas de más dentro de la silueta.
+        const areaOf = (cm) => { const b = bboxOf(flatten(cm, T)); return (b.x1 - b.x0) * (b.y1 - b.y0); };
+        const big = other.silhouette.reduce((m, cm, i) => (areaOf(cm) > areaOf(other.silhouette[m]) ? i : m), 0);
+        const eb = gap * 1.3, all = ds[big];
+        const echo = `<g clip-path="url(#${cid})"><path d="${all}" fill="none" stroke="#000" stroke-width="${fmt(2 * eb + stroke)}" stroke-linejoin="round"/>` +
+          `<path d="${all}" fill="none" stroke="#fff" stroke-width="${fmt(2 * eb - stroke)}" stroke-linejoin="round"/></g>`;
+        out.push(`<g data-hidden="${FIGURE_IDS.find((f) => FIGURES[f] === other)}">${unionShape(ds, strStroke, echo)}</g>`);
+        break;
+      }
+    }
+    body.splice(minisAt, 0, ...out);
+  }
 
   /* ---- 3) Rama / tallo (por delante del fondo, detrás de la figura) ---- */
   if (def.branch) {
@@ -938,6 +1022,90 @@ export async function generateZenFigure(doc, opts) {
   const pieces = (list) => list.flatMap((p) => (p.mirror ? [piece(p), piece(p, true)] : [piece(p)]));
 
   /* ---- 5) Partes subdivididas ---- */
+  // Relleno rico (zentangle clásico): dentro de algunas secciones, una banda
+  // de eco que sigue sus bordes (aura interior) y, en las grandes, un orbe
+  // con su propio tangle. Ambos dejan zonas de ≥ 2 mm para colorear.
+  // Zonas que no se tapan (cara, ojos, piezas de delante, también en espejo).
+  const blockers = [...front, ...front.filter((q) => q.mirror).map((q) => ({ cmds: xform(q.cmds, 0, 0, 0, -1, 1) })), ...(def.deco ? def.deco() : [])]
+    .map((q) => bboxOf(flatten(q.cmds, tf))).filter((b) => Number.isFinite(b.x0));
+  const blocked = (b, pad) => blockers.some((k) => b.x0 < k.x1 + pad && b.x1 > k.x0 - pad && b.y0 < k.y1 + pad && b.y1 > k.y0 - pad);
+  const sectionExtras = (q, sec, edgeD, t) => {
+    let extra = "";
+    const w = q.x1 - q.x0, h = q.y1 - q.y0;
+    if (q.area > gap * gap * 80 && rng() < 0.4) {
+      const band = gap * rFloat(rng, 1.15, 1.5);
+      extra += `<path d="${edgeD}" fill="none" stroke="#000" stroke-width="${fmt(2 * band + stroke)}" stroke-linejoin="round"/>` +
+        `<path d="${edgeD}" fill="none" stroke="#fff" stroke-width="${fmt(2 * band - stroke)}" stroke-linejoin="round"/>`;
+    } else {
+      // Margen blanco sin línea junto a cuerdas y contorno: los trozos del
+      // tangle cortados en el borde se unen a él y no quedan como astillas.
+      extra += `<path d="${edgeD}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.5)}" stroke-linejoin="round"/>`;
+    }
+    if (q.area > gap * gap * 200 && rng() < 0.45) {
+      const key = q.i * 100 + q.j, cx = (q.x0 + q.x1) / 2 + rFloat(rng, -0.12, 0.12) * w, cy = (q.y0 + q.y1) / 2 + rFloat(rng, -0.12, 0.12) * h;
+      const r = Math.min(w, h) * rFloat(rng, 0.2, 0.28);
+      let fits = r > gap * 3 && sec.labelAt(cx, cy) === key && !blocked({ x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }, gap * 2);
+      for (let k = 0; k < 16 && fits; k++) { const an = (k / 16) * TAU; fits = sec.labelAt(cx + Math.cos(an) * (r + gap * 2), cy + Math.sin(an) * (r + gap * 2)) === key; }
+      if (fits) {
+        const od = `M ${fmt(cx + r)} ${fmt(cy)} A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx - r)} ${fmt(cy)} A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx + r)} ${fmt(cy)} Z`;
+        const ot = pickTangle(POOL.filter((x) => x.id !== t.id));
+        const ring = rng() < 0.5 ? `<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(r + gap * 1.1)}" fill="#fff" stroke="#000" stroke-width="${fmt(stroke)}"/>` : "";
+        extra += `${ring}<path d="${od}" fill="#fff" stroke="none"/><g clip-path="url(#${clipOf(od)})">${tangleIn(ot, { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }, 0.85)}</g>${el(od, "none", strStroke)}`;
+      }
+    }
+    return extra;
+  };
+
+  // Figura escondida: copia pequeña de la silueta dentro de la propia figura
+  // (como el corazón dentro del corazón), con otro tangle. Solo donde cabe
+  // entera, lejos del contorno y sin tapar la cara ni las piezas de delante.
+  const nestedSvg = () => {
+    if (!rich || def.mirror || figName === "heart" || opts.nestedFigure === false) return "";
+    // Contenedor: cualquiera de las partes (cabeza o cuerpo del oso, etc.).
+    const partRings = parts.map((p) => flatten(p.cmds, tf));
+    const inFig = (x, y) => partRings.some((r) => inside(r, x, y));
+    const mb = bboxOf(partRings.flat());
+    // Silueta de la copia sin adornos sueltos pequeños (burbujas, gotas).
+    const areaU = (cm) => { const b = bboxOf(flatten(cm, (u, v) => [u, v])); return (b.x1 - b.x0) * (b.y1 - b.y0); };
+    const maxA = Math.max(...silCmds.map(areaU));
+    const miniCmds = silCmds.filter((cm) => areaU(cm) >= maxA * 0.06);
+    const su = bboxOf(miniCmds.flatMap((cm) => flatten(cm, (u, v) => [u, v])));
+    const scx = (su.x0 + su.x1) / 2, scy = (su.y0 + su.y1) / 2;
+    // Piezas de delante (también en espejo): la copia va entera dentro de una
+    // (un pingüinito en la panza) o entera fuera, nunca a caballo.
+    const frontRings = [...front, ...front.filter((q) => q.mirror).map((q) => ({ cmds: xform(q.cmds, 0, 0, 0, -1, 1) }))].map((q) => flatten(q.cmds, tf));
+    const decoBoxes = (def.deco ? def.deco() : []).map((q) => bboxOf(flatten(q.cmds, tf))).filter((b) => Number.isFinite(b.x0));
+    const pad = gap * 2;
+    // Centros candidatos: puntos de una rejilla dentro de la figura (en
+    // unidades de figura, deshaciendo el encaje tf).
+    const cands = [];
+    for (let y = mb.y0; y < mb.y1; y += gap * 3) for (let x = mb.x0; x < mb.x1; x += gap * 3) {
+      if (!inFig(x, y)) continue;
+      const dx = x - fcx, dy = y - fcy;
+      cands.push([(dx * c + dy * sn) / s, (-dx * sn + dy * c) / s]);
+    }
+    if (!cands.length) return "";
+    for (let tries = 0; tries < 160; tries++) {
+      const k = [0.3, 0.25, 0.2, 0.16][Math.floor(tries / 40)] * rFloat(rng, 0.92, 1.05);
+      const [cu, cv] = cands[Math.floor(rng() * cands.length)];
+      const u0 = cu - k * scx, v0 = cv - k * scy;
+      const cmdsList = miniCmds.map((cm) => xform(cm, u0, v0, 0, k));
+      const ringsM = cmdsList.flatMap((cm) => flatten(cm, tf));
+      const bm = bboxOf(ringsM);
+      if (bm.x0 < mb.x0 || bm.x1 > mb.x1 || bm.y0 < mb.y0 || bm.y1 > mb.y1) continue;
+      const pts = ringsM.flat();
+      if (!pts.every((pt) => inFig(pt.x, pt.y) && inFig(pt.x + pad, pt.y) && inFig(pt.x - pad, pt.y) && inFig(pt.x, pt.y + pad) && inFig(pt.x, pt.y - pad))) continue;
+      if (decoBoxes.some((b) => bm.x0 < b.x1 + pad && bm.x1 > b.x0 - pad && bm.y0 < b.y1 + pad && bm.y1 > b.y0 - pad)) continue;
+      if (frontRings.some((fr) => { const n = pts.filter((pt) => inside(fr, pt.x, pt.y)).length; return n > 0 && n < pts.length; })) continue;
+      const ds = cmdsList.map((cm) => shapeD(cm, 0));
+      const cid = clipOf(ds.join(" "));
+      const t = pickTangle(POOL);
+      return `<g data-hidden="${figName}">${unionShape(ds, strStroke * 1.1, `<g clip-path="url(#${cid})">${tangleIn(t, bm, 1.05)}</g>`)}</g>`;
+    }
+    return "";
+  };
+
+  /* ---- 5b) Partes subdivididas ---- */
   const partSvg = (p) => {
     const rings = flatten(p.cmds, tf);
     const dc = shapeD(p.cmds, 0);
@@ -949,6 +1117,9 @@ export async function generateZenFigure(doc, opts) {
     const totalArea = sec.sections.reduce((acc, q) => acc + q.area, 0);
     const out = [`<path d="${dc}" fill="#fff" stroke="none"/>`];
     const inner = [];
+    const lines = pb();
+    for (const l of sec.lines) smoothPath(lines, l);
+    const edgeD = `${lines.d} ${dc}`;
     for (const q of sec.sections) {
       if (empty || q.area < gap * gap * 14) continue; // «Tu turno» o astilla: queda lisa
       // Respiro: como mucho una sección lisa por parte, y nunca una grande
@@ -956,12 +1127,11 @@ export async function generateZenFigure(doc, opts) {
       if (!plainUsed && q.area < Math.min(900, totalArea * 0.12) && rng() < 0.25) { plainUsed = true; continue; }
       const t = pickTangle(POOL);
       let g = tangleIn(t, q, rFloat(rng, 0.95, 1.15));
+      if (rich) g += sectionExtras(q, sec, edgeD, t);
       if (sec.nB) g = `<g clip-path="url(#${clipOf(polyD(sec.stripB(q.j)))})">${g}</g>`;
       if (sec.nA) g = `<g clip-path="url(#${clipOf(polyD(sec.stripA(q.i)))})">${g}</g>`;
       inner.push(g);
     }
-    const lines = pb();
-    for (const l of sec.lines) smoothPath(lines, l);
     inner.push(el(lines.d, "none", strStroke));
     // Borde interior (caparazón): banda lisa siguiendo el contorno.
     if (def.rim) {
@@ -1002,7 +1172,7 @@ export async function generateZenFigure(doc, opts) {
     figure.push(`<g>${half}</g>`, `<g transform="translate(${fmt(2 * fcx)} 0) scale(-1 1)">${half}</g>`);
     if (def.center) figure.push(decoSvg(def.center()));
   } else {
-    figure.push(...parts.map(partSvg), ...pieces(front));
+    figure.push(...parts.map(partSvg), ...pieces(front), nestedSvg());
     if (def.deco) figure.push(decoSvg(def.deco()));
   }
   body.push(`<g data-figure="${figName}">${figure.join("")}</g>`);
