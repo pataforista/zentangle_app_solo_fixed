@@ -95,7 +95,7 @@ try {
 
   const dir = mkdtempSync(join(tmpdir(), "e2e-book-"));
   const recDl = page.waitForEvent("download");
-  await page.click("text=🧾 Receta del libro");
+  await page.click("#nextSteps button:has-text('Receta')");
   const recPath = join(dir, "receta.json");
   await (await recDl).saveAs(recPath);
   const rec = JSON.parse(readFileSync(recPath, "utf8"));
@@ -121,6 +121,15 @@ try {
   if (!/Dinosaurios/.test(title)) fail("la ficha de KDP no usa el tema del libro (dinosaurios).");
   const next = await page.textContent("#nextSteps");
   if (!/✓ ⬇ PDF/.test(next) || !/✓ 📝 Ficha KDP/.test(next) || !/✓ 🧾 Receta/.test(next)) fail(`los pasos para terminar no se marcan (${next}).`);
+
+  // «Descargar todo»: PDF + ficha + receta con un solo clic.
+  const got = [];
+  page.on("download", (d) => got.push(d.suggestedFilename()));
+  await page.click("#btnDownloadAll");
+  await page.waitForFunction(() => /PDF, ficha de KDP y receta descargados/.test(document.getElementById("status").textContent), null, { timeout: 1800000 });
+  await page.waitForFunction(() => true); // deja llegar los eventos de descarga
+  for (let k = 0; k < 40 && got.length < 3; k++) await new Promise((r) => setTimeout(r, 250));
+  if (!got.some((n) => /\.pdf$/.test(n)) || !got.some((n) => /^ficha_kdp/.test(n)) || !got.some((n) => /^receta_libro/.test(n))) fail(`«Descargar todo» no bajó los 3 archivos (${got.join(", ")}).`);
 
   if (errors.length) fail(`errores en la página: ${errors.join(" | ")}`);
   if (!process.exitCode) console.log(`✓ Libro de ${N} diseños (${BLANK === "1" ? "con" : "sin"} hojas en blanco): ${pages} páginas en el PDF, revisión completa y ficha KDP correcta.`);

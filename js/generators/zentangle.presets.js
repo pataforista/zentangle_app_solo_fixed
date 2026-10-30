@@ -381,7 +381,14 @@ export const ZENTANGLE_PRESETS = {
     innerOrganicBorderInsetMm: 0.8,
     innerOrganicJitterMm: 0.45,
     innerOrganicRoundMm: 1.0,
-    patternFamily: "organic",
+    // Solo tangles reconocibles y sin invitados de otras familias (abanicos de
+    // líneas y círculos sueltos hacían la página caótica).
+    // Líneas rectas y cortes siempre horizontales/verticales (sin ondas ni
+    // cambios de ángulo al azar: se leían como descuido).
+    stringWarpMm: 0,
+    cutJitter: 0,
+    patternFamily: "tangles",
+    guestPatternCount: 0,
     focusMode: true,
     borderStrokeMultiplier: 1.5,
   },
@@ -401,7 +408,14 @@ export const ZENTANGLE_PRESETS = {
     innerOrganicBorderInsetMm: 0.7,
     innerOrganicJitterMm: 0.5,
     innerOrganicRoundMm: 0.9,
-    patternFamily: "geometric",
+    // Solo tangles reconocibles y sin invitados de otras familias (abanicos de
+    // líneas y círculos sueltos hacían la página caótica).
+    // Líneas rectas y cortes siempre horizontales/verticales (sin ondas ni
+    // cambios de ángulo al azar: se leían como descuido).
+    stringWarpMm: 0,
+    cutJitter: 0,
+    patternFamily: "tangles",
+    guestPatternCount: 0,
     focusMode: true,
     borderStrokeMultiplier: 1.4,
   },
@@ -428,6 +442,9 @@ export const ZENTANGLE_PRESETS = {
   spiral_modern: {
     cellLayout: "template",
     templateName: "spiral",
+    // Rectángulos áureos en espiral, rectos (sin deformar ni partir al azar).
+    stringWarpMm: 0,
+    templateCellCount: 6,
     cellBorderWidthMm: 0.90,
     patternStrokeMm: 0.40,
     minGapMm: 1.8,
@@ -436,11 +453,14 @@ export const ZENTANGLE_PRESETS = {
     whiteSpaceMm: 1.0,
     rotatePatterns: true,
     rotationSet: "ergonomic",
-    innerOrganicBorderEnabled: true,
+    innerOrganicBorderEnabled: false,
     innerOrganicBorderInsetMm: 0.9,
     innerOrganicJitterMm: 0.5,
     innerOrganicRoundMm: 1.2,
-    patternFamily: "organic",
+    // Solo tangles reconocibles y sin invitados: los abanicos de líneas y los
+    // círculos sueltos de otras familias hacían la página caótica.
+    patternFamily: "tangles",
+    guestPatternCount: 0,
     focusMode: true,
     borderStrokeMultiplier: 1.5,
   },

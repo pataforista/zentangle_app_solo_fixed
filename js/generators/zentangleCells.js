@@ -179,6 +179,7 @@ export async function generateZentangleCells(doc, opts) {
     // Antes no se pasaba: «Cuerda en Z» sorteaba cualquier plantilla.
     templateName: opts.templateName,
     templateCellCount: opts.templateCellCount,
+    cutJitter: opts.cutJitter,
   });
 
   // KDP Quality Rule: Area mínima 4mm² (evita manchas negras ilegibles)
@@ -455,10 +456,12 @@ export async function generateZentangleCells(doc, opts) {
       if (isShowcaseCell && L === 0) {
         // Patrón vistoso para la celda dominante de la página. En celdas muy
         // alargadas se evitan los motivos radiales (flor/espirales): quedarían
-        // como un medallón pequeño perdido en el centro de la banda.
+        // como un medallón pequeño perdido en el centro de la banda. Paradox
+        // tampoco: en una banda estrecha se deshace en un abanico de líneas
+        // sueltas que se lee como un garabato.
         const aspect = Math.max(w, h) / Math.max(1e-6, minDim);
         const pool = (aspect > 1.7)
-          ? showcasePool.filter(p => p !== fillFlux && p !== fillPrintemps)
+          ? showcasePool.filter(p => p !== fillFlux && p !== fillPrintemps && p !== fillParadox)
           : showcasePool;
         const fresh = pool.filter(p => !(patternUseCount.get(p) > 0));
         available = fresh.length ? fresh : pool;
@@ -661,7 +664,10 @@ function _makeCells(rng, baseRect, cfg) {
     // grande se parte con cortes secundarios, como en un zentangle real. Una
     // región de media página con un solo tangle quedaba como un mar de rayas.
     const target = Math.max(polys.length, Math.round(safeClamp(cfg.templateCellCount, 2, 40, 10)));
-    return _subdivideLargest(rng, polys, target, baseRect).map((poly) => ({ kind: "poly", bbox: _bboxOfPoly(poly), poly }));
+    // cutJitter: abanico (rad) del ángulo de los cortes secundarios; 0 = siempre
+    // transversales al eje largo (horizontales o verticales): líneas rectas y
+    // un solo criterio de dirección.
+    return _subdivideLargest(rng, polys, target, baseRect, safeClamp(cfg.cutJitter, 0, 1.2, 1.2)).map((poly) => ({ kind: "poly", bbox: _bboxOfPoly(poly), poly }));
   }
 
   // default
@@ -674,7 +680,7 @@ function _makeCells(rng, baseRect, cfg) {
 // cortes que crucen el contorno exactamente dos veces (en una región cóncava,
 // un corte con más cruces dejaría un puente de grosor cero) y que no dejen
 // astillas: cada mitad debe admitir un círculo de radio >= minR.
-function _subdivideLargest(rng, polys, target, rect) {
+function _subdivideLargest(rng, polys, target, rect, jitter = 1.2) {
   const out = polys.filter((p) => p.length >= 3 && Math.abs(_polyArea(p)) > 4);
   const pageMin = Math.min(rect.x1 - rect.x0, rect.y1 - rect.y0);
   const minR = Math.max(9, pageMin * 0.07);
@@ -701,7 +707,7 @@ function _subdivideLargest(rng, polys, target, rect) {
     const across = (bb.x1 - bb.x0) > (bb.y1 - bb.y0) ? Math.PI / 2 : 0;
     let done = false;
     for (let t = 0; t < 10 && !done; t++) {
-      const ang = across + (rng() - 0.5) * 1.2;
+      const ang = across + (rng() - 0.5) * jitter;
       const c = { x: f.x + (rng() - 0.5) * f.r * 0.6, y: f.y + (rng() - 0.5) * f.r * 0.6 };
       const nx = Math.cos(ang), ny = Math.sin(ang); // normal de la recta de corte
       if (crossings(poly, c, nx, ny) !== 2) continue;

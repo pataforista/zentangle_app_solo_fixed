@@ -14,23 +14,23 @@ python3 -m http.server 8000   # o: npx serve .
 # http://localhost:8000
 ```
 
-0. **⚡ Atajo**: elige un tipo de libro (adultos, vitral, dinosaurios, biología,
-   críptidos, infantil…) y la app configura estilo y opciones de un clic.
-1. **Estilo**: «Más vendidos» (mezcla por defecto), «Figura zentangle» u otro.
-2. **Página**: tamaño de papel, margen, semilla.
-3. **Tu libro**: nº de diseños (50 por defecto, hasta 300), reverso en blanco
-   o papel grueso sin hojas en blanco, y opciones: dificultad progresiva, guía
-   de tangles y pasaporte, dobles páginas (con franja segura en el lomo) y
-   páginas «Tu turno».
-4. **Preparar libro** → la app revisa la calidad de cada página (✓ / ⚠) →
-   **🛠 Arreglar las marcadas** → toca una página para verla a tamaño real con
-   las zonas difíciles en rojo; cambia las que no te gusten con ↻ →
-   **🧾 Receta del libro** (semillas de cada página) → **Descargar PDF**.
-5. **📝 Texto para la ficha de KDP**: título, descripción, palabras clave sin
-   marcas ajenas y medidas de la portada (lomo y tamaño total).
+En 4 pasos (el detalle y la lista de control están en
+**[PRODUCCION.md](PRODUCCION.md)**):
 
-El proceso completo, con la lista de control antes de subir a KDP y los huecos
-que la app aún no cubre, está en **[PRODUCCION.md](PRODUCCION.md)**.
+1. **¿Qué libro quieres hacer?** Elige un tipo de libro (adultos, mezcla más
+   vendida, vitral, dinosaurios, solo origami, biología, críptidos, infantil):
+   un clic fija estilo, nº de diseños y opciones. «Ver todos los estilos»
+   permite elegir uno a mano.
+2. **Página**: tamaño de papel, margen, semilla.
+3. **Opciones del libro**: nº de diseños (hasta 300), reverso en blanco o papel
+   grueso, dificultad progresiva, guía de tangles y pasaporte, dobles páginas
+   y páginas «Tu turno».
+4. **Preparar libro → revisar → 📦 Descargar todo**. La app revisa la calidad
+   de cada página (✓ / ⚠) y rehace sola las marcadas; tocas una página para
+   verla a tamaño real con las zonas difíciles en rojo y cambias con ↻ las
+   que no te gusten. «Descargar todo» baja el PDF del interior, la ficha de
+   KDP (título, descripción, palabras clave, medidas de portada) y la receta
+   (semillas de cada página).
 
 El PDF se genera en el navegador (jsPDF desde CDN: hace falta conexión).
 

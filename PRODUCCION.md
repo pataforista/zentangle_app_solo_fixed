@@ -1,155 +1,90 @@
-# Proceso de producción de un libro para colorear
+# Cómo hacer un libro para colorear (de cero a KDP)
 
-Guía práctica para pasar de la app a un interior aprobado en KDP sin
-sorpresas. Cada paso dice qué hacer, qué hace la app sola y qué tienes que
-mirar tú. Al final está la lista de control y los huecos que la app todavía
-no cubre.
+Guía de uso. Dos minutos para configurar, el resto es revisar y subir.
 
----
+## En 4 pasos
 
-## El proceso en 7 pasos
+### ① Elige qué libro quieres hacer
 
-### 0. Atajo: un clic
+En **¿Qué libro quieres hacer?** hay tipos de libro listos. Un clic elige el
+estilo, el nº de diseños y las opciones que mejor le van:
 
-En **① Elige un estilo**, el recuadro **⚡ ¿Qué libro quieres hacer?** trae
-tipos de libro listos: Zentangle para adultos, Mezcla más vendida, Vitral
-relajante, Dinosaurios, Biología, Críptidos e Infantil. Un clic elige el
-estilo, el nº de diseños y las opciones (dificultad, guía, dobles páginas).
-Después pulsa **📖 Preparar libro**: con «🛠 Arreglar solas…» marcado, las
-páginas con zonas difíciles se rehacen sin más clics. La revisión muestra
-**Para terminar: Revisar → ⬇ PDF → 📝 Ficha KDP → 🧾 Receta** y marca cada
-paso con ✓. La ficha usa el tema del libro (títulos y palabras clave de
-dinosaurios, críptidos…). Los pasos 1–7 explican cada decisión por si
-quieres ajustarla a mano.
-
-### 1. Decide el libro antes de abrir la app
-
-| Decisión | Recomendado | Por qué |
+| Tipo de libro | Qué lleva | Diseños |
 |---|---|---|
-| Tamaño | 8.5×11 in | El más habitual en libros para colorear de KDP. |
-| Estilo | «Más vendidos» o «Figura zentangle» | Sin rellenos negros y probados con la compuerta de colorabilidad. «Aleatorio (todos)» puede meter páginas con tinta negra. |
-| Reverso | Hoja en blanco | Evita que el rotulador traspase al diseño siguiente. «Otro diseño» exige papel color prémium en KDP. |
-| Nº de diseños | 30–50 | El libro tiene que llegar a 24 páginas como mínimo. |
+| 🪶 Zentangle para adultos | Koi, colibrí, nautilus, rosa, lobo, abstractas. Guía de tangles, dobles páginas y «Tu turno» | 40 |
+| 💰 Mezcla más vendida | Figuras, mandalas, muestrarios y mosaicos repartidos. Lo más variado | 50 |
+| 🪟 Vitral relajante | Piezas grandes y lisas: el más fácil y rápido de colorear | 30 |
+| 🦖 Dinosaurios | Mitad origami (T. rex, raptor, triceratops…) y mitad con patrones (braquiosaurio, pterosaurio, plesiosaurio…), de fácil a difícil | 34 |
+| 🦕 Solo origami | Todos los dinosaurios como papel doblado | 34 |
+| 🧬 Biología | Neurona, ADN, células, virus, corazón… | 26 |
+| 👣 Críptidos | Pie Grande, Nessie, Mothman, kraken, yeti, ovni; 1 de cada 3 páginas en origami | 28 |
+| 🧸 Infantil | Animales tiernos con huecos amplios, de fácil a difícil | 28 |
 
-### 2. Configura la página (②)
+¿Quieres otro estilo? **🎨 Ver todos los estilos** los muestra con miniatura.
+Después puedes ajustar cualquier cosa a mano.
 
-- **Margen**: deja 12.7 mm o más. La app avisa si queda por debajo del
-  margen interior mínimo de KDP para el número de páginas (9.6 mm hasta 150
-  páginas, 12.7 mm hasta 300…).
-- **Sangrado**: «Sin sangrado». El PDF sale a tamaño de corte exacto; en KDP
-  elige *No bleed*.
-- Las **guías de zona segura**, la **textura de papel** y el **sombreado**
-  son solo para la pantalla: la app los quita siempre del libro y de las
-  descargas de página.
+### ② Página y ③ Opciones (revisa el resumen)
 
-### 3. Configura el libro (③) y lee el resumen
+- **Tamaño**: 8.5×11 in es el más habitual en KDP. **Margen**: 12.7 mm o más.
+- **Reverso**: «Hoja en blanco» evita que el rotulador traspase. «Otro diseño»
+  exige papel color prémium en KDP.
+- El **resumen verde** dice cuántas páginas saldrán y avisa si algo no cumple
+  KDP (menos de 24 páginas, margen interior corto, más de 828 páginas).
+  Si aparece ⚠, corrígelo antes de seguir.
+- Las guías de zona segura, la textura y el sombreado son solo de pantalla:
+  la app los quita siempre del libro.
 
-El resumen verde dice cuántas páginas saldrán. Si aparece ⚠, corrígelo antes
-de seguir: páginas de menos, margen interior insuficiente o más de 828
-páginas.
+### ④ Prepara, revisa y descarga
 
-### 4. Prepara el libro y deja que la app lo revise
+1. **📖 Preparar libro**. Cada página pasa un control de calidad (zonas donde
+   no cabe la punta de un rotulador, tinta). Con «🛠 Arreglar solas…»
+   marcado (por defecto), las marcadas se rehacen solas.
+2. **Revisa**: toca una página para verla a tamaño real, con las zonas
+   difíciles en rojo (← → para pasar de página). **↻ Cambiar** la sustituye
+   por otra al instante.
+3. **📦 Descargar todo**: baja el PDF del interior, la ficha de KDP y la
+   receta del libro. (Si prefieres, cada una tiene su botón en
+   «Para terminar: Revisar → PDF → Ficha KDP → Receta», con ✓ al hacerla.)
+4. **En KDP**: sube el PDF como interior **sin sangrado**, tinta **blanco y
+   negro** (o **color prémium** si el reverso es «otro diseño»), pega título,
+   descripción y palabras clave de la ficha, y haz la portada con las
+   medidas que trae la ficha (comprueba el lomo en la calculadora de KDP).
 
-1. Pulsa **📖 Preparar libro (revisar páginas)**. Cada página pasa un
-   **control de calidad**: la app cuenta las zonas donde no cabe la punta de
-   un rotulador (~1.2 mm) y mide la tinta. La miniatura lleva **✓** o
-   **⚠ revisar**, y la cabecera dice cuántas quedaron marcadas.
-2. Si hay marcadas, pulsa **🛠 Arreglar las marcadas**: cada una se regenera
-   hasta 3 veces y la app se queda con el mejor intento. Mantiene el estilo
-   y la figura de la página.
-3. Toca una página para abrirla en el **visor**: la ves como vector, nítida a
-   **tamaño real** o al **200 %**, con las zonas difíciles **en rojo**. Pasa
-   de página con ← → y cambia la que no te guste con **↻ Cambiar**.
-4. Mira además, a ojo:
-   - dos páginas seguidas que se parezcan demasiado;
-   - en dobles páginas, que nada importante caiga en el lomo.
+## Antes de subir
 
-> Unas pocas esquinas rojas en una figura son normales (donde los cortes
-> internos tocan el contorno). Lo que conviene cambiar son las páginas con
-> muchas zonas rojas juntas.
-
-### 5. Guarda la receta y descarga
-
-- **🧾 Receta del libro**: un JSON con el tamaño, el margen, el estilo, la
-  semilla base y la semilla de cada página (incluidos los ↻). Guárdalo junto
-  al PDF: es la única forma de saber después qué se imprimió.
-- **⬇ Descargar PDF**: arma el interior con exactamente las páginas
-  aprobadas.
-
-### 6. Hojea el PDF
-
-La calidad de cada dibujo ya la revisaste en el visor. En el PDF comprueba
-el armado:
-
-- el número de páginas coincide con el que anunciaba el botón;
-- los diseños quedan en página derecha y su reverso en blanco (si elegiste
-  hoja en blanco);
-- la guía, el pasaporte y las páginas «Tu turno» se leen bien (el texto usa
-  la fuente del equipo: Helvetica o Arial);
-- no hay líneas rojas punteadas, fondos grises ni sombras;
-- el pie de nivel no se corta en el borde inferior.
-
-### 7. Ficha y portada
-
-- **📝 Texto para la ficha de KDP**: títulos, descripción y 7 palabras clave
-  sin marcas ajenas, más las medidas de la portada: grosor del lomo y tamaño
-  total con sangrado a 300 ppp.
-- Genera la portada con KDP Cover Creator o con su plantilla, y confirma las
-  medidas en la calculadora oficial de KDP: el lomo cambia si añades o
-  quitas páginas.
-- Al subir: interior **sin sangrado**, tinta **blanco y negro** en papel
-  blanco (o **color prémium** si elegiste «Otro diseño» como reverso).
-- Antes de publicar, usa el visor de KDP y, si puedes, pide una prueba
-  impresa.
-
----
-
-## Lista de control antes de subir
-
-- [ ] Resumen del libro sin ⚠ y con «✓ Cumple los límites de KDP».
+- [ ] Resumen sin ⚠ y con «✓ Cumple los límites de KDP».
 - [ ] Control de calidad sin páginas marcadas (o las que quedan, vistas en el
       visor y aceptadas).
-- [ ] Receta JSON guardada junto al PDF.
-- [ ] PDF hojeado: sin guías, grises ni pies cortados.
-- [ ] Nº de páginas del PDF = nº anunciado en el botón.
+- [ ] Receta guardada junto al PDF (es la única forma de saber después qué
+      se imprimió).
+- [ ] PDF hojeado: páginas en orden, sin líneas rojas, grises ni pies cortados.
 - [ ] Ficha sin «Zentangle», «Zendala» ni «Zendoodle» en título, subtítulo,
       portada o palabras clave.
-- [ ] Portada con las medidas de la ficha, comprobadas en la calculadora de KDP.
-- [ ] Opción de papel en KDP coherente con el reverso elegido.
+- [ ] Portada con las medidas de la ficha.
 - [ ] Vista previa de KDP aprobada (y prueba impresa si es el primer libro de
       una serie).
-
----
 
 ## Qué hace la app sola
 
 | Riesgo | Protección |
 |---|---|
-| Diseño que traspasa al siguiente | Con «Hoja en blanco», cada diseño va en página derecha con el reverso vacío. |
-| Margen insuficiente | Aviso en el resumen según el nº de páginas. |
-| Guías, textura o sombreado impresos | Se quitan del libro y de las descargas de página. |
-| Pie de nivel fuera de la zona segura | Nunca a menos de 7.6 mm del borde. |
-| Regiones imposibles de colorear | Control de calidad en cada página del libro, «🛠 Arreglar» y visor con zonas en rojo; además, compuerta por relleno y celda en `npm test`. |
-| Páginas casi negras | El control marca las páginas con más del 25 % de tinta. |
-| Estilos repetidos | Secuencia sin vecinas repetidas; las figuras no se repiten hasta agotarlas. |
-| Astillas junto a cuerdas y contornos | Margen blanco fino (sin línea) junto a cuerdas, auras y marco: los trozos cortados del tangle se unen a él. |
-| Figuras que se parecen | Cada página de figura usa su propia paleta de 8 tangles (en 3 páginas salen los 15), y cuando una figura vuelve a salir va en espejo. |
-| Marcas registradas | Ficha y páginas con la marca solo como atribución. |
-| Libro irreproducible | Semillas deterministas + receta JSON. |
+| Rotulador que traspasa | Reverso en blanco, diseños en página derecha |
+| Margen insuficiente | Aviso según el nº de páginas |
+| Guías, textura o sombreado impresos | Se quitan del libro |
+| Zonas imposibles de colorear | Control por página, «Arreglar», visor con zonas en rojo, márgenes blancos junto a cuerdas y contornos |
+| Huecos vacíos | Solo quedan lisas secciones pequeñas; una prueba exige que el mayor hueco mida < 15 mm de radio |
+| Páginas casi negras | Se marcan las de más del 25 % de tinta |
+| Estilos o figuras repetidas | Sin vecinas repetidas; cada figura sale una vez por vuelta (la repetida va en espejo y con otra paleta de tangles) |
+| Marcas registradas | La ficha usa «Zentangle®» solo como atribución |
+| Libro irreproducible | Semillas fijas y receta |
 
----
+## Qué no cubre la app (hazlo fuera)
 
-## Huecos pendientes
-
-Ordenados por el daño que pueden causar en un libro publicado.
-
-| Prioridad | Hueco | Efecto | Qué hacer mientras tanto |
-|---|---|---|---|
-| Baja | 20 figuras y 22 iconos. Un libro «Más vendidos» de 50 diseños tiene unas 20 páginas de figura: puede repetir alguna al final (en espejo, con otra paleta y quizá en otro estilo: facetado o vitral). | Solo se nota en libros muy largos de una sola figura. | Para libros de más de 50 diseños, mezclar «Figura zentangle», «Figura facetada» y «Vitral». |
-| Baja | Las figuras dejan esquinas diminutas donde los cortes internos tocan el contorno (de 20 a 90 por página). | Se notan poco al colorear, pero son la causa de casi todas las páginas marcadas. | «🛠 Arreglar» y el visor. Corregirlo en origen exige recortar los cortes junto al contorno. |
-| Media | La receta se exporta pero no se puede cargar. | Rehacer un libro exige poner la semilla y los ajustes a mano y repetir los ↻. Repetirlo idéntico exige además el mismo commit de la app. | Guardar la receta y anotar el commit usado. |
-| Media | La app no genera portada ni página de créditos/copyright ni «Este libro pertenece a». | Hay que hacerlas fuera. | KDP Cover Creator y un editor de PDF. |
-| Media | jsPDF (y la librería del estilo orgánico) se cargan desde internet. | Sin conexión no se puede armar el PDF. | Trabajar con conexión. |
-| Baja | La dificultad progresiva, fuera de las figuras, solo abre o cierra el espaciado. | La progresión es suave en mandalas y mosaicos. | Usar «Figura zentangle» si la progresión es el argumento de venta. |
-| Baja | El tiempo por página es una estimación por nivel, no una medición. | — | No prometer tiempos en la ficha. |
-| Baja | El modo «Integrar una imagen» pone una foto gris de fondo y no entra en el libro. | — | Usarlo solo para pruebas o marketing. |
+| Prioridad | Qué | Cómo |
+|---|---|---|
+| Media | Portada, página de créditos/copyright y «Este libro pertenece a» | KDP Cover Creator y un editor de PDF |
+| Media | Cargar una receta para rehacer un libro | Hoy solo se guarda: anota la semilla, el estilo y el commit de la app |
+| Media | Subir el PDF a KDP | A mano; la ficha trae el texto y las medidas |
+| Baja | Palabras clave de la ficha | Son una propuesta; compruébalas en la búsqueda de Amazon |
+| Baja | PDF sin conexión | jsPDF se carga de internet |
+| Baja | Siluetas hechas a mano | Las figuras salen de código; con SVG de un ilustrador la calidad subiría (ver `MOTOR.md`) |

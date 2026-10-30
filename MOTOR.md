@@ -1,7 +1,7 @@
 # Cómo funciona el motor de figuras
 
 Mapa corto para revisar y decidir mejoras. El motor vive casi entero en
-`js/generators/figure.js` (~2300 líneas); el resto lo orquesta.
+`js/generators/figure.js` (~2500 líneas, 86 figuras); el resto lo orquesta.
 
 ## Recorrido de una página
 
@@ -13,7 +13,8 @@ app.js ──► zentangle.generator.js ──► figure.js (generateZenFigure) 
 ```
 
 1. **Elección** (`zentangle.generator.js`): el estilo trae un repertorio
-   (`figures`: adultas, dinos, biología, críptidos, infantil). En un libro,
+   (`figures`: adultas, dinos, biología, críptidos, infantil; `origamiMix` y
+   `origamiEvery` mezclan páginas origami: dinosaurios 1 de 2, críptidos 1 de 3). En un libro,
    `figureForPage` recorre todo el repertorio antes de repetir; la repetida
    va en espejo y con otra **paleta de 8 tangles** (`figurePalette`).
 2. **Encaje** (`generateZenFigure`): la silueta se escala al marco y se
@@ -82,3 +83,14 @@ girar, escalar), comandos `M/L/Q/C/Z`.
 6. **Grosor de línea variable**: contorno grueso, detalles finos (más
    «hecho a mano»).
 7. **Página de soluciones** para las figuritas escondidas.
+
+## Dos maneras de dibujar una figura
+
+- **Por puntos** (`smoothPoly`, `taper`, `ell`): la mayoría. Rápido, pero
+  una silueta de 20–30 puntos tiende a verse «de juguete».
+- **Por esqueleto** (`bone`, `unionOutline`): huesos con grosor cuyo contorno
+  exterior se calcula como unión (dinosaurios bípedos). Da patas y colas
+  creíbles, pero hoy esos dinosaurios solo salen en origami.
+- **Origami** (`figureAngular`, `angularize`): cualquier silueta se simplifica
+  a pocos vértices (Douglas-Peucker) y se divide en facetas rectas. Salvó a
+  los dinosaurios y críptidos que no se leían con contorno suave.

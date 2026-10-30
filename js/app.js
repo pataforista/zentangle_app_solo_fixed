@@ -640,17 +640,13 @@ function showBookReview() {
   const dl = document.createElement("button");
   dl.type = "button";
   dl.className = "btn btn-primary";
-  dl.textContent = "⬇ Descargar PDF";
-  dl.addEventListener("click", () => createBook());
-  const recipe = document.createElement("button");
-  recipe.type = "button";
-  recipe.className = "btn btn-secondary";
-  recipe.textContent = "🧾 Receta del libro";
-  recipe.title = "Guarda ajustes y semillas de cada página (con los ↻) para auditar o rehacer el libro";
-  recipe.addEventListener("click", downloadBookRecipe);
+  dl.id = "btnDownloadAll";
+  dl.textContent = "📦 Descargar todo";
+  dl.title = "PDF del interior + ficha de KDP + receta del libro (el navegador puede pedir permiso para varias descargas)";
+  dl.addEventListener("click", downloadAll);
   const actions = document.createElement("div");
   actions.className = "book-review-actions";
-  actions.append(fix, dl, recipe);
+  actions.append(fix, dl);
   head.append(titleBox, actions);
 
   const grid = document.createElement("div");
@@ -677,6 +673,17 @@ function showBookReview() {
   ui.previewInner.replaceChildren(wrap);
   updateQualitySummary();
   updateNextSteps();
+}
+
+// Todo en un clic: PDF del interior, ficha de KDP y receta.
+async function downloadAll() {
+  if (bookJob || !bookReview) return;
+  const review = bookReview;
+  await createBook();
+  if (bookReview !== review || !review.done.pdf) return; // cancelado o con error
+  downloadListing();
+  downloadBookRecipe();
+  ui.status.textContent = "✓ Listo: PDF, ficha de KDP y receta descargados. Sube el PDF como interior y pega la ficha en KDP.";
 }
 
 // Lo que falta para terminar el libro, en orden, con el siguiente paso en botón.

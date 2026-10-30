@@ -438,7 +438,7 @@
 
     /* ---------- Panel por pasos ---------- */
     .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    .steps { display: flex; gap: 6px; list-style: none; margin: 10px 0 0; padding: 0; counter-reset: st; }
+    .steps { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 10px 0 0; padding: 0; counter-reset: st; }
     .steps li { counter-increment: st; }
     .steps a { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); text-decoration: none; padding: 4px 10px 4px 4px; border-radius: 999px; background: #f1f5f9; }
     .steps a::before { content: counter(st); display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; }
@@ -499,6 +499,9 @@
     .book-tile .tile-redo { padding: 4px 8px; font-size: 12px; }
     .book-tile.busy img { opacity: .35; }
     /* Tipos de libro (atajo) */
+    .all-styles { margin: 8px 0 0; }
+    .all-styles > summary { cursor: pointer; font-size: 12px; color: var(--accent-hover); padding: 6px 2px; }
+    .all-styles[open] > summary { margin-bottom: 8px; }
     .recipes-box { margin: 0 0 12px; padding: 10px; border: 1px dashed #c7d2fe; border-radius: 10px; background: #fff; }
     .recipes-title { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
     .recipes { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -551,9 +554,10 @@
       <div class="panel-header">
         <h1>Zentangle Creator</h1>
         <ol class="steps" aria-label="Pasos">
-          <li><a href="#stepStyle">Estilo</a></li>
+          <li><a href="#stepStyle">Tipo de libro</a></li>
           <li><a href="#stepPage">Página</a></li>
-          <li><a href="#stepBook">Libro</a></li>
+          <li><a href="#stepBook">Opciones</a></li>
+          <li><a href="#preview">Revisar y descargar</a></li>
         </ol>
       </div>
 
@@ -562,11 +566,11 @@
         <!-- ① Estilo -->
         <section class="step" id="stepStyle" aria-labelledby="stepStyleTitle">
           <div class="step-head">
-            <h2 id="stepStyleTitle"><span class="step-num">1</span> Elige un estilo</h2>
+            <h2 id="stepStyleTitle"><span class="step-num">1</span> ¿Qué libro quieres hacer?</h2>
             <button id="btnResetPreset" type="button" class="link-btn" title="Descarta tus ajustes finos y vuelve a los valores del estilo">↺ Restablecer</button>
           </div>
           <div class="recipes-box">
-            <p class="recipes-title">⚡ Atajo: ¿qué libro quieres hacer?</p>
+            <p class="recipes-title">⚡ Elige un tipo de libro (lo más rápido)</p>
             <div id="bookRecipes" class="recipes" role="group" aria-label="Tipos de libro"></div>
             <p id="recipeHint" class="hint">Un clic elige el estilo y las opciones del libro. Luego pulsa «Preparar libro».</p>
           </div>
@@ -636,8 +640,11 @@
                   <option value="spiral_modern">Espiral (Template)</option>
                 </optgroup>
               </select>
-          <div id="stylePicker" class="style-picker"></div>
           <p id="styleCurrent" class="style-current" aria-live="polite"></p>
+          <details class="all-styles" id="allStyles">
+            <summary>🎨 Ver todos los estilos (para elegir uno a mano)</summary>
+            <div id="stylePicker" class="style-picker"></div>
+          </details>
           <p id="randomHint" class="hint" hidden></p>
 
           <div class="form-row sampler-opts" id="samplerLayoutRow" hidden>
