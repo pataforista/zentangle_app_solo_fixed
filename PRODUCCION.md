@@ -131,7 +131,7 @@ Ordenados por el daño que pueden causar en un libro publicado.
 
 | Prioridad | Hueco | Efecto | Qué hacer mientras tanto |
 |---|---|---|---|
-| Media | Solo hay 8 figuras y 14 iconos. En un libro de 50 diseños cada figura sale 2–3 veces (con otra paleta y en espejo), y los muestrarios de iconos repiten cactus, hongos o paraguas. | En libros largos se nota el repertorio. | Libros de 30–40 diseños, o «Figura zentangle» con menos páginas. Ampliar el repertorio requiere dibujar figuras e iconos nuevos. |
+| Baja | 20 figuras y 22 iconos. Un libro «Más vendidos» de 50 diseños tiene unas 20 páginas de figura: puede repetir alguna al final (en espejo, con otra paleta y quizá en otro estilo: facetado o vitral). | Solo se nota en libros muy largos de una sola figura. | Para libros de más de 50 diseños, mezclar «Figura zentangle», «Figura facetada» y «Vitral». |
 | Baja | Las figuras dejan esquinas diminutas donde los cortes internos tocan el contorno (de 20 a 90 por página). | Se notan poco al colorear, pero son la causa de casi todas las páginas marcadas. | «🛠 Arreglar» y el visor. Corregirlo en origen exige recortar los cortes junto al contorno. |
 | Media | La receta se exporta pero no se puede cargar. | Rehacer un libro exige poner la semilla y los ajustes a mano y repetir los ↻. Repetirlo idéntico exige además el mismo commit de la app. | Guardar la receta y anotar el commit usado. |
 | Media | La app no genera portada ni página de créditos/copyright ni «Este libro pertenece a». | Hay que hacerlas fuera. | KDP Cover Creator y un editor de PDF. |

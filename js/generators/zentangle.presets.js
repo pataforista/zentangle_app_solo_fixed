@@ -890,6 +890,31 @@ export const ZENTANGLE_PRESETS = {
     sketchy: 0.3,
     fillDeadSpace: false,
   },
+  // Figura facetada (cubista / origami): cortes rectos en piezas grandes; la
+  // mitad quedan lisas para colorear en bloque y el resto lleva un tangle.
+  zen_figure_facet: {
+    cellLayout: "zen_figure",
+    figureStyle: "facet",
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.36,
+    stringStrokeMm: 0.7,
+    minGapMm: 2.1,
+    sketchy: 0.2,
+    fillDeadSpace: false,
+  },
+  // Vitral: figura y fondo en piezas pequeñas y lisas con plomo grueso.
+  zen_figure_glass: {
+    cellLayout: "zen_figure",
+    figureStyle: "glass",
+    cellCount: 1,
+    cellBorderWidthMm: 1.3,
+    patternStrokeMm: 0.4,
+    stringStrokeMm: 0.65,
+    minGapMm: 2.2,
+    sketchy: 0,
+    fillDeadSpace: false,
+  },
   // Mandala de iconos: uno al centro y anillos de copias giradas hacia afuera.
   icon_mandala: {
     cellLayout: "icon_mandala",

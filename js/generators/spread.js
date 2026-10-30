@@ -9,7 +9,7 @@ import { ZENTANGLE_PRESETS } from "./zentangle.presets.js";
 import { createRNG, hash } from "../core/prng.js";
 
 // Figuras que se leen bien partidas por el lomo (anchas, sin cara en el centro).
-export const SPREAD_FIGURES = ["fish", "butterfly", "leaf", "heart"];
+export const SPREAD_FIGURES = ["fish", "butterfly", "leaf", "heart", "whale"];
 
 const fmt = (n) => (Math.round(Number(n) * 1000) / 1000).toString();
 

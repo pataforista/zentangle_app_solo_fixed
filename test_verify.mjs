@@ -907,6 +907,34 @@ async function runTests() {
       console.log(`✓ Calidad por página (zonas difíciles, tinta, límite por área) y figuras con paleta propia de ${FIGURE_PALETTE_SIZE} tangles, en espejo al repetirse.`);
     }
 
+    console.log("\nPrueba 20: Repertorio ampliado (figuras, iconos, facetado y vitral)...");
+    {
+      const { FIGURE_IDS } = await import("./js/generators/figure.js");
+      const { ICONS } = await import("./js/generators/patterns/icons.js");
+      assert.ok(FIGURE_IDS.length >= 20, `ERROR: el repertorio bajó a ${FIGURE_IDS.length} figuras.`);
+      assert.ok(ICONS.length >= 22, `ERROR: el repertorio bajó a ${ICONS.length} iconos.`);
+      const { Resvg } = await import("@resvg/resvg-js");
+      const { analyzeColorability } = await import("./js/core/pageQuality.js");
+      const page = { x: 12.7, y: 12.7, w: 190.5, h: 254 };
+      const bad = {};
+      for (const preset of ["zen_figure_facet", "zen_figure_glass"]) {
+        let tot = 0;
+        for (const fig of FIGURE_IDS) {
+          const run = async () => { const d = { body: [], defs: [] }; await generateZentangle(d, { seed: 21, presetName: preset, areaMm: page, overrides: { figureName: fig } }); return d; };
+          const d1 = await run(), d2 = await run(), html = d1.body.join("");
+          assert.strictEqual(html, d2.body.join(""), `ERROR: ${preset}/${fig} no es determinista.`);
+          assert.ok(html.includes(`data-figure="${fig}"`) && !/fill="#000"/.test(html), `ERROR: ${preset}/${fig} sin figura o con negros.`);
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d1.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${html}</svg>`;
+          const img = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 5 } }).render();
+          tot += analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5).bad;
+        }
+        bad[preset] = tot / FIGURE_IDS.length;
+      }
+      // Vitral y facetado tienen piezas grandes: menos zonas difíciles que la figura con strings (~50).
+      assert.ok(bad.zen_figure_glass < 25 && bad.zen_figure_facet < 45, `ERROR: zonas difíciles de media: facetado ${bad.zen_figure_facet.toFixed(1)}, vitral ${bad.zen_figure_glass.toFixed(1)}.`);
+      console.log(`✓ ${FIGURE_IDS.length} figuras y ${ICONS.length} iconos; facetado y vitral deterministas, sin negros (zonas difíciles: ${bad.zen_figure_facet.toFixed(0)} y ${bad.zen_figure_glass.toFixed(0)} de media).`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

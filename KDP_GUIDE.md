@@ -84,15 +84,21 @@
 
 ### 9. **Figura zentangle** ⭐⭐ (el formato de los libros líderes)
 - **Estilos:** `zen_figure` (fondo con tangles) y `zen_figure_light` (fondo ligero)
-- **Qué es:** una figura grande a página completa (búho, gato, pez, mariposa,
-  corazón, tortuga, flor u hoja). Strings curvos dividen su interior en
+- **Qué es:** una figura grande a página completa. 20 figuras: búho, gato,
+  pez, mariposa, corazón, tortuga, flor, hoja, elefante, caracol, pájaro,
+  ballena, libélula, hongo, árbol, luna, oso, conejo, pingüino y zorro. Strings curvos dividen su interior en
   secciones y cada una lleva un tangle clásico denso (Hollibaugh, Printemps,
   Purk, Bales, 'Nzeppel, Cubine, Paradox, Keeko, Cadent, Florz…). Auras de
   eco la rodean y el fondo lleva secciones con tangles más abiertos; algunas
   quedan lisas para colorear con calma.
 - **Sin negros:** todo es contorno, apto para marcadores y lápices.
-- **En un libro:** recorre las 8 figuras antes de repetir ninguna.
-- **Más vendidos** dedica 8 de cada 20 páginas a este estilo.
+- **En un libro:** recorre las 20 figuras antes de repetir ninguna; si vuelve
+  a salir una, va en espejo y con otra paleta de tangles.
+- **Variantes:** «Figura facetada» (cortes rectos, estilo cubista u origami,
+  con piezas lisas grandes) y «Vitral» (piezas pequeñas y lisas con plomo
+  grueso, la página más fácil de colorear: casi sin zonas difíciles).
+- **Más vendidos** dedica 8 de cada 20 páginas a figuras: 6 zentangle,
+  1 facetada y 1 vitral.
 
 ---
 
@@ -174,7 +180,7 @@ Elige el estilo en **Muestrarios** y usa **Celdas** para el número de unidades.
 
 | Preset | Para qué sirve |
 |---|---|
-| **Iconos para colorear** (`sampler_icons`) | El más memorable: siluetas con el interior lleno de tangles (búho, mariposa, peces, corazones, tulipanes, cactus, luna) y otros iconos (sol, gato, loto, paraguas, hongos, estrellas, pluma). Unidades grandes (12), sin rellenos negros. ~20 regiones no coloreables por página (media de 20 semillas; `kdp_balanced` ronda 62). Los tangles agregan detalle: puntas de pétalos, alrededor de los ojos. |
+| **Iconos para colorear** (`sampler_icons`) | El más memorable: siluetas con el interior lleno de tangles (búho, mariposa, peces, corazones, tulipanes, cactus, luna) y otros iconos (sol, gato, loto, paraguas, hongos, estrellas, pluma, taza, globo aerostático, pájaro, caracol, ballena, casa, árbol, arcoíris): 22 en total. Unidades grandes (12), sin rellenos negros. ~20 regiones no coloreables por página (media de 20 semillas; `kdp_balanced` ronda 62). Los tangles agregan detalle: puntas de pétalos, alrededor de los ojos. |
 | Iconos (tinta) (`sampler_icons_ink`) | Mismos iconos con detalles en negro (ojos, manchas, puntos). Los corazones nunca van rellenos: llevan tangles. |
 | Círculos (tinta) / cuadros (tinta) | Texturas y motivos variados con masas negras repartidas. ~34 y ~35 regiones no coloreables por página (media de 20 semillas). |
 | Círculos (para colorear) | Texturas sin rellenos negros. ~29 regiones no coloreables por página. |

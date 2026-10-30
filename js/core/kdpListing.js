@@ -36,7 +36,7 @@ export function kdpListing({ designs, pages, paperLabel = "8.5×11 in", flags = 
   const description = [
     content === "other"
       ? `${designs} ilustraciones originales para colorear, llenas de patrones de líneas, curvas y círculos.`
-      : `${designs} ilustraciones originales para colorear: figuras grandes (búho, gato, pez, mariposa, tortuga, flor, hoja, corazón) llenas de patrones de líneas, curvas y círculos${content === "mixed" ? ", más mandalas y composiciones geométricas" : ""}.`,
+      : `${designs} ilustraciones originales para colorear: figuras grandes (búho, gato, oso, conejo, zorro, pingüino, elefante, ballena, mariposa, flor y más) llenas de patrones de líneas, curvas y círculos${content === "mixed" ? ", más mandalas y composiciones geométricas" : ""}.`,
     "",
     blank
       ? "• Impreso por una sola cara: cada diseño lleva el reverso en blanco para que los rotuladores no traspasen."
