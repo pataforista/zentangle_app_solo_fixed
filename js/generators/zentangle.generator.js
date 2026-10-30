@@ -69,9 +69,11 @@ export async function generateZentangle(doc, {
   let mirror = false;
   if (finalOpts.cellLayout === "zen_figure" && !finalOpts.emptySections && Number.isInteger(pageIndex) && pageIndex >= 0) {
     const n = Number.isInteger(randomOverrides.figurePage) ? randomOverrides.figurePage : pageIndex;
-    if (!finalOpts.figureName) finalOpts.figureName = figureForPage(bookSeed ?? seed, n);
+    // El estilo decide el repertorio (adultas + abstractas, o infantiles).
+    const ids = Array.isArray(finalOpts.figures) && finalOpts.figures.length ? finalOpts.figures : FIGURE_IDS;
+    if (!finalOpts.figureName) finalOpts.figureName = figureForPage(bookSeed ?? seed, n, ids);
     if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(bookSeed ?? seed, n);
-    mirror = Math.floor(n / FIGURE_IDS.length) % 2 === 1;
+    mirror = Math.floor(n / ids.length) % 2 === 1;
   }
 
   const start = doc.body.length;

@@ -15,7 +15,7 @@ export const QUALITY_LIMITS = { badPerDm2: 13, inkPct: 25 };
 
 // rgba: { data, width, height } (como ImageData). pxPerMm: resolución.
 // Con mark = true devuelve además una máscara (1 = región problemática).
-export function analyzeColorability({ data, width: w, height: h }, pxPerMm, { mark = false } = {}) {
+export function analyzeColorability({ data, width: w, height: h }, pxPerMm, { mark = false, inner = null } = {}) {
   const N = w * h;
   const white = new Uint8Array(N);
   let ink = 0;
@@ -41,6 +41,12 @@ export function analyzeColorability({ data, width: w, height: h }, pxPerMm, { ma
   const members = mark ? new Int32Array(N) : null;
   const mask = mark ? new Uint8Array(N) : null;
   let bad = 0, micro = 0, regions = 0;
+  // Mayor hueco vacío: radio (mm) del mayor círculo blanco dentro de `inner`
+  // (caja del dibujo en px). Un hueco grande sin nada que colorear lo delata.
+  let blank = 0;
+  if (inner) for (let y = Math.max(0, inner.y0); y < Math.min(h, inner.y1); y++) for (let x = Math.max(0, inner.x0); x < Math.min(w, inner.x1); x++) {
+    const v = dist[y * w + x]; if (v > blank && v < 1e9) blank = v;
+  }
   for (let i = 0; i < N; i++) {
     if (!white[i] || seen[i]) continue;
     let sp = 0, a = 0, md = 0, mc = 0;
@@ -59,7 +65,7 @@ export function analyzeColorability({ data, width: w, height: h }, pxPerMm, { ma
     if (mm2 < 0.5) micro++;
     else if (mm2 < 3 || thick < 0.6) { bad++; if (mask) for (let q = 0; q < mc; q++) mask[members[q]] = 1; }
   }
-  return { ink: (100 * ink) / N, bad, micro, regions, ...(mask ? { mask } : {}) };
+  return { ink: (100 * ink) / N, bad, micro, regions, blankMm: blank / 3 / pxPerMm, ...(mask ? { mask } : {}) };
 }
 
 // Veredicto de una página. artAreaMm2: área del dibujo (sin márgenes).

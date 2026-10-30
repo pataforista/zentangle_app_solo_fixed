@@ -84,9 +84,16 @@
 
 ### 9. **Figura zentangle** ⭐⭐ (el formato de los libros líderes)
 - **Estilos:** `zen_figure` (fondo con tangles) y `zen_figure_light` (fondo ligero)
-- **Qué es:** una figura grande a página completa. 20 figuras: búho, gato,
-  pez, mariposa, corazón, tortuga, flor, hoja, elefante, caracol, pájaro,
-  ballena, libélula, hongo, árbol, luna, oso, conejo, pingüino y zorro. Strings curvos dividen su interior en
+- **Qué es:** una figura grande a página completa. Tres repertorios:
+  - **Adultas** («Figura zentangle», por defecto): koi, colibrí, pluma,
+    nautilus, polilla luna, mano hamsa, ánfora, loto, mariposa, libélula,
+    hoja, flor, luna y corazón.
+  - **Abstractas** (en el mismo estilo): cintas, gotas, orbes y cristales.
+  - **Animales tiernos** («Animales tiernos (infantil)»): búho, gato, pez,
+    tortuga, elefante, caracol, pájaro, ballena, hongo, árbol, oso, conejo,
+    pingüino y zorro.
+- **Sin huecos vacíos:** solo quedan lisas secciones pequeñas (≤ 2 % del
+  marco); la prueba exige que el mayor círculo vacío mida < 15 mm de radio. Strings curvos dividen su interior en
   secciones y cada una lleva un tangle clásico denso (Hollibaugh, Printemps,
   Purk, Bales, 'Nzeppel, Cubine, Paradox, Keeko, Cadent, Florz…). Auras de
   eco la rodean y el fondo lleva secciones con tangles más abiertos; algunas

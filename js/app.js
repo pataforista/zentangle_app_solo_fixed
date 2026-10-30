@@ -362,7 +362,7 @@ function kdpWarning(marginMm, bleedMm = 0) {
 const THUMB_SEED = 7;
 // Con la misma semilla, las tarjetas de figura mostraban la misma hoja: cada
 // una enseña una figura distinta y reconocible.
-const THUMB_OVERRIDES = { zen_figure: { figureName: "owl" }, zen_figure_light: { figureName: "cat" }, zen_figure_facet: { figureName: "fox" }, zen_figure_glass: { figureName: "bird" } };
+const THUMB_OVERRIDES = { zen_figure: { figureName: "nautilus" }, zen_figure_light: { figureName: "hummingbird" }, zen_figure_facet: { figureName: "hamsa" }, zen_figure_glass: { figureName: "lunamoth" }, zen_figure_kids: { figureName: "owl" } };
 async function renderThumb(key) {
   const p = PAPER_SIZES_MM.LETTER, m = 10;
   const doc = createSvgDoc({ wMm: p.w, hMm: p.h, meta: { seed: THUMB_SEED, generator: "patrones" } });
@@ -563,11 +563,13 @@ async function buildBookExtras(review) {
   }
   // «Tu turno» usa figuras que no salen en el libro (si quedan).
   const usedFigs = new Set(review.pages.map((p) => p.figure).filter(Boolean));
-  const freshFigs = FIGURE_IDS.filter((f) => !usedFigs.has(f));
+  // Del repertorio del estilo elegido (adultas o tiernas).
+  const turnSet = ZENTANGLE_PRESETS[g.zPresetKey]?.figures || ZENTANGLE_PRESETS.zen_figure.figures;
+  const freshFigs = turnSet.filter((f) => !usedFigs.has(f));
   for (let k = 0; k < turnPages; k++) {
     const seed = pageSeed(baseSeed, 1000 + k, 0);
     const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
-    await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: freshFigs.length ? freshFigs[k % freshFigs.length] : figureForPage(baseSeed ^ 0x7777, k) }, areaMm: g.inner });
+    await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: freshFigs.length ? freshFigs[k % freshFigs.length] : figureForPage(baseSeed ^ 0x7777, k, turnSet) }, areaMm: g.inner });
     const text = flags.guide ? "Tu turno: dibuja en cada sección un tangle de la guía" : "Tu turno: dibuja tus propios tangles en cada sección";
     out.turn.push(appendToSvg(renderSvgToString(d), footerSvg(geo, { text })));
   }

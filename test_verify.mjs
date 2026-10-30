@@ -874,7 +874,7 @@ async function runTests() {
       assert.ok(qualityVerdict({ bad: 70, ink: 12 }, letterArt * 2).ok, "ERROR: una doble página admite el doble de zonas.");
 
       // Variedad: paletas de 8 tangles por página de figura, que cubren todos en 3 páginas.
-      const { figurePalette, figureForPage, FIGURE_TANGLES, FIGURE_PALETTE_SIZE, FIGURE_IDS } = await import("./js/generators/figure.js");
+      const { figurePalette, figureForPage, FIGURE_TANGLES, FIGURE_PALETTE_SIZE, ADULT_FIGURES: FIGURE_IDS } = await import("./js/generators/figure.js");
       const all = new Set(FIGURE_TANGLES.map((t) => t.id));
       const p0 = figurePalette(42, 0), p1 = figurePalette(42, 1);
       assert.strictEqual(new Set(p0).size, FIGURE_PALETTE_SIZE);
@@ -893,14 +893,16 @@ async function runTests() {
         return renderSvgToString(d);
       };
       const L = FIGURE_IDS.length;
-      const repeatAt = L + [...Array(L).keys()].find((k) => figureForPage(42, L + k) === figureForPage(42, 0));
+      const repeatAt = L + [...Array(L).keys()].find((k) => figureForPage(42, L + k, FIGURE_IDS) === figureForPage(42, 0, FIGURE_IDS));
       const first = await fig(0), again = await fig(repeatAt);
       const pal = new Set(figurePalette(42, 0));
       const used = tanglesInSvgs([first]).filter((t) => all.has(t));
       // Fuera de la paleta solo el respaldo de un grupo con menos de 3 (fondo o detalle).
       assert.ok(used.length >= 4 && used.filter((t) => !pal.has(t)).length <= 2, `ERROR: la figura usa tangles fuera de su paleta (${used.join(", ")}).`);
-      assert.ok(!first.includes('scale(-1 1)">'), "ERROR: la primera aparición de la figura no debe ir en espejo.");
-      assert.ok(again.includes('scale(-1 1)">') && (again.match(/data-figure="([^"]+)"/) || [])[1] === (first.match(/data-figure="([^"]+)"/) || [])[1], "ERROR: la figura repetida no va en espejo.");
+      // El espejo de página es un elemento propio del cuerpo (va seguido de salto de línea).
+      const pageMirror = /scale\(-1 1\)">\n/;
+      assert.ok(!pageMirror.test(first), "ERROR: la primera aparición de la figura no debe ir en espejo.");
+      assert.ok(pageMirror.test(again) && (again.match(/data-figure="([^"]+)"/) || [])[1] === (first.match(/data-figure="([^"]+)"/) || [])[1], "ERROR: la figura repetida no va en espejo.");
       // La mezcla «Más vendidos» ya no usa el muestrario de iconos fractales.
       const { BESTSELLERS } = await import("./js/generators/randomStyle.js");
       assert.ok(!BESTSELLERS.some(([k]) => k === "sampler_icon_fractal") && BESTSELLERS.reduce((a, [, w]) => a + w, 0) === 20);
@@ -943,11 +945,26 @@ async function runTests() {
         if (html.includes(`data-hidden="${fig}"`)) nested++;
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${html}</svg>`;
         const img = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 5 } }).render();
-        tot += analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5).bad;
+        const qa = analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5, { inner: { x0: 74, y0: 74, x1: 1006, y1: 1323 } });
+        tot += qa.bad;
+        // Sin huecos vacíos grandes: el mayor círculo blanco del dibujo < 15 mm de radio.
+        assert.ok(qa.blankMm < 15, `ERROR: ${fig} deja un hueco vacío de ${qa.blankMm.toFixed(1)} mm de radio.`);
       }
       bad.zen_figure = tot / FIGURE_IDS.length;
       assert.ok(bad.zen_figure < 40, `ERROR: la figura zentangle sube a ${bad.zen_figure.toFixed(1)} zonas difíciles de media (techo 40).`);
       assert.ok(hidden >= FIGURE_IDS.length * 2 && nested >= FIGURE_IDS.length / 2, `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
+      // Repertorio por estilo: adulto (y abstracto) frente a infantil, en libro.
+      const { FIGURE_SETS } = await import("./js/generators/figure.js");
+      for (const [preset, allowed] of [["zen_figure", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_glass", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_kids", FIGURE_SETS.kids]]) {
+        const seen = new Set();
+        for (let i = 0; i < 24; i++) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 100 + i, presetName: preset, areaMm: page, pageIndex: i, bookSeed: 7, overrides: { richFill: false } });
+          seen.add((d.body.join("").match(/data-figure="([^"]+)"/) || [])[1]);
+        }
+        for (const f of seen) assert.ok(allowed.includes(f), `ERROR: ${preset} sacó la figura ${f}, que no es de su repertorio.`);
+        assert.ok(seen.size >= Math.min(14, allowed.length), `ERROR: ${preset} solo usó ${seen.size} figuras en 24 páginas.`);
+      }
       const turn = { body: [], defs: [] };
       await generateZentangle(turn, { seed: 4, presetName: "zen_figure", areaMm: page, overrides: { figureName: "cat", emptySections: true } });
       assert.ok(!turn.body.join("").includes("data-hidden"), "ERROR: «Tu turno» no debe llevar figuras escondidas.");

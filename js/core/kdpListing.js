@@ -36,7 +36,7 @@ export function kdpListing({ designs, pages, paperLabel = "8.5×11 in", flags = 
   const description = [
     content === "other"
       ? `${designs} ilustraciones originales para colorear, llenas de patrones de líneas, curvas y círculos.`
-      : `${designs} ilustraciones originales para colorear: figuras grandes (búho, gato, oso, conejo, zorro, pingüino, elefante, ballena, mariposa, flor y más) llenas de patrones de líneas, curvas y círculos${content === "mixed" ? ", más mandalas y composiciones geométricas" : ""}.`,
+      : `${designs} ilustraciones originales para colorear: figuras grandes (koi, colibrí, pluma, nautilus, polilla luna, mano hamsa, ánfora, loto) y composiciones abstractas, llenas de patrones de líneas, curvas y círculos${content === "mixed" ? ", más mandalas y composiciones geométricas" : ""}.`,
     "",
     ...(content === "other" ? [] : ["• Figuras escondidas: en cada ilustración de figura se esconden animalitos y objetos para buscar (el pie de página dice cuántos)."]),
     blank

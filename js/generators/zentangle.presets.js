@@ -1,5 +1,6 @@
 // zentangle.presets.js
 // Curated presets. You can start from one and override any field in buildZentangleOpts().
+import { ADULT_FIGURES, FIGURE_SETS } from "./figure.js";
 
 export const ZENTANGLE_PRESETS = {
   editorial_airy: {
@@ -870,6 +871,20 @@ export const ZENTANGLE_PRESETS = {
   // zentangle más vendidos.
   zen_figure: {
     cellLayout: "zen_figure",
+    // Figuras para adultos y composiciones abstractas (las tiernas van en zen_figure_kids).
+    figures: ADULT_FIGURES,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+  // Animales tiernos (búho, gato, oso, conejo…): para libros infantiles.
+  zen_figure_kids: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.kids,
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
@@ -883,6 +898,7 @@ export const ZENTANGLE_PRESETS = {
     cellLayout: "zen_figure",
     figureBackground: "airy",
     figureAuras: [2, 4], // fondo ligero: la figura destaca (más fácil)
+    figures: ADULT_FIGURES,
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.38,
@@ -896,6 +912,7 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_facet: {
     cellLayout: "zen_figure",
     figureStyle: "facet",
+    figures: ADULT_FIGURES,
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.36,
@@ -908,6 +925,7 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_glass: {
     cellLayout: "zen_figure",
     figureStyle: "glass",
+    figures: ADULT_FIGURES,
     cellCount: 1,
     cellBorderWidthMm: 1.3,
     patternStrokeMm: 0.4,

@@ -341,6 +341,95 @@ const FOX_BODY = [["M", -0.26, -0.08], ["C", -0.56, 0.2, -0.52, 0.74, -0.42, 0.9
 const FOX_TAIL = [["M", 0.36, 0.9], ["C", 0.9, 0.96, 1.06, 0.48, 0.9, 0.16], ["C", 0.8, -0.02, 0.62, 0.04, 0.68, 0.26], ["C", 0.78, 0.52, 0.62, 0.74, 0.4, 0.76], ["Z"]];
 const FOX_BIB = [["M", -0.22, 0.06], ["C", -0.1, 0.3, 0.1, 0.3, 0.22, 0.06], ["C", 0.12, 0.5, 0.08, 0.66, 0, 0.72], ["C", -0.08, 0.66, -0.12, 0.5, -0.22, 0.06], ["Z"]];
 
+/* ---- Figuras para adultos (sin caritas) y composiciones abstractas ---- */
+
+// Polígono suave a partir de puntos (comandos L; el muestreo es fino).
+const polyCmds = (pts) => [["M", ...pts[0]], ...pts.slice(1).map((p) => ["L", ...p]), ["Z"]];
+
+// Koi en S: cuerpo, cola en abanico y aletas largas.
+const KOI_RAW = [["M", 0.42, -0.92], ["C", 0.64, -0.88, 0.68, -0.6, 0.56, -0.34], ["C", 0.44, -0.06, 0.14, 0.12, 0.06, 0.36],
+  ["C", 0.03, 0.46, 0.0, 0.53, -0.02, 0.58], ["L", -0.15, 0.56], ["C", -0.2, 0.3, -0.12, 0.0, 0.08, -0.25], ["C", 0.2, -0.42, 0.22, -0.72, 0.42, -0.92], ["Z"]];
+// Cuerpo más lleno: ensanchado ×1.45 alrededor de su eje.
+const KOI_BODY = xform(xform(KOI_RAW, -0.25, 0, 0), 0.25, 0, 0, 1.45, 1);
+const KOI_TAIL = [["M", -0.02, 0.55], ["C", 0.26, 0.6, 0.48, 0.8, 0.44, 1.0], ["C", 0.26, 0.9, 0.1, 0.86, -0.08, 0.9], ["C", -0.26, 0.95, -0.44, 0.98, -0.58, 0.9],
+  ["C", -0.46, 0.74, -0.3, 0.6, -0.15, 0.54], ["Z"]];
+const KOI_FIN_R = [["M", 0.52, -0.38], ["C", 0.78, -0.34, 0.94, -0.12, 0.88, 0.04], ["C", 0.72, -0.08, 0.62, -0.18, 0.46, -0.24], ["Z"]];
+const KOI_FIN_L = [["M", 0.14, -0.32], ["C", -0.14, -0.34, -0.36, -0.16, -0.36, 0.02], ["C", -0.2, -0.05, -0.04, -0.12, 0.08, -0.16], ["Z"]];
+
+// Colibrí en vuelo (mira a la izquierda): ala alzada con plumas en V.
+const HUM_BODY = [["M", -0.56, -0.45], ["C", -0.56, -0.62, -0.3, -0.67, -0.22, -0.5], ["C", -0.12, -0.36, 0.1, -0.28, 0.26, -0.1],
+  ["C", 0.39, 0.05, 0.46, 0.22, 0.43, 0.38], ["L", 0.3, 0.42], ["C", 0.18, 0.25, 0, 0.12, -0.18, 0], ["C", -0.4, -0.12, -0.56, -0.28, -0.56, -0.45], ["Z"]];
+const HUM_WING = [["M", -0.12, -0.36], ["C", -0.02, -0.82, 0.4, -1.02, 0.88, -0.96], ["C", 0.72, -0.74, 0.46, -0.48, 0.16, -0.22], ["Z"]];
+const HUM_WING2 = [["M", 0.02, -0.28], ["C", 0.22, -0.6, 0.62, -0.72, 0.98, -0.56], ["C", 0.78, -0.4, 0.48, -0.24, 0.22, -0.13], ["Z"]];
+const HUM_TAIL = [["M", 0.32, 0.36], ["L", 0.52, 0.88], ["L", 0.47, 0.56], ["L", 0.76, 0.82], ["L", 0.46, 0.34], ["Z"]];
+const HUM_BEAK = [["M", -0.53, -0.48], ["L", -1.06, -0.62], ["L", -0.55, -0.4], ["Z"]];
+
+// Pluma grande: vano con barbas en V y un corte; cañón abajo.
+const FEATHER = [["M", 0, -1], ["C", 0.3, -0.8, 0.38, -0.2, 0.26, 0.4], ["C", 0.2, 0.62, 0.09, 0.75, 0.03, 0.8], ["L", -0.03, 0.8],
+  ["C", -0.14, 0.7, -0.27, 0.5, -0.31, 0.22], ["L", -0.2, 0.12], ["L", -0.34, 0.02], ["C", -0.38, -0.36, -0.26, -0.8, 0, -1], ["Z"]];
+const FEATHER_QUILL = [["M", -0.025, 0.78], ["L", 0.025, 0.78], ["L", 0.012, 1.08], ["L", -0.012, 1.08], ["Z"]];
+
+// Nautilus: espiral logarítmica (crece ×3 por vuelta) dividida en cámaras
+// con tabiques curvos. Vuelta exterior: 9 cámaras; interior: 7.
+const NAUT = (() => {
+  const b = Math.log(3) / (2 * Math.PI), r = (t) => Math.exp(b * t);
+  const P = (t, rad) => [Math.cos(t) * rad, Math.sin(t) * rad];
+  const sept = (t0, steps = 8) => Array.from({ length: steps + 1 }, (_, i) => { const f = i / steps, t = t0 + 0.3 * f; return P(t, r(t - 2 * Math.PI) + f * (r(t) - r(t - 2 * Math.PI))); });
+  const chamber = (ta, tb) => {
+    const outer = [], inner = [];
+    for (let i = 0; i <= 10; i++) { const t = ta + 0.3 + ((tb - ta) * i) / 10; outer.push(P(t, r(t))); }
+    for (let i = 0; i <= 10; i++) { const t = tb - ((tb - ta) * i) / 10; inner.push(P(t, r(t - 2 * Math.PI))); }
+    return polyCmds([...outer, ...sept(tb).reverse().slice(1), ...inner.slice(1), ...sept(ta).slice(1)]);
+  };
+  const cut = (t0, t1, n) => Array.from({ length: n }, (_, k) => chamber(t0 + ((t1 - t0) * k) / n, t0 + ((t1 - t0) * (k + 1)) / n));
+  const outerCh = cut(-2 * Math.PI - 0.3, -0.3, 9), innerCh = cut(-4 * Math.PI - 0.3, -2 * Math.PI - 0.3, 7);
+  const shell = [];
+  for (let i = 0; i <= 120; i++) { const t = -2 * Math.PI + (2 * Math.PI * i) / 120; shell.push(P(t, r(t))); }
+  return { outerCh, innerCh, shell: polyCmds(shell), core: ell(0, 0, r(-4 * Math.PI) * 1.1) };
+})();
+
+// Polilla luna (simétrica): alas falcadas y colas largas.
+const MOTH_UP = [["M", 0.05, -0.15], ["C", 0.3, -0.7, 0.86, -0.78, 0.92, -0.42], ["C", 0.94, -0.2, 0.6, -0.04, 0.05, 0.0], ["Z"]];
+const MOTH_LOW = [["M", 0.05, 0.05], ["C", 0.46, 0.0, 0.66, 0.2, 0.56, 0.46], ["C", 0.49, 0.62, 0.43, 0.8, 0.4, 1.0], ["C", 0.31, 0.85, 0.22, 0.65, 0.05, 0.36], ["Z"]];
+const MOTH_BODY = ell(0, 0.1, 0.07, 0.4);
+
+// Mano hamsa (simétrica; mitad derecha con medio dedo central).
+const HAMSA = [["M", 0, -0.96], ["C", 0.08, -0.98, 0.13, -0.93, 0.13, -0.8], ["L", 0.13, -0.3], ["L", 0.18, -0.3], ["L", 0.18, -0.74],
+  ["C", 0.18, -0.88, 0.37, -0.88, 0.37, -0.74], ["L", 0.37, -0.28], ["L", 0.41, -0.28], ["C", 0.48, -0.4, 0.55, -0.5, 0.62, -0.56],
+  ["C", 0.73, -0.62, 0.8, -0.5, 0.73, -0.4], ["C", 0.63, -0.25, 0.56, -0.05, 0.56, 0.15], ["C", 0.56, 0.55, 0.3, 0.86, 0, 0.9], ["Z"]];
+
+// Ánfora (simétrica) con asas.
+const VASE = [["M", 0, -0.95], ["L", 0.24, -0.95], ["C", 0.21, -0.86, 0.15, -0.8, 0.15, -0.68], ["C", 0.15, -0.5, 0.6, -0.4, 0.62, 0.05],
+  ["C", 0.64, 0.45, 0.36, 0.7, 0.2, 0.78], ["L", 0.25, 0.94], ["L", 0, 0.94], ["Z"]];
+const VASE_HANDLE = [["M", 0.15, -0.62], ["C", 0.46, -0.78, 0.66, -0.56, 0.52, -0.3], ["L", 0.43, -0.35], ["C", 0.53, -0.53, 0.42, -0.64, 0.17, -0.52], ["Z"]];
+
+// Cintas: tres bandas en S que se cruzan (abstracto).
+const RIBBONS = (() => {
+  const band = (p0, c1, c2, p1, w0, w1) => {
+    const B = (t) => { const m = 1 - t; return [m * m * m * p0[0] + 3 * m * m * t * c1[0] + 3 * m * t * t * c2[0] + t * t * t * p1[0], m * m * m * p0[1] + 3 * m * m * t * c1[1] + 3 * m * t * t * c2[1] + t * t * t * p1[1]]; };
+    const L = [], R = [];
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40, [x, y] = B(t), [x2, y2] = B(Math.min(1, t + 0.01)), [x1, y1] = B(Math.max(0, t - 0.01));
+      const dx = x2 - x1, dy = y2 - y1, d = Math.hypot(dx, dy) || 1, w = (w0 + (w1 - w0) * t) * Math.sin(Math.PI * Math.min(1, 0.12 + t * 0.88)) + 0.03;
+      L.push([x - (dy / d) * w, y + (dx / d) * w]); R.push([x + (dy / d) * w, y - (dx / d) * w]);
+    }
+    return polyCmds([...L, ...R.reverse()]);
+  };
+  return [band([-0.95, -0.7], [0.2, -1.1], [-0.4, 0.6], [0.9, 0.85], 0.2, 0.26),
+    band([-0.9, 0.75], [-0.2, 0.2], [0.5, -0.1], [0.75, -0.95], 0.24, 0.16),
+    band([-0.7, -0.05], [-0.2, -0.5], [0.4, 0.5], [0.95, 0.05], 0.15, 0.2)];
+})();
+
+// Gotas y orbes (abstracto, piezas que se solapan).
+const DROP = [["M", 0, -1], ["C", 0.15, -0.55, 0.78, -0.05, 0.78, 0.42], ["C", 0.78, 0.8, 0.42, 1, 0, 1], ["C", -0.42, 1, -0.78, 0.8, -0.78, 0.42], ["C", -0.78, -0.05, -0.15, -0.55, 0, -1], ["Z"]];
+const DROPS = [xform(DROP, -0.2, 0.15, -0.35, 0.62), xform(DROP, 0.5, -0.45, 0.5, 0.34), xform(DROP, 0.45, 0.62, 0.15, 0.26)];
+const ORBS = [ell(-0.3, -0.35, 0.55), ell(0.45, 0.15, 0.42), ell(-0.15, 0.55, 0.36), ell(0.52, -0.62, 0.22), ell(-0.72, 0.28, 0.18)];
+
+// Cristales: tres gemas alargadas de distinta altura.
+const GEM = [["M", 0, -1], ["L", 0.42, -0.6], ["L", 0.48, 0.45], ["L", 0, 1], ["L", -0.48, 0.45], ["L", -0.42, -0.6], ["Z"]];
+const GEM_TABLE = [["M", 0, -0.6], ["L", 0.2, -0.25], ["L", 0, 0.55], ["L", -0.2, -0.25], ["Z"]];
+const GEMS = [[0, 0, 0, 0.6], [-0.55, 0.3, -0.35, 0.42], [0.58, 0.35, 0.3, 0.38]];
+
 const FIGURES = {
   owl: {
     parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] } }],
@@ -539,7 +628,7 @@ const FIGURES = {
   penguin: {
     parts: [{ cmds: PENG_BODY, strings: { angle: 0.2, a: [2, 3], b: [2, 3] } }],
     back: PENG_WINGS.map((cmds) => ({ cmds, tangle: "detail" })),
-    front: [{ cmds: PENG_BELLY, tangle: null }, ...PENG_FEET.map((cmds) => ({ cmds, tangle: null }))],
+    front: [{ cmds: PENG_BELLY, tangle: "round" }, ...PENG_FEET.map((cmds) => ({ cmds, tangle: null }))],
     deco: () => [
       ...[1, -1].map((m) => ({ cmds: ell(0.13 * m, -0.68, 0.06, 0.07), fill: W })),
       { cmds: [["M", -0.1, -0.56], ["L", 0.1, -0.56], ["L", 0, -0.42], ["Z"]], fill: W },
@@ -549,7 +638,7 @@ const FIGURES = {
   fox: {
     parts: [{ cmds: FOX_BODY, strings: { angle: 0.5, a: [2, 3], b: [1, 2] } }, { cmds: FOX_HEAD, strings: { angle: Math.PI / 2, a: [1, 2], b: [1, 1], bShape: "chevron" } }],
     back: [{ cmds: FOX_TAIL, tangle: "detail" }],
-    front: [{ cmds: FOX_BIB, tangle: null }],
+    front: [{ cmds: FOX_BIB, tangle: "round" }],
     deco: () => [
       ...[1, -1].map((m) => ({ cmds: [["M", 0.12 * m, -0.3], ["Q", 0.2 * m, -0.38, 0.28 * m, -0.3], ["Q", 0.2 * m, -0.24, 0.12 * m, -0.3], ["Z"]], fill: W })),
       { cmds: ell(0, 0.02, 0.06, 0.045), fill: W },
@@ -557,22 +646,119 @@ const FIGURES = {
     ],
     silhouette: [FOX_BODY, FOX_HEAD, FOX_TAIL],
   },
+  koi: {
+    rot: 0.12,
+    parts: [{ cmds: KOI_BODY, strings: { angle: 0.6, a: [2, 3], b: [3, 4], bShape: "chevron" } }],
+    back: [{ cmds: KOI_TAIL, tangle: "detail" }, { cmds: KOI_FIN_R, tangle: "detail" }, { cmds: KOI_FIN_L, tangle: "detail" }],
+    deco: () => [{ cmds: ell(0.46, -0.74, 0.04), fill: W }, { cmds: [["M", 0.5, -0.9], ["Q", 0.62, -0.96, 0.7, -1.02], ["M", 0.36, -0.9], ["Q", 0.3, -0.98, 0.22, -1.02]], fill: "none" }],
+    silhouette: [KOI_BODY, KOI_TAIL, KOI_FIN_R, KOI_FIN_L],
+    adult: true, hide: true,
+  },
+  hummingbird: {
+    parts: [{ cmds: HUM_BODY, strings: { angle: 0.75, a: [1, 2], b: [2, 3] } }, { cmds: HUM_WING, strings: { angle: -0.6, a: [1, 1], b: [4, 5], bShape: "chevron", bSign: 1 } }],
+    back: [{ cmds: HUM_WING2, tangle: "detail" }, { cmds: HUM_TAIL, tangle: "detail" }, { cmds: HUM_BEAK, tangle: null }],
+    deco: () => [{ cmds: ell(-0.42, -0.5, 0.035), fill: W }],
+    silhouette: [HUM_BODY, HUM_WING, HUM_WING2, HUM_TAIL, HUM_BEAK],
+    adult: true, hide: true,
+  },
+  feather: {
+    rot: -0.42,
+    parts: [{ cmds: FEATHER, strings: { angle: Math.PI / 2, a: [1, 1], b: [5, 6], bShape: "chevron", bSign: -1, aAmp: 0.04 } }],
+    back: [{ cmds: FEATHER_QUILL, tangle: null }],
+    silhouette: [FEATHER, FEATHER_QUILL],
+    adult: true, hide: true,
+  },
+  nautilus: {
+    rot: 0.4,
+    parts: [...NAUT.outerCh, ...NAUT.innerCh].map((cmds, k) => ({ cmds, strings: { angle: k * 0.7, a: [1, 1], b: [0, 1] } })),
+    front: [{ cmds: NAUT.core, tangle: null }],
+    silhouette: [NAUT.shell],
+    adult: true,
+  },
+  lunamoth: {
+    mirror: true,
+    parts: [{ cmds: MOTH_UP, strings: { angle: -0.4, a: [2, 3], b: [1, 2] } }, { cmds: MOTH_LOW, strings: { angle: 1.1, a: [1, 2], b: [2, 3] } }],
+    deco: () => [...eyeDeco(0.56, -0.38, 0.1, 10), ...eyeDeco(0.38, 0.28, 0.08, 8)],
+    center: () => [
+      { cmds: MOTH_BODY, fill: W }, { cmds: ell(0, -0.32, 0.08), fill: W },
+      ...[-0.1, 0.06, 0.22, 0.38].map((v) => ({ cmds: [["M", -0.05, v], ["Q", 0, v + 0.04, 0.05, v]], fill: "none" })),
+      ...[1, -1].map((m) => ({ cmds: xform(ell(0, 0, 0.05, 0.2), 0.16 * m, -0.56, 0.5 * m), fill: W })),
+    ],
+    silhouette: [MOTH_UP, MOTH_LOW, xform(MOTH_UP, 0, 0, 0, -1, 1), xform(MOTH_LOW, 0, 0, 0, -1, 1), MOTH_BODY],
+    adult: true,
+  },
+  hamsa: {
+    mirror: true,
+    parts: [{ cmds: HAMSA, strings: { angle: 0.2, a: [3, 4], b: [1, 2] } }],
+    center: () => [...eyeDeco(0, 0.22, 0.2, 14)],
+    silhouette: [HAMSA, xform(HAMSA, 0, 0, 0, -1, 1)],
+    adult: true,
+  },
+  vase: {
+    mirror: true,
+    parts: [{ cmds: VASE, strings: { angle: 0, a: [4, 5], b: [0, 1] } }],
+    back: [{ cmds: VASE_HANDLE, mirror: false, tangle: null }],
+    silhouette: [VASE, xform(VASE, 0, 0, 0, -1, 1), VASE_HANDLE, xform(VASE_HANDLE, 0, 0, 0, -1, 1)],
+    branch: 0.94,
+    adult: true, hide: true,
+  },
+  lotus: {
+    build: () => {
+      const big = [-1.05, -0.52, 0, 0.52, 1.05].map((a) => ({ cmds: xform(PETAL, 0, 0.62, a, 0.78 - Math.abs(a) * 0.08, 1.42 - Math.abs(a) * 0.22), strings: { angle: a + Math.PI / 2, a: [1, 2], b: [1, 2], bShape: "chevron" } }));
+      const small = [-0.78, -0.26, 0.26, 0.78].map((a) => ({ cmds: xform(PETAL, 0, 0.62, a, 0.6, 1.12), tangle: "detail" }));
+      return { parts: [big[0], big[4], big[1], big[3], big[2]], back: small };
+    },
+    silhouetteFromParts: true,
+    adult: true,
+  },
+  ribbons: {
+    parts: RIBBONS.map((cmds, k) => ({ cmds, strings: { angle: [0.9, -0.9, 0.3][k], a: [1, 1], b: [5, 7] } })),
+    silhouette: RIBBONS,
+    abstract: true,
+  },
+  drops: {
+    parts: DROPS.map((cmds, k) => ({ cmds, strings: { angle: [0.3, 1.2, -0.4][k], a: [2, 3], b: [1, 2] } })),
+    front: [{ cmds: xform(DROP, -0.2, 0.32, -0.35, 0.22), tangle: "round" }],
+    silhouette: DROPS,
+    abstract: true, hide: true,
+  },
+  orbs: {
+    parts: ORBS.map((cmds, k) => ({ cmds, strings: { angle: k * 0.9, a: [1, 3], b: [1, 2] } })),
+    silhouette: ORBS,
+    abstract: true,
+  },
+  crystals: {
+    parts: GEMS.map(([u, v, r, k]) => ({ cmds: xform(GEM, u, v, r, k * 1.2, k * 1.55), strings: { angle: Math.PI / 2 + r, a: [1, 2], b: [2, 3], bShape: "chevron" } })),
+    front: GEMS.map(([u, v, r, k]) => ({ cmds: xform(GEM_TABLE, u, v, r, k * 1.2, k * 1.55), tangle: "any" })),
+    silhouette: GEMS.map(([u, v, r, k]) => xform(GEM, u, v, r, k * 1.2, k * 1.55)),
+    abstract: true, hide: true,
+  },
 };
 export const FIGURE_IDS = Object.keys(FIGURES);
+// Grupos: figuras para adultos (elegantes, sin caritas), composiciones
+// abstractas y animales tiernos (libro infantil).
+export const FIGURE_SETS = {
+  adult: ["koi", "hummingbird", "feather", "nautilus", "lunamoth", "hamsa", "vase", "lotus", "butterfly", "dragonfly", "leaf", "flower", "moon", "heart"],
+  abstract: ["ribbons", "drops", "orbs", "crystals"],
+  kids: ["owl", "cat", "fish", "turtle", "elephant", "snail", "bird", "whale", "mushroom", "tree", "bear", "rabbit", "penguin", "fox"],
+};
+export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
+// En los estilos para adultos, las figuritas escondidas también son adultas.
+const HIDEABLE_ADULT = ["koi", "hummingbird", "feather", "vase", "drops", "crystals", "leaf", "moon", "heart"];
 const HIDEABLE = ["cat", "fish", "heart", "bird", "whale", "rabbit", "bear", "penguin", "moon", "leaf", "turtle", "mushroom", "tree", "fox", "elephant"];
 
 // Figura de la n-ésima página de figura de un libro: recorre todas las
 // figuras (barajadas con la semilla del libro) antes de repetir ninguna, y
 // nunca repite la misma en dos páginas de figura seguidas.
-export function figureForPage(bookSeed, n) {
+export function figureForPage(bookSeed, n, ids = FIGURE_IDS) {
   const order = (cycle) => {
     const rng = createRNG(hash(bookSeed >>> 0, 0xf00 + cycle));
-    const a = [...FIGURE_IDS];
+    const a = [...ids];
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
     return a;
   };
-  const len = FIGURE_IDS.length, cycle = Math.floor(n / len), cur = order(cycle);
+  const len = ids.length, cycle = Math.floor(n / len), cur = order(cycle);
   if (cycle > 0 && cur[0] === order(cycle - 1)[len - 1]) [cur[0], cur[1]] = [cur[1], cur[0]];
   return cur[n % len];
 }
@@ -758,7 +944,7 @@ export async function generateZenFigure(doc, opts) {
   // rectos, cubista: facetas grandes, muchas lisas) o "glass" (vitral: piezas
   // pequeñas, todas lisas, con plomo grueso).
   const fStyle = ["facet", "glass"].includes(opts.figureStyle) ? opts.figureStyle : "strings";
-  const facetPlain = fStyle === "glass" ? 1 : 0.45;
+  const facetPlain = fStyle === "glass" ? 1 : 0.3;
   // Relleno rico (bandas de eco, orbes) y figuras escondidas; richFill: false los apaga.
   const rich = !empty && opts.richFill !== false;
   const stroke = clampN(opts.patternStrokeMm, 0.15, 1.5, 0.35);
@@ -873,7 +1059,8 @@ export async function generateZenFigure(doc, opts) {
       // Una de cada ~5 cuñas queda lisa (zonas amplias para colorear con
       // calma), salvo las enormes: más del 12 % del marco se lee como error.
       const wArea = Math.abs(wedge.reduce((acc, q, i) => { const r = wedge[(i + 1) % wedge.length]; return acc + q.x * r.y - r.x * q.y; }, 0)) / 2;
-      if (rng() < 0.2 && wArea < a.w * a.h * 0.12) continue;
+      // Pocas cuñas lisas (1 de cada 10) y solo pequeñas: el fondo no queda vacío.
+      if (rng() < 0.1 && wArea < a.w * a.h * 0.02) continue;
       const t = pickTangle(BG_POOL);
       // El patrón cubre solo la caja de su cuña: generarlo sobre toda la
       // página era lento y resvg descarta contenido mucho mayor que el lienzo.
@@ -890,7 +1077,7 @@ export async function generateZenFigure(doc, opts) {
       if (sct.area < 150) continue;
       // Una sección lisa es respiro; una lisa enorme (más del 12 % del marco)
       // se lee como un error. El sorteo se mantiene para no mover la semilla.
-      if (rng() < 0.2 && sct.area < a.w * a.h * 0.12) continue;
+      if (rng() < 0.1 && sct.area < a.w * a.h * 0.02) continue;
       const ca = clipOf(polyD(clipToRect(sec.stripA(sct.i), frame))), cb = clipOf(polyD(sec.stripB(sct.j)));
       bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${tangleIn(pickTangle(BG_POOL), sct, BG_GAP)}</g></g>`);
     }
@@ -903,7 +1090,7 @@ export async function generateZenFigure(doc, opts) {
     // Facetas rectas en todo el marco (la figura las tapa). Vitral: piezas
     // pequeñas y lisas; cubista: grandes, la mitad con un tangle amplio.
     // En vitral el fondo va en piezas más grandes que la figura: así destaca.
-    const target = fStyle === "glass" ? 900 : 1500;
+    const target = fStyle === "glass" ? 900 : 1100;
     const facets = facetSections(rng, frameRings, target);
     const lines = pb(sketchy * 0.4);
     for (const f of facets) {
@@ -912,13 +1099,16 @@ export async function generateZenFigure(doc, opts) {
       lines.moveTo(poly[0].x, poly[0].y);
       for (let i = 1; i < poly.length; i++) lines.lineTo(poly[i].x, poly[i].y);
       lines.close();
-      if (rng() < (fStyle === "glass" ? 1 : 0.5) || f.area < 200) continue;
+      // Cubista: lisas solo algunas piezas pequeñas (las grandes, vacías, se
+      // leían como huecos sin nada que colorear).
+      if (fStyle === "glass" || f.area < 200 || (rng() < 0.3 && f.area < a.w * a.h * 0.02)) continue;
       bg.push(`<g clip-path="url(#${clipOf(polyD(poly))})">${tangleIn(pickTangle(BG_POOL), f, BG_GAP)}</g>`);
     }
+    if (fStyle !== "glass") bg.push(`<path d="${lines.d}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.6)}"/>`);
     bgLines.push(el(lines.d, "none", fStyle === "glass" ? strStroke * 1.3 : strStroke));
   } else {
     // Aire: anillos sueltos grandes y pocos (respiro para colorear con calma).
-    bg.push(`<g clip-path="url(#${frameClip})">${tangleIn(byId.get("purk"), frame, 2.6)}</g>`);
+    bg.push(`<g clip-path="url(#${frameClip})">${tangleIn(byId.get("purk"), frame, 2.1)}</g>`);
   }
   // Sin un recorte de marco que envuelva a los demás: cada región ya viene
   // recortada al marco (resvg pierde contenido con recortes anidados grandes).
@@ -932,7 +1122,8 @@ export async function generateZenFigure(doc, opts) {
   const auraEls = [];
   // Halo blanco por fuera del aura exterior y margen junto al marco: los
   // tangles del fondo que cortan quedan unidos a ellos, no como astillas.
-  if (rich) auraEls.push(`<path d="${silD}" fill="none" stroke="#fff" stroke-width="${fmt(2 * aura * ringGap + stroke + gap * 3)}" stroke-linejoin="round"/>`,
+  // (Solo con strings: en facetado y vitral las líneas deben llegar al marco.)
+  if (rich && fStyle === "strings") auraEls.push(`<path d="${silD}" fill="none" stroke="#fff" stroke-width="${fmt(2 * aura * ringGap + stroke + gap * 3)}" stroke-linejoin="round"/>`,
     `<path d="${frameD}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 3)}"/>`);
   for (let k = aura; k >= 1; k--) {
     const wOut = 2 * k * ringGap;
@@ -953,7 +1144,8 @@ export async function generateZenFigure(doc, opts) {
     let band = null;
     if (def.branch) { const [, by] = tf(0, def.branch + 0.06), bh = Math.max(gap * 5, s * 0.1); band = [by - bh, by + bh]; }
     // Solo siluetas que se reconocen pequeñas y sin detalles interiores.
-    const pool = HIDEABLE.filter((f) => f !== figName && FIGURES[f]);
+    const adultMode = !FIGURE_SETS.kids.includes(figName);
+    const pool = (adultMode ? HIDEABLE_ADULT : HIDEABLE).filter((f) => f !== figName && FIGURES[f]);
     const placed = [], out = [];
     for (let n = 0; n < nHidden; n++) {
       const other = FIGURES[pool[Math.floor(rng() * pool.length)]];
@@ -1012,6 +1204,11 @@ export async function generateZenFigure(doc, opts) {
     const cmds = mirrorX ? xform(p.cmds, 0, 0, 0, -1, 1) : p.cmds;
     const d = shapeD(cmds), dc = shapeD(cmds, 0);
     const rings = flatten(cmds, tf), bb = bboxOf(rings);
+    // En facetado y vitral las piezas grandes (cola, aletas, alas) también se
+    // parten en facetas: antes quedaban como un bloque liso enorme.
+    if (fStyle !== "strings" && !empty && p.tangle !== null && (bb.x1 - bb.x0) * (bb.y1 - bb.y0) > gap * gap * 220) {
+      return facetPartSvg({ cmds }, rings, dc, clipOf(dc));
+    }
     let inner = "";
     if (p.tangle && !empty && fStyle !== "glass") {
       const pool = p.tangle === "detail" ? DETAIL_POOL : p.tangle === "round" ? ["printemps", "purk", "tipple"] : POOL.map((t) => t.id);
@@ -1060,7 +1257,7 @@ export async function generateZenFigure(doc, opts) {
   // (como el corazón dentro del corazón), con otro tangle. Solo donde cabe
   // entera, lejos del contorno y sin tapar la cara ni las piezas de delante.
   const nestedSvg = () => {
-    if (!rich || def.mirror || figName === "heart" || opts.nestedFigure === false) return "";
+    if (!rich || def.mirror || def.abstract || figName === "heart" || opts.nestedFigure === false) return "";
     // Contenedor: cualquiera de las partes (cabeza o cuerpo del oso, etc.).
     const partRings = parts.map((p) => flatten(p.cmds, tf));
     const inFig = (x, y) => partRings.some((r) => inside(r, x, y));
@@ -1155,9 +1352,11 @@ export async function generateZenFigure(doc, opts) {
       lines.moveTo(f.pts[0].x, f.pts[0].y);
       for (let i = 1; i < f.pts.length; i++) lines.lineTo(f.pts[i].x, f.pts[i].y);
       lines.close();
-      if (empty || rng() < facetPlain || f.area < gap * gap * 30) continue;
+      if (empty || f.area < gap * gap * 30 || (rng() < facetPlain && (fStyle === "glass" || f.area < a.w * a.h * 0.02))) continue;
       inner.push(`<g clip-path="url(#${clipOf(polyD(f.pts))})">${tangleIn(pickTangle(POOL), f, rFloat(rng, 1.1, 1.4))}</g>`);
     }
+    // Margen blanco junto a las aristas (y el contorno): sin astillas de tangle.
+    if (fStyle !== "glass") inner.push(`<path d="${lines.d} ${dc}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.5)}" stroke-linejoin="round"/>`);
     inner.push(el(lines.d, "none", fStyle === "glass" ? strStroke * 1.3 : strStroke));
     return `<path d="${dc}" fill="#fff" stroke="none"/><g clip-path="url(#${pc})">${inner.join("")}</g>${el(shapeD(p.cmds), "none", outStroke)}`;
   };
