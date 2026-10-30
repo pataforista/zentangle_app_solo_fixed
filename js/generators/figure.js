@@ -737,6 +737,114 @@ const SUN_RAYS = Array.from({ length: 12 }, (_, k) => {
   return xform([["M", -0.09, 0], ["C", -0.12, -0.3, 0.05, -0.5, 0, -1], ["C", 0.12, -0.5, 0.12, -0.3, 0.09, 0], ["Z"]], Math.cos(a - Math.PI / 2) * 0.48, Math.sin(a - Math.PI / 2) * 0.48, a, 1, L * 0.55);
 });
 
+/* ---- Críptidos del mundo (criaturas del folclore, dibujo original) ---- */
+
+// Pie Grande (Norteamérica): caminando de perfil hacia la izquierda, encorvado,
+// con zancada y brazos que se balancean; borde de pelo en dientes de sierra.
+const furPoly = (pts, amp = 0.025, every = 2) => {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % pts.length];
+    out.push([x0, y0]);
+    const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.floor(L / 0.07));
+    if (i % every === 0) for (let k = 1; k < n; k++) { const t = k / n, nx = (y1 - y0) / L, ny = -(x1 - x0) / L, o = k % 2 ? amp : -amp * 0.3; out.push([x0 + (x1 - x0) * t + nx * o, y0 + (y1 - y0) * t + ny * o]); }
+  }
+  return polyCmds(out);
+};
+// Contorno suave por puntos (Catmull-Rom → cúbicas).
+const smoothPoly = (pts) => {
+  const n = pts.length, P = (i) => pts[(i + n) % n], out = [["M", ...pts[0]]];
+  for (let i = 0; i < n; i++) {
+    const [x0, y0] = P(i - 1), [x1, y1] = P(i), [x2, y2] = P(i + 1), [x3, y3] = P(i + 2);
+    out.push(["C", x1 + (x2 - x0) / 6, y1 + (y2 - y0) / 6, x2 - (x3 - x1) / 6, y2 - (y3 - y1) / 6, x2, y2]);
+  }
+  return [...out, ["Z"]];
+};
+const BIGFOOT2 = smoothPoly([[-0.25, -0.98], [-0.04, -0.93], [0.16, -0.76], [0.3, -0.46], [0.33, -0.1], [0.3, 0.12], [0.42, 0.4], [0.52, 0.62], [0.6, 0.9],
+  [0.68, 0.98], [0.4, 0.98], [0.34, 0.66], [0.15, 0.3], [-0.03, 0.56], [-0.14, 0.9], [-0.46, 0.98], [-0.44, 0.9], [-0.27, 0.56], [-0.16, 0.2], [-0.22, -0.1],
+  [-0.3, -0.42], [-0.38, -0.58], [-0.5, -0.64], [-0.53, -0.76], [-0.45, -0.9]]);
+const BIGFOOT_FRONTARM = smoothPoly([[-0.12, -0.56], [-0.28, -0.3], [-0.44, -0.02], [-0.56, 0.16], [-0.6, 0.3], [-0.48, 0.32], [-0.4, 0.14], [-0.24, -0.08], [-0.06, -0.36]]);
+const BIGFOOT_BACKARM = smoothPoly([[0.12, -0.56], [0.3, -0.32], [0.46, -0.06], [0.58, 0.12], [0.62, 0.24], [0.5, 0.26], [0.4, 0.08], [0.24, -0.14], [0.06, -0.4]]);
+// Monstruo del lago Ness (Escocia): jorobas saliendo del agua.
+const NESSIE_NECK = [["M", -0.62, 0.3], ["C", -0.6, -0.1, -0.5, -0.5, -0.3, -0.72], ["C", -0.2, -0.84, -0.04, -0.86, 0.06, -0.78], ["L", 0.14, -0.74], ["L", 0.06, -0.68],
+  ["C", -0.04, -0.7, -0.14, -0.66, -0.2, -0.56], ["C", -0.32, -0.36, -0.36, -0.05, -0.34, 0.3], ["Z"]];
+const NESSIE_HUMPS = [[0.0, 0.3, 0.2], [0.42, 0.3, 0.17], [0.78, 0.3, 0.12]].map(([x, y, r]) => [["M", x - r, y], ["C", x - r, y - r * 1.3, x + r, y - r * 1.3, x + r, y], ["Z"]]);
+const NESSIE_WAVES_OLD = [["M", -1.0, 0.3], ["L", 1.0, 0.3], ["L", 1.0, 0.42], ["Q", 0.75, 0.34, 0.5, 0.42], ["Q", 0.25, 0.5, 0, 0.42], ["Q", -0.25, 0.34, -0.5, 0.42], ["Q", -0.75, 0.5, -1.0, 0.42], ["Z"]];
+
+const NESSIE_WAVES = [0.36, 0.5, 0.64].map((y, k) => taper(Array.from({ length: 30 }, (_, i) => [-0.95 + k * 0.1 + i * 0.06, y + 0.03 * Math.sin(i * 0.9 + k)]), 0.03, 0.03));
+// Mothman (West Virginia): alas de polilla con ocelos, cuerpo largo con
+// tangle, antenas plumosas y ojos grandes (simétrico; mitad derecha).
+const MOTH2_UP = [["M", 0.1, -0.42], ["C", 0.3, -0.8, 0.8, -0.95, 0.98, -0.72], ["C", 1.08, -0.5, 0.86, -0.18, 0.55, -0.1], ["C", 0.38, -0.06, 0.22, -0.08, 0.1, -0.12], ["Z"]];
+const MOTH2_LOW = [["M", 0.1, -0.06], ["C", 0.4, -0.04, 0.72, 0.08, 0.68, 0.38], ["C", 0.64, 0.6, 0.42, 0.72, 0.3, 0.92], ["C", 0.22, 0.7, 0.14, 0.5, 0.1, 0.3], ["Z"]];
+const MOTH2_BODY = [["M", 0, -0.62], ["C", 0.1, -0.62, 0.13, -0.5, 0.12, -0.38], ["C", 0.12, 0.0, 0.1, 0.4, 0.06, 0.62], ["L", 0.09, 0.95], ["L", 0.03, 0.95], ["L", 0, 0.66], ["Z"]];
+const MOTH2_ANT = (() => { const pts = qpts([0.03, -0.6], [0.1, -0.85], [0.3, -0.95], 8); return taper(pts, 0.02, 0.01); })();
+const MOTH2_FEATHERS = [0.3, 0.5, 0.7].map((t) => { const i = Math.round(t * 8); const [x, y] = qpts([0.03, -0.6], [0.1, -0.85], [0.3, -0.95], 8)[i]; return taper([[x, y], [x + 0.08, y + 0.05]], 0.012, 0.006); });
+// Chupacabras (México / Puerto Rico): espalda con púas, patas finas.
+const CHUPA = [["M", -0.8, 0.1], ["C", -0.55, -0.1, -0.3, -0.25, 0.0, -0.28], ["C", 0.3, -0.3, 0.5, -0.4, 0.62, -0.52], ["L", 0.6, -0.7], ["L", 0.72, -0.58], ["C", 0.85, -0.55, 0.95, -0.45, 0.98, -0.36],
+  ["L", 0.82, -0.32], ["C", 0.7, -0.3, 0.6, -0.2, 0.52, -0.08], ["L", 0.55, 0.3], ["L", 0.62, 0.62], ["L", 0.5, 0.62], ["L", 0.42, 0.32], ["L", 0.38, 0.05],
+  ["C", 0.1, 0.1, -0.15, 0.1, -0.35, 0.05], ["L", -0.4, 0.35], ["L", -0.3, 0.62], ["L", -0.42, 0.62], ["L", -0.55, 0.32], ["L", -0.6, 0.12], ["Z"]];
+const CHUPA_SPIKES = Array.from({ length: 7 }, (_, k) => { const x = -0.5 + k * 0.16, y = -0.2 - 0.12 * Math.sin((k / 6) * Math.PI); return [["M", x - 0.06, y + 0.06], ["L", x, y - 0.18], ["L", x + 0.06, y + 0.06], ["Z"]]; });
+
+// Kraken (Escandinavia): tentáculos que salen del mar y rodean un barco.
+// Cada tentáculo sube ondulando y termina en un rizo (espiral hacia dentro).
+const KRAKEN_ARMS = [[-0.78, 0.0, 1.25], [-0.36, 0.8, 1.45], [0.32, 1.6, 1.4], [0.78, 2.4, 1.2]].map(([x0, ph, len]) => {
+  const dir = x0 < 0 ? 1 : -1;
+  const pts = Array.from({ length: 26 }, (_, i) => { const t = i / 25; return [x0 + dir * 0.18 * Math.sin(t * 5 + ph), 0.62 - t * len]; });
+  const [tx, ty] = pts[pts.length - 1];
+  for (let i = 1; i <= 14; i++) { const a = Math.PI + dir * (i / 14) * Math.PI * 1.6, r = 0.16 * (1 - i / 18); pts.push([tx + dir * 0.16 + Math.cos(a) * r * dir, ty + Math.sin(a) * r]); }
+  return taper(pts, 0.085, 0.012);
+});
+// Ventosas a lo largo del lado interior de cada tentáculo.
+const KRAKEN_SUCKERS = [[-0.78, 0.0, 1.25], [-0.36, 0.8, 1.45], [0.32, 1.6, 1.4], [0.78, 2.4, 1.2]].flatMap(([x0, ph, len]) => {
+  const dir = x0 < 0 ? 1 : -1;
+  return [0.18, 0.34, 0.5, 0.66].map((t) => { const x = x0 + dir * 0.18 * Math.sin(t * 5 + ph), y = 0.62 - t * len; return ell(x + dir * 0.035, y, 0.028 * (1 - t * 0.5)); });
+});
+const KRAKEN_SEA = [["M", -1.0, 0.55], ["Q", -0.75, 0.45, -0.5, 0.55], ["Q", -0.25, 0.65, 0, 0.55], ["Q", 0.25, 0.45, 0.5, 0.55], ["Q", 0.75, 0.65, 1.0, 0.55], ["L", 1.0, 0.95], ["L", -1.0, 0.95], ["Z"]];
+const KRAKEN_SHIP = [["M", -0.28, 0.42], ["L", 0.28, 0.42], ["L", 0.2, 0.55], ["L", -0.2, 0.55], ["Z"]];
+const KRAKEN_SAIL = [["M", 0.0, 0.0], ["C", 0.16, 0.1, 0.18, 0.28, 0.0, 0.4], ["Z"]];
+
+// Yeti (Himalaya): de frente, hombros macizos, brazos largos hasta las rodillas.
+const YETI_PTS = [[0, -0.97], [0.16, -0.93], [0.24, -0.8], [0.3, -0.68], [0.52, -0.62], [0.68, -0.46], [0.78, -0.16], [0.84, 0.2], [0.84, 0.5], [0.76, 0.62],
+  [0.64, 0.56], [0.6, 0.3], [0.56, 0.38], [0.54, 0.86], [0.6, 0.97], [0.18, 0.97], [0.14, 0.62], [0.05, 0.5]];
+const YETI2 = smoothPoly([...YETI_PTS, ...YETI_PTS.slice(1).reverse().map(([x, y]) => [-x, y])]);
+const YETI2_FACE = [["M", 0, -0.86], ["C", 0.13, -0.86, 0.17, -0.76, 0.15, -0.66], ["C", 0.13, -0.56, 0.07, -0.52, 0, -0.52], ["C", -0.07, -0.52, -0.13, -0.56, -0.15, -0.66],
+  ["C", -0.17, -0.76, -0.13, -0.86, 0, -0.86], ["Z"]];
+const YETI2_CHEST = ell(0, -0.18, 0.3, 0.26);
+// Ovni: platillo con cúpula, luces y rayo de abducción.
+const UFO_DISC = [["M", -0.95, -0.12], ["C", -0.9, -0.3, -0.5, -0.38, 0, -0.38], ["C", 0.5, -0.38, 0.9, -0.3, 0.95, -0.12], ["C", 0.9, 0.05, 0.5, 0.12, 0, 0.12],
+  ["C", -0.5, 0.12, -0.9, 0.05, -0.95, -0.12], ["Z"]];
+const UFO_DOME = [["M", -0.42, -0.34], ["C", -0.42, -0.72, -0.2, -0.85, 0, -0.85], ["C", 0.2, -0.85, 0.42, -0.72, 0.42, -0.34], ["Z"]];
+const UFO_BEAM = [["M", -0.22, 0.1], ["L", 0.22, 0.1], ["L", 0.62, 0.95], ["L", -0.62, 0.95], ["Z"]];
+const UFO_LIGHTS = [-0.7, -0.42, -0.14, 0.14, 0.42, 0.7].map((x) => ell(x, -0.1 + Math.abs(x) * 0.04, 0.06, 0.045));
+// Yeti (Himalaya): figura maciza de frente, brazos largos (simétrico).
+// Diablo de Jersey: cuerpo de caballo alado, cola en punta.
+const JDEVIL = [["M", -0.5, 0.1], ["C", -0.3, -0.05, 0.1, -0.08, 0.35, -0.1], ["C", 0.45, -0.35, 0.55, -0.55, 0.68, -0.62], ["L", 0.62, -0.82], ["L", 0.76, -0.66],
+  ["C", 0.9, -0.62, 0.98, -0.5, 0.96, -0.4], ["L", 0.78, -0.38], ["C", 0.68, -0.3, 0.6, -0.15, 0.55, 0.05], ["L", 0.55, 0.62], ["L", 0.44, 0.62], ["L", 0.38, 0.22],
+  ["C", 0.1, 0.25, -0.15, 0.25, -0.3, 0.22], ["L", -0.35, 0.62], ["L", -0.46, 0.62], ["L", -0.48, 0.25], ["Z"]];
+const JDEVIL_WING = [["M", -0.05, -0.08], ["C", -0.2, -0.6, 0.2, -0.95, 0.55, -0.98], ["C", 0.45, -0.8, 0.42, -0.65, 0.48, -0.5], ["C", 0.32, -0.55, 0.22, -0.48, 0.2, -0.3],
+  ["C", 0.1, -0.35, 0.02, -0.25, 0.05, -0.08], ["Z"]];
+const JDEVIL_TAIL = [["M", -0.48, 0.08], ["C", -0.75, 0.0, -0.85, 0.3, -0.92, 0.5], ["L", -1.0, 0.48], ["L", -0.94, 0.62], ["L", -0.82, 0.55], ["L", -0.88, 0.5],
+  ["C", -0.82, 0.32, -0.72, 0.12, -0.48, 0.18], ["Z"]];
+
+// Thunderbird (pueblos originarios de Norteamérica): ave de alas abiertas, geométrica (simétrica).
+const TBIRD_WING = [["M", 0.12, -0.3], ["L", 0.5, -0.55], ["L", 1.0, -0.5], ["L", 0.88, -0.32], ["L", 0.95, -0.2], ["L", 0.78, -0.08], ["L", 0.82, 0.05], ["L", 0.55, 0.0], ["L", 0.12, 0.08], ["Z"]];
+const TBIRD_BODY = [["M", 0, -0.75], ["L", 0.14, -0.6], ["L", 0.18, -0.25], ["L", 0.14, 0.35], ["L", 0.32, 0.7], ["L", 0, 0.58], ["L", -0.32, 0.7], ["L", -0.14, 0.35],
+  ["L", -0.18, -0.25], ["L", -0.14, -0.6], ["Z"]];
+const TBIRD_BEAK = [["M", -0.05, -0.68], ["L", 0, -0.92], ["L", 0.05, -0.68], ["Z"]];
+
+// Jackalope (Wyoming): liebre sentada de perfil con astas de ciervo ramificadas.
+const JACK2 = [["M", -0.78, 0.6], ["C", -0.85, 0.3, -0.72, 0.0, -0.45, -0.15], ["C", -0.2, -0.28, 0.05, -0.3, 0.2, -0.32], ["C", 0.28, -0.46, 0.42, -0.52, 0.56, -0.5],
+  ["C", 0.68, -0.48, 0.78, -0.4, 0.82, -0.3], ["C", 0.78, -0.24, 0.7, -0.2, 0.6, -0.2], ["C", 0.48, -0.18, 0.4, -0.1, 0.38, 0.05], ["C", 0.36, 0.3, 0.42, 0.6, 0.44, 0.86],
+  ["L", 0.6, 0.95], ["L", 0.28, 0.95], ["C", 0.2, 0.8, 0.12, 0.7, 0.05, 0.66], ["C", -0.05, 0.85, -0.2, 0.95, -0.35, 0.95], ["L", -0.66, 0.95], ["C", -0.72, 0.85, -0.78, 0.72, -0.78, 0.6], ["Z"]];
+const JACK2_HAUNCH = ell(-0.42, 0.42, 0.32, 0.4);
+const JACK2_EAR = [["M", 0.32, -0.42], ["C", 0.14, -0.62, 0.0, -0.82, -0.04, -0.92], ["C", 0.08, -0.9, 0.3, -0.72, 0.44, -0.48], ["Z"]];
+const JACK2_ANTLERS = [
+  taper([[0.48, -0.5], [0.5, -0.68], [0.44, -0.84], [0.36, -0.98]], 0.026, 0.012),
+  taper([[0.49, -0.66], [0.6, -0.78], [0.62, -0.94]], 0.02, 0.01),
+  taper([[0.45, -0.8], [0.3, -0.86], [0.24, -0.96]], 0.018, 0.01),
+  taper([[0.56, -0.48], [0.68, -0.62], [0.78, -0.72], [0.9, -0.86]], 0.024, 0.012),
+  taper([[0.72, -0.66], [0.84, -0.64], [0.96, -0.7]], 0.018, 0.01),
+];
 const FIGURES = {
   owl: {
     parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] } }],
@@ -1316,6 +1424,85 @@ const FIGURES = {
     silhouette: [ell(0, 0, 0.5), ...SUN_RAYS],
     adult: true,
   },
+  bigfoot: {
+    parts: [{ cmds: BIGFOOT2, strings: { angle: 1.25, a: [3, 4], b: [2, 3] } }],
+    back: [{ cmds: BIGFOOT_BACKARM, tangle: "detail" }],
+    front: [{ cmds: BIGFOOT_FRONTARM, tangle: "detail" }],
+    deco: () => [{ cmds: ell(-0.4, -0.76, 0.025), fill: W }, { cmds: [["M", -0.47, -0.82], ["L", -0.34, -0.83]], fill: "none" }],
+    silhouette: [BIGFOOT2, BIGFOOT_FRONTARM, BIGFOOT_BACKARM], branch: 0.98,
+    cryptid: true, hide: true,
+  },
+  nessie: {
+    parts: [{ cmds: NESSIE_NECK, strings: { angle: 0.4, a: [1, 1], b: [5, 6], bShape: "chevron" } }, ...NESSIE_HUMPS.map((cmds) => ({ cmds, strings: { angle: 0, a: [1, 1], b: [2, 3] } }))],
+    front: NESSIE_WAVES.map((cmds) => ({ cmds, tangle: null })),
+    deco: () => [{ cmds: ell(-0.04, -0.76, 0.02), fill: W }],
+    silhouette: [NESSIE_NECK, ...NESSIE_HUMPS, ...NESSIE_WAVES],
+    cryptid: true, hide: true,
+  },
+  mothman: {
+    mirror: true,
+    parts: [{ cmds: MOTH2_UP, strings: { angle: -0.5, a: [2, 3], b: [2, 3] } }, { cmds: MOTH2_LOW, strings: { angle: 0.9, a: [1, 2], b: [2, 3] } },
+      { cmds: MOTH2_BODY, strings: { angle: Math.PI / 2, a: [1, 1], b: [5, 6] } }],
+    back: [{ cmds: MOTH2_ANT, tangle: null }, ...MOTH2_FEATHERS.map((cmds) => ({ cmds, tangle: null }))],
+    front: [{ cmds: ell(0.62, -0.5, 0.13), tangle: "round" }, { cmds: ell(0.42, 0.28, 0.09), tangle: null }],
+    center: () => [...[1, -1].map((m) => ({ cmds: ell(0.055 * m, -0.5, 0.045, 0.035), fill: W }))],
+    silhouette: [MOTH2_UP, MOTH2_LOW, MOTH2_BODY, MOTH2_ANT, xform(MOTH2_UP, 0, 0, 0, -1, 1), xform(MOTH2_LOW, 0, 0, 0, -1, 1), xform(MOTH2_BODY, 0, 0, 0, -1, 1), xform(MOTH2_ANT, 0, 0, 0, -1, 1)],
+    cryptid: true,
+  },
+  chupacabra: {
+    parts: [{ cmds: CHUPA, strings: { angle: 0.3, a: [2, 3], b: [3, 4] } }],
+    back: CHUPA_SPIKES.map((cmds) => ({ cmds, tangle: null })),
+    deco: () => [{ cmds: ell(0.8, -0.48, 0.035, 0.025), fill: W }],
+    silhouette: [CHUPA, ...CHUPA_SPIKES], branch: 0.58,
+    cryptid: true, hide: true,
+  },
+  kraken: {
+    parts: KRAKEN_ARMS.map((cmds, k) => ({ cmds, strings: { angle: Math.PI / 2, a: [1, 1], b: [5, 7] } })),
+    front: [...KRAKEN_SUCKERS.map((cmds) => ({ cmds, tangle: null })), { cmds: KRAKEN_SEA, tangle: "detail" }, { cmds: KRAKEN_SHIP, tangle: null }, { cmds: KRAKEN_SAIL, tangle: null }],
+    deco: () => [{ cmds: [["M", 0, 0.0], ["L", 0, 0.42]], fill: "none" }],
+    silhouette: [...KRAKEN_ARMS, KRAKEN_SEA],
+    cryptid: true,
+  },
+  yeti: {
+    parts: [{ cmds: YETI2, strings: { angle: 1.2, a: [3, 4], b: [3, 4] } }],
+    front: [{ cmds: YETI2_FACE, tangle: null }, { cmds: YETI2_CHEST, tangle: "any" }],
+    deco: () => [{ cmds: [["M", -0.12, -0.74], ["L", -0.03, -0.71], ["M", 0.12, -0.74], ["L", 0.03, -0.71], ["M", -0.06, -0.6], ["L", 0.06, -0.6]], fill: "none" },
+      { cmds: ell(-0.065, -0.68, 0.02), fill: W }, { cmds: ell(0.065, -0.68, 0.02), fill: W }],
+    silhouette: [YETI2], branch: 0.98,
+    cryptid: true, hide: true,
+  },
+  ufo: {
+    parts: [{ cmds: UFO_DISC, strings: { angle: 0, a: [1, 2], b: [4, 6] } }, { cmds: UFO_BEAM, strings: { angle: Math.PI / 2, a: [1, 1], b: [3, 4] } }],
+    back: [{ cmds: UFO_DOME, tangle: "round" }],
+    front: UFO_LIGHTS.map((cmds) => ({ cmds, tangle: null })),
+    silhouette: [UFO_DISC, UFO_DOME, UFO_BEAM],
+    cryptid: true, hide: true,
+  },
+  jerseydevil: {
+    parts: [{ cmds: JDEVIL, strings: { angle: 0.3, a: [2, 3], b: [3, 4] } }],
+    back: [{ cmds: JDEVIL_TAIL, tangle: null }],
+    front: [{ cmds: JDEVIL_WING, tangle: "detail" }],
+    deco: () => [{ cmds: ell(0.84, -0.52, 0.025), fill: W }],
+    silhouette: [JDEVIL, JDEVIL_WING, JDEVIL_TAIL], branch: 0.62,
+    cryptid: true,
+  },
+  thunderbird: {
+    mirror: true,
+    // El cuerpo va en dos mitades con tangle (antes quedaba un hueco liso).
+    parts: [{ cmds: TBIRD_WING, strings: { angle: Math.PI / 2, a: [1, 2], b: [4, 5], bShape: "chevron" } },
+      { cmds: polyCmds([[0, -0.75], [0.14, -0.6], [0.18, -0.25], [0.14, 0.35], [0.32, 0.7], [0, 0.58]]), strings: { angle: 0, a: [1, 1], b: [4, 5], bShape: "chevron" } }],
+    center: () => [{ cmds: TBIRD_BEAK, fill: W }, ...[1, -1].map((m) => ({ cmds: ell(0.06 * m, -0.58, 0.025), fill: W }))],
+    silhouette: [TBIRD_WING, xform(TBIRD_WING, 0, 0, 0, -1, 1), TBIRD_BODY, TBIRD_BEAK],
+    cryptid: true, hide: true,
+  },
+  jackalope: {
+    parts: [{ cmds: JACK2, strings: { angle: 0.6, a: [2, 3], b: [2, 3] } }],
+    back: [{ cmds: JACK2_EAR, tangle: "detail" }, ...JACK2_ANTLERS.map((cmds) => ({ cmds, tangle: null }))],
+    front: [{ cmds: JACK2_HAUNCH, tangle: "any" }],
+    deco: () => [{ cmds: ell(0.62, -0.36, 0.03), fill: W }],
+    silhouette: [JACK2, JACK2_EAR, ...JACK2_ANTLERS], branch: 0.96,
+    cryptid: true, hide: true,
+  },
 };
 export const FIGURE_IDS = Object.keys(FIGURES);
 // Grupos: figuras para adultos (elegantes, sin caritas), composiciones
@@ -1329,6 +1516,7 @@ export const FIGURE_SETS = {
 // Temas de ciencia: se leen de la etiqueta `science` de cada figura.
 FIGURE_SETS.dino = FIGURE_IDS.filter((f) => FIGURES[f].science === "dino");
 FIGURE_SETS.bio = FIGURE_IDS.filter((f) => FIGURES[f].science === "bio");
+FIGURE_SETS.cryptids = FIGURE_IDS.filter((f) => FIGURES[f].cryptid);
 export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
 // En los estilos para adultos, las figuritas escondidas también son adultas.
@@ -1749,7 +1937,8 @@ export async function generateZenFigure(doc, opts) {
     if (def.branch) { const [, by] = tf(0, def.branch + 0.06), bh = Math.max(gap * 5, s * 0.1); band = [by - bh, by + bh]; }
     // Solo siluetas que se reconocen pequeñas y sin detalles interiores.
     // Figuritas del mismo tema (ciencia), o adultas, o tiernas.
-    const theme = def.science ? FIGURE_IDS.filter((f) => FIGURES[f].science === def.science && FIGURES[f].hide) : null;
+    const theme = def.science ? FIGURE_IDS.filter((f) => FIGURES[f].science === def.science && FIGURES[f].hide)
+      : def.cryptid ? FIGURE_IDS.filter((f) => FIGURES[f].cryptid && FIGURES[f].hide) : null;
     const adultMode = !FIGURE_SETS.kids.includes(figName);
     const pool = (theme && theme.length > 1 ? theme : adultMode ? HIDEABLE_ADULT : HIDEABLE).filter((f) => f !== figName && FIGURES[f]);
     const placed = [], out = [];

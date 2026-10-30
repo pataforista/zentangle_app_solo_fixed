@@ -92,6 +92,14 @@
   - **Animales tiernos** («Animales tiernos (infantil)»): búho, gato, pez,
     tortuga, elefante, caracol, pájaro, ballena, hongo, árbol, oso, conejo,
     pingüino y zorro.
+  - **Temas** (un libro por tema): «Dinosaurios y prehistoria» (17),
+    «Biología» (13: neurona, ADN, células, virus…) y «Críptidos del mundo»
+    (Pie Grande, Nessie, Mothman, chupacabras, kraken, yeti, ovni, Diablo de
+    Jersey, Thunderbird, jackalope). Las figuritas escondidas son del mismo tema.
+  - Para adultos también: rosa, suculenta, caballito de mar, pulpo, lobo,
+    caballo, pavo real, gato sentado, tetera y sol.
+- **Encuadre variable:** la figura sale centrada, más pequeña en un lado o en
+  primer plano recortada por el marco.
 - **Sin huecos vacíos:** solo quedan lisas secciones pequeñas (≤ 2 % del
   marco); la prueba exige que el mayor círculo vacío mida < 15 mm de radio. Strings curvos dividen su interior en
   secciones y cada una lleva un tangle clásico denso (Hollibaugh, Printemps,

@@ -123,6 +123,9 @@
   "zen_figure_bio@7": "ffdac99f9f6faf79",
   "zen_figure_bio@99": "98255def7cb45879",
   "zen_figure_bio@1147527462": "c11888ff872b7caf",
+  "zen_figure_cryptids@7": "4372d3488d1e9dba",
+  "zen_figure_cryptids@99": "13191fd8fc6fb60d",
+  "zen_figure_cryptids@1147527462": "de80934711bd6634",
   "zen_figure_light@7": "e2c5ee4e5a350d29",
   "zen_figure_light@99": "e21b489630937f86",
   "zen_figure_light@1147527462": "4773e871f35e345d",
@@ -266,6 +269,9 @@
   "zen_figure_bio@7": "ffdac99f9f6faf79",
   "zen_figure_bio@99": "98255def7cb45879",
   "zen_figure_bio@1147527462": "c11888ff872b7caf",
+  "zen_figure_cryptids@7": "4372d3488d1e9dba",
+  "zen_figure_cryptids@99": "13191fd8fc6fb60d",
+  "zen_figure_cryptids@1147527462": "de80934711bd6634",
   "zen_figure_light@7": "e2c5ee4e5a350d29",
   "zen_figure_light@99": "e21b489630937f86",
   "zen_figure_light@1147527462": "4773e871f35e345d",
@@ -295,9 +301,9 @@
  "books": {
   "best_sellers@123456789": "baa3bb9622eb837f",
   "best_sellers@1147527462": "58c7a6d7f6f35e34",
-  "random_all@123456789": "098924ef3c8ff354",
-  "random_all@1147527462": "5d5ce314742ae5e1",
-  "random_color@123456789": "08f8c802fba68fff",
-  "random_color@1147527462": "da404efc21be5a6c"
+  "random_all@123456789": "9129144f3f8ccab2",
+  "random_all@1147527462": "10f6c6fd6c7905f7",
+  "random_color@123456789": "47be6f8f9ac56d04",
+  "random_color@1147527462": "0db27cd257fe6e80"
  }
 }

@@ -913,6 +913,17 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 1.9,
     sketchy: 0.3,
     fillDeadSpace: false,
+  },  // Críptidos del mundo (Pie Grande, Nessie, Mothman, chupacabras, kraken…).
+  zen_figure_cryptids: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.cryptids,
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
   },
   // La misma figura con fondo ligero (anillos sueltos): más rápida de colorear.
   zen_figure_light: {
