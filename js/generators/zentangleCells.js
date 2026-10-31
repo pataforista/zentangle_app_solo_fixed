@@ -61,16 +61,7 @@ export async function generateZentangleCells(doc, opts) {
   const seed = opts.seed;
   const areaMm = opts.areaMm;
 
-  // Dynamic load d3-delaunay if missing and voronoi is requested
-  if (opts.cellLayout === "voronoi" && (typeof d3 === "undefined" || !d3.Delaunay)) {
-    try {
-      const module = await import("https://cdn.skypack.dev/d3-delaunay@6");
-      globalThis.d3 = globalThis.d3 || {};
-      globalThis.d3.Delaunay = module.Delaunay;
-    } catch (e) {
-      console.warn("Could not load d3-delaunay dynamically", e);
-    }
-  }
+  // d3-delaunay is loaded globally from js/vendor/d3-delaunay.min.js
 
   // Layout params with safeClamp
   const cellLayout = opts.cellLayout || "rect_bsp";

@@ -32,7 +32,7 @@ En 4 pasos (el detalle y la lista de control están en
    KDP (título, descripción, palabras clave, medidas de portada) y la receta
    (semillas de cada página).
 
-El PDF se genera en el navegador (jsPDF desde CDN: hace falta conexión).
+El PDF se genera en el navegador (jsPDF cargado desde `js/vendor/`, sin necesidad de conexión).
 
 ## Desarrollo
 

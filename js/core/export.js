@@ -62,7 +62,7 @@ export async function downloadPng(filename, svgString, widthMm, heightMm) {
  */
 export async function downloadPdf(filename, svgString, widthMm, heightMm) {
   if (typeof window === "undefined" || !window.jspdf || !window.jspdf.jsPDF) {
-    throw new Error("La librería jsPDF no está cargada. Por favor, verifica tu conexión a internet.");
+    throw new Error("La librería jsPDF no está cargada. Verifica que js/vendor/jspdf.umd.min.js existe.");
   }
   const { jsPDF } = window.jspdf;
   const orientation = widthMm > heightMm ? "l" : "p";
@@ -87,7 +87,7 @@ export async function downloadPdf(filename, svgString, widthMm, heightMm) {
 // blanco; si no, getEntrySvg(entrada) da su SVG. Sin ella, el modo clásico.
 export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = true, title = "Libro para colorear", getSvg, onProgress, isCancelled, sequence = null, getEntrySvg = null }) {
   if (typeof window === "undefined" || !window.jspdf || !window.jspdf.jsPDF) {
-    throw new Error("La librería jsPDF no está cargada. Verifica tu conexión a internet y recarga.");
+    throw new Error("La librería jsPDF no está cargada. Verifica que js/vendor/jspdf.umd.min.js existe y recarga.");
   }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF(widthMm > heightMm ? "l" : "p", "mm", [widthMm, heightMm]);
