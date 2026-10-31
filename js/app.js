@@ -943,6 +943,174 @@ function downloadBookRecipe() {
   ui.status.textContent = "✓ Receta descargada: guárdala junto al PDF";
 }
 
+// ---------- Cargar receta: restaurar un libro desde su JSON ----------
+
+// Restaura las opciones de estilo (opts) de la receta en los controles de la UI.
+// Es la inversa de buildOptsFromUI(): cada slider/select recibe su valor.
+function restoreOptsToUI(opts) {
+  if (!opts) return;
+  const set = (el, v) => { if (el && v !== undefined && v !== null) el.value = String(v); };
+  const setBool = (el, v) => { if (el && v !== undefined) el.value = v ? "1" : "0"; };
+  set(ui.cellCount, opts.cellCount);
+  set(ui.minCellSizeMm, opts.minCellSizeMm);
+  set(ui.cellBorderWidthMm, opts.cellBorderWidthMm);
+  set(ui.patternStrokeMm, opts.patternStrokeMm);
+  set(ui.minGapMm, opts.minGapMm);
+  set(ui.whiteSpaceMm, opts.whiteSpaceMm);
+  set(ui.sketchy, opts.sketchy);
+  set(ui.maxPatternPassesPerCell, opts.maxPatternPassesPerCell);
+  set(ui.patternSkipProb, opts.patternSkipProb);
+  setBool(ui.rotatePatterns, opts.rotatePatterns);
+  set(ui.rotationSet, opts.rotationSet);
+  setBool(ui.innerOrganicBorderEnabled, opts.innerOrganicBorderEnabled);
+  set(ui.innerOrganicBorderInsetMm, opts.innerOrganicBorderInsetMm);
+  set(ui.innerOrganicJitterMm, opts.innerOrganicJitterMm);
+  set(ui.innerOrganicRoundMm, opts.innerOrganicRoundMm);
+  set(ui.patternFamily, opts.patternFamily || "");
+  set(ui.focalStrength, opts.focalStrength);
+  set(ui.rotationJitterDeg, opts.rotationJitterDeg);
+  set(ui.kdpBleedMm, opts.kdpBleedMm);
+  if (ui.showSafeZone && opts.showSafeZone !== undefined) ui.showSafeZone.checked = !!opts.showSafeZone;
+  setBool(ui.paperTextureEnabled, opts.paperTextureEnabled);
+  setBool(ui.cellShadowEnabled, opts.cellShadowEnabled);
+  if (ui.fillDeadSpace && opts.fillDeadSpace !== undefined) ui.fillDeadSpace.checked = !!opts.fillDeadSpace;
+  if (ui.samplerLayout) set(ui.samplerLayout, opts.samplerLayout);
+  if (ui.samplerEdge) set(ui.samplerEdge, opts.samplerEdge);
+  if (ui.samplerIconMode) set(ui.samplerIconMode, opts.samplerIconMode);
+}
+
+// Abre el selector de archivos para elegir una receta JSON.
+function loadBookRecipe() {
+  const input = $("inputRecipe");
+  if (!input) return;
+  input.value = ""; // permite re-seleccionar el mismo archivo
+  input.click();
+}
+
+// Lee y valida el JSON de la receta, luego restaura el libro completo.
+async function handleRecipeFile(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const recipe = JSON.parse(text);
+    if (recipe.app !== "generador-libros-colorear") {
+      ui.status.textContent = "✗ El archivo no es una receta de este generador";
+      return;
+    }
+    if (!recipe.pages || !Array.isArray(recipe.pages) || !recipe.pages.length) {
+      ui.status.textContent = "✗ Receta inválida: faltan las páginas";
+      return;
+    }
+    if (!recipe.paper || !recipe.style || recipe.baseSeed === undefined) {
+      ui.status.textContent = "✗ Receta incompleta: faltan datos esenciales (papel, estilo o semilla)";
+      return;
+    }
+    await restoreBookFromRecipe(recipe);
+  } catch (err) {
+    ui.status.textContent = `✗ No se pudo cargar la receta: ${err.message}`;
+    console.error("Error al cargar receta:", err);
+  }
+}
+
+// Restaura los controles de la UI y regenera el libro con las mismas semillas
+// y tries que la receta original, para obtener un PDF idéntico.
+async function restoreBookFromRecipe(recipe) {
+  // 1. Restaurar controles básicos de la UI
+  if (recipe.paper.key && PAPER_SIZES_MM[recipe.paper.key]) {
+    ui.paper.value = recipe.paper.key;
+  }
+  ui.marginMm.value = String(recipe.marginMm ?? 12.7);
+  // Estilo: si el <select> no tiene esta opción, no se puede restaurar.
+  if (ui.zPreset.querySelector(`option[value="${recipe.style}"]`) || isRandomKey(recipe.style)) {
+    ui.zPreset.value = recipe.style;
+  } else {
+    ui.status.textContent = `✗ El estilo «${recipe.style}» ya no está disponible en esta versión`;
+    return;
+  }
+  ui.bookPages.value = String(recipe.designs);
+  ui.bookBlank.value = recipe.blankBacks ? "1" : "0";
+  if (ui.bookProgressive) ui.bookProgressive.checked = !!recipe.flags?.progressive;
+  if (ui.bookGuide) ui.bookGuide.checked = !!recipe.flags?.guide;
+  if (ui.bookSpreads) ui.bookSpreads.checked = !!recipe.flags?.spreads;
+  if (ui.bookTurn) ui.bookTurn.checked = !!recipe.flags?.turn;
+  ui.seed.value = String(recipe.baseSeed);
+
+  // 2. Restaurar opciones de estilo finas (sliders, etc.)
+  // Primero aplicar el preset base (fuerza los valores del preset), luego
+  // sobrescribir con los opts de la receta (que pueden tener ajustes manuales).
+  applyPresetToUI(recipe.style, { force: true });
+  restoreOptsToUI(recipe.opts);
+  // Marcar todos los controles de estilo como "tocados" para que no se
+  // sobrescriban al cambiar de preset en el futuro.
+  const styleIds = ["cellCount", "minCellSizeMm", "cellBorderWidthMm", "patternStrokeMm",
+    "minGapMm", "whiteSpaceMm", "sketchy", "maxPatternPassesPerCell", "patternSkipProb",
+    "rotatePatterns", "rotationSet", "innerOrganicBorderEnabled", "innerOrganicBorderInsetMm",
+    "innerOrganicJitterMm", "innerOrganicRoundMm", "patternFamily", "focalStrength",
+    "rotationJitterDeg"];
+  styleIds.forEach((id) => touched.add(id));
+
+  // 3. Sincronizar picker, resumen y ajustes
+  picker?.sync();
+  showCurrentStyle();
+  updateBookSummary();
+  saveSettings();
+
+  // 4. Regenerar el libro con las semillas y tries exactos de la receta
+  const plan = bookPlan();
+  const g = pageGeometry();
+  const baseSeed = recipe.baseSeed >>> 0;
+
+  freeBookReview();
+  const job = (bookJob = { cancelled: false });
+  const review = {
+    key: bookKey(g, plan), g, n: recipe.designs, blank: recipe.blankBacks,
+    flags: { ...recipe.flags }, units: plan.units, turnPages: plan.turnPages,
+    baseSeed, pages: [],
+    extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0, done: {},
+  };
+
+  ui.btnBook.textContent = "✖ Cancelar";
+  ui.bookBar.hidden = false;
+  ui.bookBar.value = 0;
+
+  try {
+    for (let i = 0; i < recipe.pages.length; i++) {
+      if (job.cancelled) {
+        review.pages.forEach((p) => URL.revokeObjectURL(p.url));
+        ui.status.textContent = "Carga de receta cancelada";
+        return;
+      }
+      const rp = recipe.pages[i];
+      // Usar la semilla exacta de la receta (que ya incluye los tries).
+      const page = await makeBookPage(g, rp.seed, i, baseSeed, review);
+      page.tries = rp.tries || 0;
+      keepOrDropSvg(review, page);
+      review.pages.push(page);
+      ui.bookBar.value = (i + 1) / recipe.pages.length;
+      ui.btnBook.textContent = `✖ Cancelar (${i + 1}/${recipe.pages.length})`;
+      ui.status.textContent = `Cargando receta… diseño ${i + 1} de ${recipe.pages.length}`;
+      await new Promise((r) => setTimeout(r, 0)); // deja respirar a la UI
+    }
+    // Extras (guía, pasaporte, «Tu turno»): se regeneran con los tangles finales.
+    review.extras = await buildBookExtras(review);
+    review.extraUrls = extrasList(review.extras).map((x) => URL.createObjectURL(new Blob([x.svg], { type: "image/svg+xml" })));
+    review.total = bookSequence(review, review.extras).length;
+    bookReview = review;
+    showBookReview();
+    const nFlag = flaggedPages(review).length;
+    ui.status.textContent = `✓ Receta cargada: ${review.n} diseños (${review.total} páginas) restaurados` + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad` : "") + " · puedes descargar el PDF directamente";
+  } catch (err) {
+    review.pages.forEach((p) => URL.revokeObjectURL(p.url));
+    ui.status.textContent = `✗ Error al restaurar la receta: ${err.message}`;
+    console.error("Error al restaurar receta:", err);
+  } finally {
+    bookJob = null;
+    ui.bookBar.hidden = true;
+    updateBookButton();
+    updateQualitySummary();
+  }
+}
+
 function bookTile(i) {
   const page = bookReview.pages[i];
   const tile = document.createElement("figure");
@@ -1584,6 +1752,12 @@ function bind() {
   ui.btnBook.addEventListener("click", onBookButton);
   $("btnBookReview")?.addEventListener("click", showBookReview);
   $("btnKdpListing")?.addEventListener("click", downloadListing);
+  // Cargar receta: restaura un libro completo desde su JSON.
+  $("btnLoadRecipe")?.addEventListener("click", loadBookRecipe);
+  $("inputRecipe")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (file) handleRecipeFile(file);
+  });
   // Tipos de libro de un clic.
   const recipeBox = $("bookRecipes");
   const markRecipe = () => recipeBox?.querySelectorAll(".recipe").forEach((b) => {
