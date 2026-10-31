@@ -43,6 +43,8 @@ npm run e2e          # libro completo en Chromium: revisión, receta, PDF y fich
                      # (PW_EXEC=/ruta/a/chromium para usar un Chromium ya instalado)
 npm run colorability # regiones no coloreables por estilo
 npm run golden       # huellas de salida por (estilo, semilla); -- --update tras un cambio intencionado
+npm run audit:books  # libros completos de cada tipo: calidad y variedad (≈ 7 min)
+npm run sheet -- dino 24   # hoja de contactos de un libro (_samples/book_dino.png)
 ```
 
 `npm test` ejecuta las pruebas (incluida la compuerta de colorabilidad por relleno) y las

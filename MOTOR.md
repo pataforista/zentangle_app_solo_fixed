@@ -1,7 +1,7 @@
 # Cómo funciona el motor de figuras
 
 Mapa corto para revisar y decidir mejoras. El motor vive casi entero en
-`js/generators/figure.js` (~2500 líneas, 86 figuras); el resto lo orquesta.
+`js/generators/figure.js` (~2600 líneas, 95 figuras); el resto lo orquesta.
 
 ## Recorrido de una página
 
@@ -14,9 +14,13 @@ app.js ──► zentangle.generator.js ──► figure.js (generateZenFigure) 
 
 1. **Elección** (`zentangle.generator.js`): el estilo trae un repertorio
    (`figures`: adultas, dinos, biología, críptidos, infantil; `origamiMix` y
-   `origamiEvery` mezclan páginas origami: dinosaurios 1 de 2, críptidos 1 de 3). En un libro,
+   `origamiEvery` mezclan páginas origami: dinosaurios 1 de 2, críptidos 1 de 5). En un libro,
    `figureForPage` recorre todo el repertorio antes de repetir; la repetida
-   va en espejo y con otra **paleta de 8 tangles** (`figurePalette`).
+   va en espejo, con otra **paleta de 8 tangles** (`figurePalette`, rebarajada
+   cada 3 páginas), **otro encuadre y otro fondo** (`figureCycle`). Entre
+   vueltas, una figura espera al menos media vuelta antes de volver. El orden
+   lleva la sal del tipo de libro: con la misma semilla, «Adultos» y «Mezcla»
+   no repiten figuras en el mismo orden.
 2. **Encaje** (`generateZenFigure`): la silueta se escala al marco y se
    coloca según el **encuadre** sorteado: centrada (40 %), más pequeña en un
    lado (35 %) o en primer plano recortada (25 %).
@@ -60,7 +64,8 @@ girar, escalar), comandos `M/L/Q/C/Z`.
 | Cuántos cortes por parte | `strings.a` / `strings.b` de cada figura | 1–5 |
 | Tamaño mínimo de sección con tangle | `partSvg`: `gap * gap * 14` | ~50 mm² |
 | Secciones lisas | `partSvg`: 1 por parte, < 12 % | 25 % de prob. |
-| Encuadres | `layouts` en `generateZenFigure` | 40/35/25 % |
+| Encuadres | `layouts` en `generateZenFigure` | 40/35/25 %; en un libro, cada aparición de la figura usa otro |
+| Figura delgada | `SMALL_FIGURE_COVER`: en «offset» se encoge al 86–94 % y no al 66–80 % | silueta < 15 % del marco |
 | Auras | `figureAuras` del estilo | 1–2 |
 | Figuritas escondidas | `nHidden` | 2–3 |
 | Márgenes antiastillas | `gap * 1.5` en cuerdas, aristas, marco, piezas con tangle y orbes | — |
@@ -94,3 +99,12 @@ girar, escalar), comandos `M/L/Q/C/Z`.
 - **Origami** (`figureAngular`, `angularize`): cualquier silueta se simplifica
   a pocos vértices (Douglas-Peucker) y se divide en facetas rectas. Salvó a
   los dinosaurios y críptidos que no se leían con contorno suave.
+
+## Auditoría de libros
+
+`npm run audit:books [-- adult,dino]` genera cada tipo de libro como la app
+(semillas, dificultad, dobles páginas, arreglo automático) y mide calidad
+(páginas marcadas, zonas difíciles, tinta, hueco vacío) y variedad (figuras
+distintas, repeticiones, encuadres, fondos, paletas y parecido visual entre
+páginas). `npm run sheet -- kids 28` dibuja una hoja de contactos del libro
+en `_samples/book_kids.png` para revisarlo de un vistazo.

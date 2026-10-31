@@ -951,8 +951,10 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_cryptids: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.cryptids,
-    origamiMix: FIGURE_SETS.cryptidsOrigami, // 1 de cada 3 páginas en origami
-    origamiEvery: 3,
+    // 1 de cada 5 páginas en origami: con 3 figuras origami y 13 normales, cada
+    // una sale ~1,7 veces en un libro de 28 (con 1 de cada 3, las origami salían 3).
+    origamiMix: FIGURE_SETS.cryptidsOrigami,
+    origamiEvery: 5,
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,

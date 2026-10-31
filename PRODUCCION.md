@@ -16,8 +16,8 @@ estilo, el nº de diseños y las opciones que mejor le van:
 | 🪟 Vitral relajante | Piezas grandes y lisas: el más fácil y rápido de colorear | 30 |
 | 🦖 Dinosaurios | Mitad origami (T. rex, raptor, triceratops…) y mitad con patrones (braquiosaurio, pterosaurio, plesiosaurio…), de fácil a difícil | 34 |
 | 🦕 Solo origami | Todos los dinosaurios como papel doblado | 34 |
-| 🧬 Biología | Neurona, ADN, células, virus, corazón… | 26 |
-| 👣 Críptidos | Pie Grande, Nessie, Mothman, kraken, yeti, ovni; 1 de cada 3 páginas en origami | 28 |
+| 🧬 Biología | Neurona, ADN, células, ameba, tardígrado, escarabajo, matraz, brote… | 26 |
+| 👣 Críptidos | Pie Grande, Nessie, Mothman, kraken, yeti, ovni, hombre rana, gusano de la muerte, duende de Hopkinsville, hombre búho; 1 de cada 5 páginas en origami | 28 |
 | 🧸 Infantil | Animales tiernos con huecos amplios, de fácil a difícil | 28 |
 
 ¿Quieres otro estilo? **🎨 Ver todos los estilos** los muestra con miniatura.

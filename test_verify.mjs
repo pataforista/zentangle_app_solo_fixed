@@ -530,6 +530,17 @@ async function runTests() {
         assert.strictEqual(new Set(seq.slice(0, FIGURE_IDS.length)).size, FIGURE_IDS.length, "ERROR: las primeras figuras del libro se repiten.");
         for (let i = 1; i < seq.length; i++) assert.notStrictEqual(seq[i], seq[i - 1], `ERROR: figura ${seq[i]} repetida en páginas de figura seguidas (libro ${bs}).`);
       }
+      // Entre vueltas, una figura espera al menos media vuelta antes de volver
+      // (repertorios cortos: infantil 14, biología 13, críptidos 3).
+      for (const ids of [FIGURE_IDS.slice(0, 14), FIGURE_IDS.slice(0, 13), FIGURE_IDS.slice(0, 3), FIGURE_IDS.slice(0, 2)]) for (const bs of [1, 42, 7777]) {
+        const seq = Array.from({ length: ids.length * 4 }, (_, i) => figureForPage(bs, i, ids));
+        for (let c = 0; c < 4; c++) assert.strictEqual(new Set(seq.slice(c * ids.length, (c + 1) * ids.length)).size, ids.length, "ERROR: una vuelta del repertorio repite figura.");
+        const last = new Map();
+        seq.forEach((f, i) => {
+          if (last.has(f)) assert.ok(i - last.get(f) >= ids.length - Math.floor(ids.length / 2), `ERROR: ${f} vuelve tras solo ${i - last.get(f)} páginas de figura (repertorio de ${ids.length}).`);
+          last.set(f, i);
+        });
+      }
       // Más vendidos: las páginas de figura de un libro llevan figuras distintas.
       const figs = [];
       for (let i = 0; i < 20; i++) {
@@ -895,6 +906,9 @@ async function runTests() {
       assert.notDeepStrictEqual(p0, p1);
       assert.strictEqual(new Set([0, 1, 2].flatMap((n) => figurePalette(42, n))).size, all.size, "ERROR: 3 páginas de figura no recorren todos los tangles.");
       assert.deepStrictEqual(figurePalette(42, 5), figurePalette(42, 5));
+      // Las paletas no se repiten en ciclo corto (antes solo había 3 por libro).
+      const pals = new Set(Array.from({ length: 24 }, (_, n) => figurePalette(42, n).slice().sort().join(",")));
+      assert.ok(pals.size >= 20, `ERROR: solo ${pals.size} paletas distintas en 24 páginas de figura.`);
       // En un libro la figura usa su paleta y, en su segunda aparición, va en espejo.
       const { generateZentangle } = await import("./js/generators/zentangle.generator.js");
       const { createSvgDoc } = await import("./js/core/svgDoc.js");
@@ -905,10 +919,12 @@ async function runTests() {
         await generateZentangle(d, { seed: 9 + pageIndex, presetName: "zen_figure", overrides: {}, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex, bookSeed: 42 });
         return renderSvgToString(d);
       };
+      const { figureBookSeed } = await import("./js/generators/zentangle.generator.js");
+      const fs42 = figureBookSeed(42, "zen_figure");
       const L = FIGURE_IDS.length;
-      const repeatAt = L + [...Array(L).keys()].find((k) => figureForPage(42, L + k, FIGURE_IDS) === figureForPage(42, 0, FIGURE_IDS));
+      const repeatAt = L + [...Array(L).keys()].find((k) => figureForPage(fs42, L + k, FIGURE_IDS) === figureForPage(fs42, 0, FIGURE_IDS));
       const first = await fig(0), again = await fig(repeatAt);
-      const pal = new Set(figurePalette(42, 0));
+      const pal = new Set(figurePalette(fs42, 0));
       const used = tanglesInSvgs([first]).filter((t) => all.has(t));
       // Fuera de la paleta solo el respaldo de un grupo con menos de 3 (fondo o detalle).
       assert.ok(used.length >= 4 && used.filter((t) => !pal.has(t)).length <= 2, `ERROR: la figura usa tangles fuera de su paleta (${used.join(", ")}).`);
@@ -916,6 +932,13 @@ async function runTests() {
       const pageMirror = /scale\(-1 1\)">\n/;
       assert.ok(!pageMirror.test(first), "ERROR: la primera aparición de la figura no debe ir en espejo.");
       assert.ok(pageMirror.test(again) && (again.match(/data-figure="([^"]+)"/) || [])[1] === (first.match(/data-figure="([^"]+)"/) || [])[1], "ERROR: la figura repetida no va en espejo.");
+      // …y con otro encuadre y otro fondo (el espejo no se nota en las simétricas).
+      const attr = (svg, k) => (svg.match(new RegExp(`data-${k}="([^"]+)"`)) || [])[1];
+      assert.notStrictEqual(attr(again, "layout"), attr(first, "layout"), "ERROR: la figura repetida conserva el encuadre.");
+      assert.notStrictEqual(attr(again, "bg"), attr(first, "bg"), "ERROR: la figura repetida conserva el tipo de fondo.");
+      // Con la misma semilla, «Adultos» y «Mezcla» no empiezan con las mismas figuras.
+      const order = (mode) => Array.from({ length: 6 }, (_, n) => figureForPage(figureBookSeed(42, mode), n, FIGURE_IDS)).join();
+      assert.notStrictEqual(order("zen_figure"), order(BESTSELLER_KEY), "ERROR: dos tipos de libro con la misma semilla repiten el orden de figuras.");
       // La mezcla «Más vendidos» ya no usa el muestrario de iconos fractales.
       const { BESTSELLERS } = await import("./js/generators/randomStyle.js");
       assert.ok(!BESTSELLERS.some(([k]) => k === "sampler_icon_fractal") && BESTSELLERS.reduce((a, [, w]) => a + w, 0) === 20);

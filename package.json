@@ -11,6 +11,8 @@
     "verify": "node test_verify.mjs",
     "golden": "node _samples/golden.mjs",
     "audit:patterns": "node _samples/patternAudit.mjs",
+    "audit:books": "node _samples/bookAudit.mjs",
+    "sheet": "node _samples/bookSheet.mjs",
     "test": "node test_verify.mjs && node _samples/golden.mjs",
     "e2e": "node _samples/e2e_book.mjs"
   },

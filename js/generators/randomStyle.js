@@ -110,8 +110,20 @@ export function resolveBestSeller(seed, { pageIndex = null, bookSeed = null } = 
     for (const [k, w] of list) { if ((r -= w) < 0) { presetName = k; break; } }
   }
   const p = ZENTANGLE_PRESETS[presetName];
-  return { presetName, overrides: p.cellLayout === "sampler" ? { samplerSolids: false } : {}, group: "bestseller" };
+  const overrides = p.cellLayout === "sampler" ? { samplerSolids: false } : {};
+  // Muestrario en retícula (iconos): cada aparición en el libro cambia la forma
+  // de las unidades. Con la misma retícula de 12 círculos, las 5 páginas de un
+  // libro de 50 se leían como la misma página. Las 4 formas pasan el control
+  // de calidad igual que el círculo (_samples/bookAudit.mjs).
+  if (p.cellLayout === "sampler" && !p.samplerLayout && Number.isInteger(pageIndex) && pageIndex >= 0) {
+    const styleAt = bookStyles(bookSeed ?? seed);
+    let k = 0;
+    for (let i = 0; i < pageIndex; i++) if (styleAt(i) === presetName) k++;
+    overrides.samplerShape = SAMPLER_SHAPES[(k + ((bookSeed ?? seed) >>> 0)) % SAMPLER_SHAPES.length];
+  }
+  return { presetName, overrides, group: "bestseller" };
 }
+const SAMPLER_SHAPES = ["circle", "rounded", "mixed", "square"];
 
 // Presets que no dibujan en celdas del motor (página completa o muestrario).
 const NON_CELL = new Set(["sampler", "icon_mandala", "facet_spiral", "zen_figure"]);
