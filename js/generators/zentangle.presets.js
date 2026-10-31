@@ -741,7 +741,7 @@ export const ZENTANGLE_PRESETS = {
     cellCount: 48,
     samplerShape: "circle",
     samplerSet: "all",
-    samplerSolids: true,
+    samplerSolids: false,
     samplerGapMm: 3,
     cellBorderWidthMm: 0.6,
     patternStrokeMm: 0.38,
