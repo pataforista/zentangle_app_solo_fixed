@@ -1,7 +1,7 @@
 # Cómo funciona el motor de figuras
 
 Mapa corto para revisar y decidir mejoras. El motor vive casi entero en
-`js/generators/figure.js` (~2500 líneas, 86 figuras); el resto lo orquesta.
+`js/generators/figure.js` (~2600 líneas, 95 figuras); el resto lo orquesta.
 
 ## Recorrido de una página
 
@@ -14,7 +14,7 @@ app.js ──► zentangle.generator.js ──► figure.js (generateZenFigure) 
 
 1. **Elección** (`zentangle.generator.js`): el estilo trae un repertorio
    (`figures`: adultas, dinos, biología, críptidos, infantil; `origamiMix` y
-   `origamiEvery` mezclan páginas origami: dinosaurios 1 de 2, críptidos 1 de 4). En un libro,
+   `origamiEvery` mezclan páginas origami: dinosaurios 1 de 2, críptidos 1 de 5). En un libro,
    `figureForPage` recorre todo el repertorio antes de repetir; la repetida
    va en espejo, con otra **paleta de 8 tangles** (`figurePalette`, rebarajada
    cada 3 páginas), **otro encuadre y otro fondo** (`figureCycle`). Entre

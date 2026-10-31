@@ -1114,6 +1114,60 @@ const PARA4_CREST = bone([[0.58, -0.66], [0.44, -0.78], [0.26, -0.84], [0.1, -0.
 const RAPTOR4_FEATHERS = [[-0.86, 0.18], [-0.68, 0.06], [-0.5, -0.04]].map(([x, y]) => smoothPoly([[x - 0.05, y + 0.04], [x - 0.02, y - 0.09], [x + 0.04, y - 0.13], [x + 0.07, y - 0.04], [x + 0.06, y + 0.04]]));
 const TREX4_TEETH = [0.82, 0.88].map((x) => [["M", x - 0.014, -0.53], ["L", x, -0.49], ["L", x + 0.014, -0.53]]);
 
+/* ---- Figuras nuevas de biología y críptidos (dibujadas por puntos) ---- */
+// Escarabajo (simétrico; mitad derecha): élitros, pronoto, patas y antenas.
+const BEETLE_ELYTRON = [["M", 0.02, -0.3], ["C", 0.3, -0.34, 0.5, -0.2, 0.52, 0.12], ["C", 0.54, 0.5, 0.32, 0.84, 0.02, 0.92], ["Z"]];
+const BEETLE_PRONOTUM = [["M", 0, -0.62], ["C", 0.2, -0.62, 0.36, -0.52, 0.38, -0.38], ["C", 0.36, -0.31, 0.2, -0.3, 0, -0.31], ["Z"]];
+const BEETLE_HEAD = ell(0, -0.72, 0.15, 0.12);
+const BEETLE_LEGS = [
+  [[0.3, -0.45], [0.58, -0.58], [0.66, -0.86]], [[0.46, -0.02], [0.8, 0.08], [0.92, 0.32]], [[0.42, 0.42], [0.66, 0.62], [0.7, 0.94]],
+].map((pts) => taper(pts, 0.05, 0.025));
+const BEETLE_ANT = taper(qpts([0.07, -0.82], [0.14, -0.98], [0.36, -0.97], 8), 0.025, 0.014);
+// Matraz de laboratorio con burbujas.
+const FLASK = [["M", -0.15, -0.82], ["L", 0.15, -0.82], ["L", 0.15, -0.38], ["L", 0.72, 0.66], ["C", 0.8, 0.84, 0.74, 0.94, 0.58, 0.94], ["L", -0.58, 0.94],
+  ["C", -0.74, 0.94, -0.8, 0.84, -0.72, 0.66], ["L", -0.15, -0.38], ["Z"]];
+const FLASK_RIM = smoothPoly([[-0.24, -0.96], [0.24, -0.96], [0.25, -0.84], [-0.25, -0.84]]);
+const FLASK_BUBBLES = [ell(-0.24, 0.52, 0.13), ell(0.18, 0.28, 0.09), ell(0.34, 0.66, 0.1), ell(-0.02, -0.02, 0.06)];
+// Brote: dos hojas sobre un montículo de tierra.
+const SPROUT_SOIL = [["M", -0.95, 0.96], ["C", -0.85, 0.62, -0.42, 0.5, 0, 0.5], ["C", 0.42, 0.5, 0.85, 0.62, 0.95, 0.96], ["Z"]];
+const SPROUT_STEM = taper(qpts([0, 0.62], [-0.08, 0.2], [0.02, -0.22], 10), 0.06, 0.045);
+const SPROUT_LEAF_L = smoothPoly([[0.0, -0.16], [-0.22, -0.42], [-0.55, -0.58], [-0.88, -0.56], [-0.74, -0.3], [-0.42, -0.12]]);
+const SPROUT_LEAF_R = smoothPoly([[0.03, -0.22], [0.22, -0.6], [0.52, -0.9], [0.9, -0.94], [0.84, -0.58], [0.5, -0.28]]);
+// Ameba: cuerpo con seudópodos, núcleo y vacuolas.
+const AMOEBA = smoothPoly([[0, -0.72], [0.25, -0.6], [0.5, -0.86], [0.72, -0.74], [0.6, -0.4], [0.9, -0.1], [0.82, 0.26], [0.52, 0.32], [0.56, 0.72],
+  [0.26, 0.84], [0.0, 0.56], [-0.34, 0.86], [-0.62, 0.62], [-0.5, 0.3], [-0.92, 0.14], [-0.86, -0.22], [-0.5, -0.3], [-0.56, -0.66], [-0.26, -0.62]]);
+const AMOEBA_NUC = ell(-0.08, -0.06, 0.24, 0.19);
+// Tardígrado (oso de agua): cuerpo segmentado y ocho patas cortas.
+const TARDI_HEAD = ell(-0.78, -0.06, 0.2, 0.22);
+const TARDI = smoothPoly([[-0.92, -0.04], [-0.82, -0.32], [-0.5, -0.46], [0, -0.5], [0.5, -0.45], [0.82, -0.3], [0.94, 0], [0.8, 0.24], [0.4, 0.3], [0, 0.32], [-0.4, 0.3], [-0.8, 0.2]]);
+const TARDI_LEGS = [-0.52, -0.14, 0.24, 0.6].map((x) => ell(x, 0.42, 0.13, 0.19));
+const TARDI_CLAWS = [-0.52, -0.14, 0.24, 0.6].flatMap((x) => [-0.06, 0, 0.06].map((d) => taper([[x + d, 0.58], [x + d * 1.8, 0.7]], 0.014, 0.008)));
+// Gusano de la muerte mongol: cuerpo grueso que sale de una duna, boca abierta.
+const DWORM_PATH = [[-0.3, 0.8], [-0.4, 0.4], [-0.12, 0.04], [0.26, -0.18], [0.36, -0.48], [0.18, -0.7]];
+const DWORM = bone(DWORM_PATH, [0.27, 0.27, 0.25, 0.23, 0.22, 0.21], 40);
+const DWORM_MOUTH = xform(ell(0, 0, 0.23, 0.13), 0.14, -0.76, -0.55);
+const DWORM_DUNE = [["M", -1, 0.96], ["L", -1, 0.56], ["C", -0.8, 0.44, -0.4, 0.4, -0.1, 0.5], ["C", 0.2, 0.6, 0.5, 0.62, 0.7, 0.52], ["C", 0.82, 0.46, 0.94, 0.5, 1, 0.54], ["L", 1, 0.96], ["Z"]];
+// Hombre rana de Loveland: anfibio erguido (contorno por esqueleto).
+const FROGMAN = unionOutline([
+  ell(0, -0.6, 0.34, 0.22), ell(0.2, -0.78, 0.11), ell(-0.2, -0.78, 0.11), ell(0, -0.04, 0.3, 0.42),
+  ...[1, -1].flatMap((m) => [bone([[0.24 * m, -0.3], [0.5 * m, 0.02], [0.44 * m, 0.32]], [0.08, 0.07, 0.06]),
+    bone([[0.14 * m, 0.3], [0.38 * m, 0.6], [0.22 * m, 0.9]], [0.13, 0.1, 0.08]), ell(0.32 * m, 0.94, 0.17, 0.05), ell(0.5 * m, 0.36, 0.09, 0.06)]),
+]);
+const FROGMAN_BELLY = ell(0, 0.02, 0.18, 0.3);
+// Duende de Hopkinsville: cabeza grande, orejas puntiagudas, brazos largos.
+const GOBLIN = unionOutline([
+  ell(0, -0.44, 0.3, 0.28), ell(0, 0.12, 0.2, 0.34), bone([[0, -0.3], [0, -0.1]], [0.1, 0.1]),
+  ...[1, -1].flatMap((m) => [polyCmds([[0.2 * m, -0.58], [0.9 * m, -0.86], [0.64 * m, -0.42], [0.24 * m, -0.32]]),
+    bone([[0.14 * m, -0.04], [0.42 * m, 0.24], [0.52 * m, 0.6]], [0.06, 0.05, 0.045]), ell(0.54 * m, 0.64, 0.08, 0.06),
+    bone([[0.1 * m, 0.38], [0.16 * m, 0.9]], [0.07, 0.06]), ell(0.2 * m, 0.94, 0.11, 0.04)]),
+]);
+const GOBLIN_EYES = [1, -1].map((m) => xform(ell(0, 0, 0.1, 0.065), 0.13 * m, -0.46, 0.25 * m));
+// Hombre búho (Cornualles; simétrico, mitad derecha): alas abiertas y penachos.
+const OWLMAN_WING = [["M", 0.2, -0.5], ["C", 0.5, -0.86, 0.92, -0.86, 1.0, -0.52], ["L", 0.88, -0.42], ["L", 0.98, -0.24], ["L", 0.84, -0.18], ["L", 0.92, 0.0],
+  ["L", 0.76, 0.02], ["L", 0.8, 0.2], ["L", 0.62, 0.18], ["L", 0.6, 0.36], ["C", 0.44, 0.16, 0.3, 0.06, 0.22, 0.02], ["Z"]];
+const OWLMAN_BODY = [["M", 0, -0.8], ["L", 0.18, -0.98], ["C", 0.26, -0.82, 0.3, -0.7, 0.3, -0.5], ["C", 0.34, -0.1, 0.32, 0.3, 0.2, 0.6], ["L", 0.24, 0.95],
+  ["L", 0.06, 0.95], ["L", 0, 0.7], ["Z"]];
+
 const FIGURES = {
   owl: {
     parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] } }],
@@ -1806,6 +1860,75 @@ const FIGURES = {
     silhouette: [JACK2, JACK2_EAR, ...JACK2_ANTLERS], branch: 0.96,
     cryptid: true, hide: true,
   },
+  beetle: {
+    mirror: true,
+    parts: [{ cmds: BEETLE_ELYTRON, strings: { angle: 1.2, a: [2, 3], b: [2, 3] } }, { cmds: BEETLE_PRONOTUM, strings: { angle: 0.3, a: [1, 1], b: [1, 2] } }],
+    back: [...BEETLE_LEGS.map((cmds) => ({ cmds, tangle: null })), { cmds: BEETLE_ANT, tangle: null }],
+    center: () => [{ cmds: BEETLE_HEAD, fill: W }, { cmds: [["M", 0, -0.3], ["L", 0, 0.9]], fill: "none" },
+      ...[1, -1].map((m) => ({ cmds: [["M", 0.06 * m, -0.83], ["Q", 0.1 * m, -0.92, 0.02 * m, -0.96]], fill: "none" }))],
+    silhouette: [BEETLE_ELYTRON, BEETLE_PRONOTUM, BEETLE_HEAD, ...BEETLE_LEGS, BEETLE_ANT, ...[BEETLE_ELYTRON, BEETLE_PRONOTUM, ...BEETLE_LEGS, BEETLE_ANT].map((c) => xform(c, 0, 0, 0, -1, 1))],
+    science: "bio", hide: true,
+  },
+  flask: {
+    parts: [{ cmds: FLASK, strings: { angle: 0.1, a: [3, 4], b: [1, 2] } }],
+    front: [{ cmds: FLASK_RIM, tangle: null }, ...FLASK_BUBBLES.map((cmds, k) => ({ cmds, tangle: k % 2 ? null : "round" }))],
+    deco: () => [ell(0.06, -0.62, 0.035), ell(-0.04, -0.5, 0.025)].map((cmds) => ({ cmds, fill: W })),
+    silhouette: [FLASK, FLASK_RIM],
+    science: "bio", hide: true,
+  },
+  sprout: {
+    parts: [{ cmds: SPROUT_LEAF_R, strings: { angle: -0.6, a: [2, 3], b: [1, 2] } }, { cmds: SPROUT_LEAF_L, strings: { angle: 0.4, a: [2, 2], b: [1, 1] } },
+      { cmds: SPROUT_SOIL, strings: { angle: 0, a: [2, 3], b: [2, 3] } }],
+    back: [{ cmds: SPROUT_STEM, tangle: null }],
+    silhouette: [SPROUT_LEAF_R, SPROUT_LEAF_L, SPROUT_SOIL, SPROUT_STEM],
+    science: "bio", hide: true,
+  },
+  amoeba: {
+    parts: [{ cmds: AMOEBA, strings: { angle: 0.5, a: [3, 4], b: [2, 3] } }],
+    front: [{ cmds: AMOEBA_NUC, tangle: "any" }, { cmds: ell(-0.12, -0.08, 0.07), tangle: null }, { cmds: ell(0.42, -0.5, 0.1), tangle: "round" },
+      { cmds: ell(-0.46, 0.38, 0.12), tangle: null }, { cmds: ell(0.3, 0.5, 0.07), tangle: null }],
+    silhouette: [AMOEBA],
+    science: "bio", hide: true,
+  },
+  tardigrade: {
+    parts: [{ cmds: TARDI, strings: { angle: Math.PI / 2, a: [1, 1], b: [4, 5] } }],
+    back: [...TARDI_LEGS.map((cmds) => ({ cmds, tangle: "round" })), ...TARDI_CLAWS.map((cmds) => ({ cmds, tangle: null }))],
+    front: [{ cmds: TARDI_HEAD, tangle: "detail" }, { cmds: ell(-0.94, -0.04, 0.06), tangle: null }],
+    deco: () => [{ cmds: ell(-0.74, -0.16, 0.035), fill: W }],
+    silhouette: [TARDI, TARDI_HEAD, ...TARDI_LEGS],
+    science: "bio",
+  },
+  deathworm: {
+    parts: [{ cmds: DWORM, strings: { angle: 0.2, a: [1, 1], b: [7, 9], bShape: "chevron" } }, { cmds: DWORM_DUNE, strings: { angle: 0.15, a: [2, 3], b: [2, 2] } }],
+    front: [{ cmds: DWORM_MOUTH, tangle: null }],
+    deco: () => [{ cmds: xform(ell(0, 0, 0.12, 0.06), 0.14, -0.76, -0.55), fill: W },
+      ...[-0.15, -0.075, 0, 0.075, 0.15].map((d) => ({ cmds: xform([["M", d - 0.03, -0.11 + Math.abs(d) * 0.3], ["L", d, -0.05], ["L", d + 0.03, -0.11 + Math.abs(d) * 0.3]], 0.14, -0.76, -0.55), fill: "none" }))],
+    silhouette: [DWORM, DWORM_DUNE, DWORM_MOUTH],
+    nested: false, // la copia escondida cae en la duna y se lee como una mancha
+    cryptid: true,
+  },
+  frogman: {
+    parts: [{ cmds: FROGMAN, strings: { angle: 1.1, a: [3, 4], b: [3, 4] } }],
+    front: [{ cmds: FROGMAN_BELLY, tangle: "any" }, ...[1, -1].map((m) => ({ cmds: ell(0.2 * m, -0.79, 0.075), tangle: null }))],
+    deco: () => [...[1, -1].map((m) => ({ cmds: ell(0.2 * m, -0.79, 0.03), fill: W })), { cmds: [["M", -0.2, -0.52], ["Q", 0, -0.44, 0.2, -0.52]], fill: "none" }],
+    silhouette: [FROGMAN], branch: 0.98,
+    cryptid: true, hide: true,
+  },
+  goblin: {
+    parts: [{ cmds: GOBLIN, strings: { angle: 0.9, a: [3, 4], b: [2, 3] } }],
+    front: GOBLIN_EYES.map((cmds) => ({ cmds, tangle: null })),
+    deco: () => [...[1, -1].map((m) => ({ cmds: ell(0.13 * m, -0.46, 0.03), fill: W })), { cmds: [["M", -0.1, -0.3], ["Q", 0, -0.25, 0.1, -0.3]], fill: "none" }],
+    silhouette: [GOBLIN], branch: 0.98,
+    cryptid: true, hide: true,
+  },
+  owlman: {
+    mirror: true,
+    parts: [{ cmds: OWLMAN_WING, strings: { angle: -0.4, a: [2, 3], b: [2, 3] } }, { cmds: OWLMAN_BODY, strings: { angle: Math.PI / 2, a: [1, 1], b: [5, 6], bShape: "chevron" } }],
+    deco: () => eyeDeco(0.13, -0.66, 0.1, 8),
+    center: () => [{ cmds: [["M", -0.045, -0.56], ["L", 0.045, -0.56], ["L", 0, -0.44], ["Z"]], fill: W }],
+    silhouette: [OWLMAN_WING, OWLMAN_BODY, xform(OWLMAN_WING, 0, 0, 0, -1, 1), xform(OWLMAN_BODY, 0, 0, 0, -1, 1)], branch: 0.98,
+    cryptid: true, hide: true,
+  },
 };
 export const FIGURE_IDS = Object.keys(FIGURES);
 // Grupos: figuras para adultos (elegantes, sin caritas), composiciones
@@ -1831,7 +1954,7 @@ FIGURE_SETS.bio = FIGURE_IDS.filter((f) => FIGURES[f].science === "bio");
 // Críptidos: los que se ven bien con contorno suave y, en origami (1 de cada
 // 3 páginas), los que solo funcionan simplificados. Fuera: serpiente marina y
 // monstruo de Flatwoods (no se leen en ningún estilo).
-FIGURE_SETS.cryptids = ["bigfoot", "yeti", "mothman", "nessie", "kraken", "jackalope", "wendigo", "greyalien", "ufo"];
+FIGURE_SETS.cryptids = ["bigfoot", "yeti", "mothman", "nessie", "kraken", "jackalope", "wendigo", "greyalien", "ufo", "deathworm", "frogman", "goblin", "owlman"];
 FIGURE_SETS.cryptidsOrigami = ["chupacabra", "jerseydevil", "thunderbird"];
 export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
@@ -2460,7 +2583,7 @@ export async function generateZenFigure(doc, opts) {
   // (como el corazón dentro del corazón), con otro tangle. Solo donde cabe
   // entera, lejos del contorno y sin tapar la cara ni las piezas de delante.
   const nestedSvg = () => {
-    if (!rich || def.mirror || def.abstract || def.science || figName === "heart" || opts.nestedFigure === false) return "";
+    if (!rich || def.mirror || def.abstract || def.science || def.nested === false || figName === "heart" || opts.nestedFigure === false) return "";
     // Contenedor: cualquiera de las partes (cabeza o cuerpo del oso, etc.).
     const partRings = parts.map((p) => flatten(p.cmds, tf));
     const inFig = (x, y) => partRings.some((r) => inside(r, x, y));
