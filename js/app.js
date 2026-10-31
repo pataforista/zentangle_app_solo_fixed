@@ -9,6 +9,7 @@ import { generateZentangle } from "./generators/zentangle.generator.js";
 import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey, isColoringSafe } from "./generators/randomStyle.js";
 import { createStylePicker } from "./ui/stylePicker.js";
 import { designUnits, planSequence, difficultyAt, kdpInsideMarginMm, printSafeOpts } from "./core/bookPlan.js";
+import { pageSeed, spreadFigureFor, singlesBefore } from "./core/bookSeeds.js";
 import { generateSpread, SPREAD_FIGURES } from "./generators/spread.js";
 import { figureForPage, FIGURE_IDS } from "./generators/figure.js";
 import { kdpListingText } from "./core/kdpListing.js";
@@ -421,9 +422,6 @@ function bookPlan() {
   return { n, blank, flags, units, turnPages, total };
 }
 
-// Semillas reproducibles: la seed del usuario + el índice de página.
-const bookSeed = (base, i) => ((base >>> 0) + Math.imul(i, 0x9e3779b1)) >>> 0;
-
 function updateBookSummary() {
   if (!ui.bookSummary) return;
   const { n, blank, total, flags, units, turnPages } = bookPlan();
@@ -456,12 +454,8 @@ let bookReview = null;
 // Huella de todo lo que define el libro: si cambia, la revisión queda vieja.
 const bookKey = (g, plan) => JSON.stringify({ p: g.paperKey, i: g.inner, k: g.zPresetKey, o: g.opts, n: plan.n, blank: plan.blank, f: plan.flags });
 
-// Semilla del reemplazo número `tries` de la página i. tries = 0 es la semilla
-// original del libro (misma seed = mismo libro); los reemplazos derivan de ella.
-const pageSeed = (base, i, tries) => {
-  const s0 = bookSeed(base, i);
-  return tries ? (Math.imul(s0 ^ (tries * 0x85ebca6b), 0xc2b2ae35) ^ (tries + 0x27d4eb2f)) >>> 0 : s0;
-};
+// Semillas de cada página y de sus reemplazos: core/bookSeeds.js (las comparte
+// la auditoría de libros, _samples/bookAudit.mjs).
 
 // pageIndex + bookSeed: en "Más vendidos" fijan el estilo de cada página del
 // libro (un reemplazo con ↻ cambia el diseño, no el estilo).
@@ -523,10 +517,7 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
     // este libro), en vez de sortearlas: así no se repiten seguidas.
     const nth = plan.units.slice(0, pageIndex).filter((u) => u.kind === "spread").length;
     // Del repertorio del estilo: un libro de dinosaurios no lleva mariposas.
-    const themeFigs = ZENTANGLE_PRESETS[g.zPresetKey]?.figures;
-    const wide = themeFigs ? SPREAD_FIGURES.filter((f) => themeFigs.includes(f)) : SPREAD_FIGURES;
-    const spreadPool = wide.length ? wide : themeFigs;
-    const figureName = spreadPool[(nth + (bookSeed >>> 0)) % spreadPool.length];
+    const figureName = spreadFigureFor(ZENTANGLE_PRESETS[g.zPresetKey]?.figures, SPREAD_FIGURES, bookSeed, nth);
     const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, figureName, rasterize: rasterizeSvg });
     const right = appendToSvg(sp.right, footer);
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
@@ -536,6 +527,8 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
   // printSafeOpts: guías de zona segura, textura y sombreado nunca se imprimen.
   const overrides = { ...printSafeOpts(g.opts), seed, ...(difficulty === null ? {} : { difficulty }) };
+  // Figura que toca: cuenta solo las páginas simples (los modos aleatorios llevan su propia cuenta).
+  if (!isRandomKey(g.zPresetKey) && plan?.units) overrides.figurePage = singlesBefore(plan.units, pageIndex);
   // En los modos aleatorios, la página original (tries 0) toma su estilo de la
   // secuencia del libro, que evita vecinas repetidas. Un ↻ cambia la semilla:
   // esa página sortea un estilo nuevo con ella (en «Más vendidos» sigue el mazo).
@@ -1419,7 +1412,9 @@ function bind() {
   // Si la URL trae un valor desconocido, el <select> quedaría en blanco: usar el de respaldo.
   ui.paper.value = st.preset;
   if (ui.paper.selectedIndex < 0) ui.paper.value = DEFAULT_STATE.preset;
-  ui.seed.value = String(st.seed >>> 0);
+  // Sin semilla en la URL, cada visita empieza con una nueva: con una fija (42)
+  // todos los libros de un mismo tipo salían idénticos.
+  ui.seed.value = String(urlHas("seed") ? st.seed >>> 0 : randomSeed32());
   ui.zPreset.value = st.zPreset;
   if (ui.zPreset.selectedIndex < 0) ui.zPreset.value = DEFAULT_STATE.zPreset;
   // Aplica el preset inicial a los controles (base de estilo real).
@@ -1599,6 +1594,9 @@ function bind() {
     const b = document.createElement("button");
     b.type = "button"; b.className = "recipe"; b.dataset.id = r.id; b.textContent = r.label; b.title = r.hint;
     b.addEventListener("click", () => {
+      // Libro nuevo, semilla nueva: dos libros del mismo tipo nunca salen iguales
+      // (la receta 🧾 guarda la semilla para repetirlo).
+      ui.seed.value = String(randomSeed32());
       ui.zPreset.value = r.style;
       ui.bookPages.value = String(r.designs);
       ui.bookProgressive.checked = r.progressive; ui.bookGuide.checked = r.guide;
@@ -1607,7 +1605,7 @@ function bind() {
       picker?.sync();
       updateBookSummary(); saveSettings(); markRecipe();
       const h = $("recipeHint"); if (h) h.textContent = `${r.label}: ${r.hint} Ahora pulsa «📖 Preparar libro».`;
-      ui.status.textContent = `✓ Libro «${r.label.replace(/^\S+\s/, "")}» configurado: ${r.designs} diseños · pulsa «Preparar libro»`;
+      ui.status.textContent = `✓ Libro «${r.label.replace(/^\S+\s/, "")}» configurado: ${r.designs} diseños · semilla ${ui.seed.value} · pulsa «Preparar libro»`;
     });
     recipeBox?.append(b);
   });

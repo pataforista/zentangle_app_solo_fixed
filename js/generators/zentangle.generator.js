@@ -6,6 +6,14 @@ import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
 import { fillDeadSpace } from "./deadSpace.js";
 import { generateZenFigure, figureForPage, figurePalette, FIGURE_IDS } from "./figure.js";
 import { isRandomKey, resolveBookStyle } from "./randomStyle.js";
+import { hash } from "../core/prng.js";
+
+// Sal por tipo de libro: con la misma semilla, «Adultos» y «Mezcla» (que
+// comparten repertorio) no salen con las mismas figuras en el mismo orden.
+const saltOf = (key) => { let h = 0x811c9dc5; for (const ch of String(key)) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193); return h >>> 0; };
+// Semilla con que un libro de tipo `mode` ordena sus figuras y paletas
+// (figureForPage / figurePalette).
+export const figureBookSeed = (bookSeed, mode) => hash(bookSeed >>> 0, saltOf(mode));
 
 function normalizeAreaMm(areaMm, fallback = { x: 0, y: 0 }) {
   if (!areaMm || typeof areaMm !== "object") {
@@ -38,6 +46,7 @@ export async function generateZentangle(doc, {
   rasterize = null,
 } = {}) {
   const area = normalizeAreaMm(areaMm);
+  const bookMode = presetName;
   let randomOverrides = {};
   if (isRandomKey(presetName)) {
     const r = resolveBookStyle(presetName, seed, { pageIndex, bookSeed, cellsOnly });
@@ -68,7 +77,9 @@ export async function generateZentangle(doc, {
   // mismo gato no se repite igual dentro de un libro.
   let mirror = false;
   if (finalOpts.cellLayout === "zen_figure" && !finalOpts.emptySections && Number.isInteger(pageIndex) && pageIndex >= 0) {
-    let n = Number.isInteger(randomOverrides.figurePage) ? randomOverrides.figurePage : pageIndex;
+    // figurePage: nº de páginas de figura anteriores (lo fija el modo «Más
+    // vendidos» o el libro cuando lleva dobles páginas, que no cuentan).
+    let n = Number.isInteger(finalOpts.figurePage) ? finalOpts.figurePage : pageIndex;
     // El estilo decide el repertorio (adultas + abstractas, o infantiles).
     let ids = Array.isArray(finalOpts.figures) && finalOpts.figures.length ? finalOpts.figures : FIGURE_IDS;
     const nPal = n;
@@ -79,9 +90,17 @@ export async function generateZentangle(doc, {
       if (n % every === every - 1) { ids = finalOpts.origamiMix; finalOpts.figureStyle = "facet"; finalOpts.figureAngular = true; n = Math.floor(n / every); }
       else n -= Math.floor((n + 1) / every);
     }
-    if (!finalOpts.figureName) finalOpts.figureName = figureForPage(bookSeed ?? seed, n, ids);
-    if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(bookSeed ?? seed, nPal);
-    mirror = Math.floor(n / ids.length) % 2 === 1;
+    const salted = figureBookSeed(bookSeed ?? seed, bookMode);
+    const ownFigure = !finalOpts.figureName;
+    if (ownFigure) finalOpts.figureName = figureForPage(salted, n, ids);
+    if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(salted, nPal);
+    const cycle = Math.floor(n / ids.length);
+    mirror = cycle % 2 === 1;
+    // Cada vuelta del repertorio cambia también encuadre y fondo (figure.js).
+    if (ownFigure && finalOpts.figureCycle === undefined) {
+      finalOpts.figureCycle = cycle;
+      finalOpts.figureVariantKey = hash(salted, saltOf(finalOpts.figureName));
+    }
   }
 
   const start = doc.body.length;

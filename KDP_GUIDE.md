@@ -95,7 +95,7 @@
   - **Temas** (un libro por tema): «Dinosaurios y prehistoria» (15: mitad con patrones y mitad origami),
     «Biología» (13: neurona, ADN, células, virus…) y «Críptidos del mundo»
     (12: Pie Grande, yeti, Mothman, Nessie, kraken, jackalope, Wendigo, alien
-    gris y ovni; y en origami, 1 de cada 3 páginas, chupacabras, Diablo de
+    gris y ovni; y en origami, 1 de cada 4 páginas, chupacabras, Diablo de
     Jersey y Thunderbird). Las figuritas escondidas son del mismo tema.
   - Para adultos también: rosa, suculenta, caballito de mar, pulpo, lobo,
     caballo, pavo real, gato sentado, tetera y sol.

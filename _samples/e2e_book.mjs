@@ -47,7 +47,12 @@ try {
   await page.goto(`${base}/index.html`);
   await page.waitForFunction(() => window.jspdf, null, { timeout: 30000 });
   // Tipo de libro de un clic: Dinosaurios (estilo, nº de diseños y opciones).
+  // Cada clic es un libro nuevo con semilla nueva (antes todos salían con la 42).
+  const seedNow = () => page.evaluate(() => document.getElementById("seed").value);
   await page.click(".recipe[data-id=dino]");
+  const s1 = await seedNow();
+  await page.click(".recipe[data-id=dino]");
+  if ((await seedNow()) === s1 || s1 === "42") fail(`elegir un tipo de libro no cambia la semilla (${s1}).`);
   const quick = await page.evaluate(() => ({ style: document.getElementById("zPreset").value, n: document.getElementById("bookPages").value, prog: document.getElementById("bookProgressive").checked }));
   if (quick.style !== "zen_figure_dino" || quick.n !== "34" || !quick.prog) fail(`el atajo «Dinosaurios» no configuró el libro (${JSON.stringify(quick)}).`);
   await page.evaluate(({ n, blank }) => {

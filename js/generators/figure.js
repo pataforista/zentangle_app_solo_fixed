@@ -53,6 +53,10 @@ export const FIGURE_TANGLES = POOL;
 const HARD = new Set(["paradox", "hollibaugh", "bales", "cubine", "cadent", "florz", "printemps", "keeko"]);
 // El fondo usa una escala más abierta que la figura: así la figura destaca.
 const BG_GAP = 1.7;
+// Fracción del marco que cubre la silueta encajada (centrada): por debajo, la
+// figura es delgada o apaisada (neurona, diplodoco, Nessie, mosasaurio) y en
+// «offset» apenas se encoge (antes quedaba diminuta en un mar de fondo).
+const SMALL_FIGURE_COVER = 0.15;
 
 /* ======================= Geometría de formas ======================= */
 
@@ -1836,30 +1840,60 @@ const HIDEABLE_ADULT = ["koi", "hummingbird", "feather", "vase", "drops", "cryst
 const HIDEABLE = ["cat", "fish", "heart", "bird", "whale", "rabbit", "bear", "penguin", "moon", "leaf", "turtle", "mushroom", "tree", "fox", "elephant"];
 
 // Figura de la n-ésima página de figura de un libro: recorre todas las
-// figuras (barajadas con la semilla del libro) antes de repetir ninguna, y
-// nunca repite la misma en dos páginas de figura seguidas.
-export function figureForPage(bookSeed, n, ids = FIGURE_IDS) {
-  const order = (cycle) => {
-    const rng = createRNG(hash(bookSeed >>> 0, 0xf00 + cycle));
+// figuras (barajadas con la semilla del libro) antes de repetir ninguna.
+// Entre vueltas, cada figura espera al menos media vuelta antes de volver: sin
+// esa regla, la última de una vuelta podía reaparecer 2 páginas después, al
+// empezar la siguiente (conejo en las páginas 13 y 15 de un libro infantil).
+const figureOrderCache = new Map(); // `${semilla}|${ids}` -> [vuelta 0, vuelta 1, …]
+function figureCycleOrder(bookSeed, ids, cycle) {
+  const key = `${bookSeed >>> 0}|${ids.join(",")}`;
+  let cycles = figureOrderCache.get(key);
+  if (!cycles) {
+    cycles = [];
+    figureOrderCache.set(key, cycles);
+    if (figureOrderCache.size > 32) figureOrderCache.delete(figureOrderCache.keys().next().value);
+  }
+  const len = ids.length, half = Math.floor(len / 2);
+  while (cycles.length <= cycle) {
+    const c = cycles.length;
+    const rng = createRNG(hash(bookSeed >>> 0, 0xf00 + c));
     const a = [...ids];
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    return a;
-  };
-  const len = ids.length, cycle = Math.floor(n / len), cur = order(cycle);
-  if (cycle > 0 && cur[0] === order(cycle - 1)[len - 1]) [cur[0], cur[1]] = [cur[1], cur[0]];
-  return cur[n % len];
+    if (c > 0) {
+      // Puesto p de esta vuelta: solo figuras que en la anterior iban en un
+      // puesto q ≤ p + media vuelta (distancia entre las dos ≥ media vuelta).
+      // Siempre hay alguna disponible: el orden anterior cumple la regla.
+      const prevPos = new Map(cycles[c - 1].map((f, q) => [f, q]));
+      const left = [...a], out = [];
+      for (let p = 0; p < len; p++) {
+        const k = left.findIndex((f) => prevPos.get(f) <= p + half);
+        out.push(left.splice(k, 1)[0]);
+      }
+      cycles.push(out);
+    } else cycles.push(a);
+  }
+  return cycles[cycle];
+}
+export function figureForPage(bookSeed, n, ids = FIGURE_IDS) {
+  const len = ids.length;
+  return figureCycleOrder(bookSeed, ids, Math.floor(n / len))[n % len];
 }
 
 // Paleta de tangles de la n-ésima página de figura de un libro. Sin paleta,
 // cada figura usaba casi los 15 tangles y todas las páginas se parecían; con
 // 8 por página cada una tiene carácter propio. La ventana avanza 5 puestos
 // por página: dos figuras seguidas comparten 3 tangles y en 3 páginas salen todos.
+// Cada 3 páginas (una vuelta de la ventana) se baraja de nuevo: con un solo
+// orden había solo 3 paletas en todo el libro y las páginas 1, 4, 7… repetían
+// exactamente los mismos 8 tangles.
 export const FIGURE_PALETTE_SIZE = 8;
+const PALETTE_STEP = 5;
 export function figurePalette(bookSeed, n) {
-  const rng = createRNG(hash(bookSeed >>> 0, 0x9a1e));
   const ids = POOL.map((t) => t.id);
+  const perLap = Math.ceil(ids.length / PALETTE_STEP), lap = Math.floor(n / perLap);
+  const rng = createRNG(hash(bookSeed >>> 0, lap ? 0x9a1e + lap * 0x101 : 0x9a1e));
   for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
-  const start = (n * 5) % ids.length;
+  const start = ((n % perLap) * PALETTE_STEP) % ids.length;
   return Array.from({ length: FIGURE_PALETTE_SIZE }, (_, k) => ids[(start + k) % ids.length]);
 }
 
@@ -2093,10 +2127,33 @@ export async function generateZenFigure(doc, opts) {
   const layouts = { center: 0.4, offset: 0.35, zoom: 0.25 };
   let layout = layouts[opts.figureLayout] !== undefined ? opts.figureLayout : null;
   const lr = rng();
+  // Variante por aparición (libro): cuando la figura vuelve a salir cambia de
+  // encuadre y de fondo. El espejo solo no basta: en las figuras simétricas
+  // (oso, búho, mariposa) no se nota. figureVariantKey fija, por figura y
+  // libro, el orden de encuadres; figureCycle es la vuelta (0 = primera vez).
+  const variant = Number.isInteger(opts.figureCycle) && opts.figureCycle >= 0 && !empty
+    ? { cycle: opts.figureCycle, rng: createRNG(hash(opts.figureVariantKey >>> 0, 0x7a11)) } : null;
+  if (!layout && variant) {
+    const left = Object.entries(layouts).filter(([k]) => !(opts.figureAngular && k === "zoom"));
+    const order = [];
+    while (left.length) {
+      let r = variant.rng() * left.reduce((acc, [, w]) => acc + w, 0), k = left.length - 1;
+      for (let i = 0; i < left.length; i++) { if ((r -= left[i][1]) < 0) { k = i; break; } }
+      order.push(left.splice(k, 1)[0][0]);
+    }
+    // Con 2 encuadres (origami) y el espejo alternando, la vuelta 2 repetiría
+    // la combinación de la 0: se desplaza una posición por cada vuelta completa.
+    const k = variant.cycle, len = order.length;
+    layout = order[(len % 2 === 0 ? k + Math.floor(k / len) : k) % len];
+  }
   if (!layout) layout = empty ? "center" : lr < 0.4 ? "center" : lr < 0.75 ? "offset" : "zoom";
   // Origami recortado por el marco deja de leerse: se queda entero.
   if (opts.figureAngular && layout === "zoom") layout = "center";
-  const s = sFit * (layout === "offset" ? rFloat(rng, 0.66, 0.8) : layout === "zoom" ? rFloat(rng, 1.1, 1.22) : 1);
+  // Figuras delgadas o apaisadas (neurona, mosasaurio, diplodoco): en «offset»
+  // quedaban diminutas en un mar de fondo. Se mueven igual, pero se encogen poco.
+  const silArea = unitRings.reduce((acc, r) => acc + Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p.x * q.y - q.x * p.y; }, 0)) / 2, 0);
+  const thin = (silArea * sFit * sFit) / (a.w * a.h) < SMALL_FIGURE_COVER;
+  const s = sFit * (layout === "offset" ? (thin ? rFloat(rng, 0.86, 0.94) : rFloat(rng, 0.66, 0.8)) : layout === "zoom" ? rFloat(rng, 1.1, 1.22) : 1);
   const figW = (ub.x1 - ub.x0) * s, figH = (ub.y1 - ub.y0) * s;
   // Holgura para mover la figura: dentro del marco (offset) o hasta un ~25 %
   // fuera de él (zoom).
@@ -2167,7 +2224,9 @@ export async function generateZenFigure(doc, opts) {
   const frameD = polyD([{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]);
   // Fondo denso (rayos o strings) para que la figura se funda con él; el
   // fondo ligero («airy») queda para «Tu turno» y el preset de fondo ligero.
-  const bgKind = fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : rng() < 0.5 ? "rays" : "strings");
+  // Con variante, el fondo alterna rayos / strings entre apariciones de la figura.
+  const bgPick = (dflt) => (variant ? (Math.floor(variant.rng() * 2) + variant.cycle) % 2 === 0 ? "rays" : "strings" : dflt);
+  const bgKind = fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : bgPick(rng() < 0.5 ? "rays" : "strings"));
   const frameRings = [[{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]];
   const frameClip = clipOf(frameD);
   const bg = [], bgLines = [];
@@ -2523,8 +2582,8 @@ export async function generateZenFigure(doc, opts) {
   }
   // En «zoom» la figura sale del marco: se recorta a él.
   body.push(layout === "zoom"
-    ? `<g data-figure="${figName}" data-layout="zoom"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
-    : `<g data-figure="${figName}" data-layout="${layout}">${figure.join("")}</g>`);
+    ? `<g data-figure="${figName}" data-layout="zoom" data-bg="${bgKind}"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
+    : `<g data-figure="${figName}" data-layout="${layout}" data-bg="${bgKind}">${figure.join("")}</g>`);
 
   // Marco.
   body.push(el(polyD(frameRings[0]), "none", outStroke * 1.1));

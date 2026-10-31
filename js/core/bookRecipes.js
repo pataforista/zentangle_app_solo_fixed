@@ -19,7 +19,7 @@ export const BOOK_RECIPES = [
     style: "zen_figure_dino_origami", designs: 34, progressive: false, guide: false, spreads: false, turn: false },
   { id: "bio", label: "🧬 Biología", hint: "Neurona, ADN, células, virus, corazón… ciencia para colorear.",
     style: "zen_figure_bio", designs: 26, progressive: true, guide: false, spreads: false, turn: false },
-  { id: "cryptids", label: "👣 Críptidos", hint: "Pie Grande, Nessie, Mothman, kraken, yeti, ovni y más; 1 de cada 3 páginas en origami.",
+  { id: "cryptids", label: "👣 Críptidos", hint: "Pie Grande, Nessie, Mothman, kraken, yeti, ovni y más; 1 de cada 4 páginas en origami.",
     style: "zen_figure_cryptids", designs: 28, progressive: false, guide: false, spreads: false, turn: true },
   { id: "kids", label: "🧸 Infantil", hint: "Animales tiernos con huecos amplios, de fácil a difícil.",
     style: "zen_figure_kids", designs: 28, progressive: true, guide: false, spreads: false, turn: false },

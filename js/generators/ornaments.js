@@ -301,15 +301,22 @@ export function starTriangles(cx, cy, Ro, Ri, n, rot) {
 // zentangleCells rellena cada celda con un tangle.
 export function starCells(rng, rect, count, clipToRect) {
   const w = rect.x1 - rect.x0, h = rect.y1 - rect.y0;
-  const cx = (rect.x0 + rect.x1) / 2, cy = (rect.y0 + rect.y1) / 2;
   const n = rInt(rng, 5, 8);
   const Ro = Math.min(w, h) * rFloat(rng, 0.44, 0.48);
-  const { tris, outer, inner } = starTriangles(cx, cy, Ro, Ro * rFloat(rng, 0.4, 0.5), n, -Math.PI / 2);
+  const Ri = Ro * rFloat(rng, 0.4, 0.5);
+  // Variedad entre páginas: tamaño, giro (punta arriba o media punta girada) y
+  // posición. Siempre centrada, igual y con la punta arriba, las 5 estrellas de
+  // un libro «Más vendidos» de 50 páginas se leían como la misma.
+  const k = rFloat(rng, 0.84, 1), R = Ro * k;
+  const rot = -Math.PI / 2 + (rng() < 0.5 ? 0 : Math.PI / n);
+  const sx = Math.max(0, w / 2 - R - 4), sy = Math.max(0, h / 2 - R - 4);
+  const cx = (rect.x0 + rect.x1) / 2 + rFloat(rng, -0.6, 0.6) * sx, cy = (rect.y0 + rect.y1) / 2 + rFloat(rng, -0.6, 0.6) * sy;
+  const { tris, outer, inner } = starTriangles(cx, cy, R, Ri * k, n, rot);
   // Escala del objetivo de bisección para acercarse a ~count celdas en total.
   const minSide = 9;
   let best = null;
   for (let f = 0.25; f <= 1.2; f += 0.05) {
-    const target = (x, y) => Ro * f * (1 - 0.6 * Math.min(1, Math.hypot(x - cx, y - cy) / Ro));
+    const target = (x, y) => R * f * (1 - 0.6 * Math.min(1, Math.hypot(x - cx, y - cy) / R));
     const out = [];
     for (const t of tris) bisect(t, target, out, minSide);
     const err = Math.abs(out.length + n - count);
