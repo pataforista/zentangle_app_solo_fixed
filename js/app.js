@@ -17,6 +17,9 @@ import { analyzeColorability, qualityVerdict, qualityScore, QUALITY_LIMITS, extr
 import { BOOK_RECIPES, STYLE_THEME } from "./core/bookRecipes.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
 import { THICKNESS_PROFILES, getThicknessProfile, applyThicknessProfile, scaleStrokeForProfile, getQualityLimitsForProfile } from "./core/thicknessProfiles.js";
+import { generateFrontMatter } from "./generators/frontMatter.js";
+import { downloadCoverPdf } from "./generators/cover.js";
+import { downloadOpenBookPdf } from "./generators/openBookView.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -81,6 +84,8 @@ const ui = {
   // Libro completo
   bookPages: $("bookPages"),
   bookBlank: $("bookBlank"),
+  bookTitle: $("bookTitle"),
+  bookAuthor: $("bookAuthor"),
   bookProgressive: $("bookProgressive"),
   bookGuide: $("bookGuide"),
   bookSpreads: $("bookSpreads"),
@@ -429,8 +434,10 @@ function bookPlan() {
   };
   const units = designUnits(n, { spreads: flags.spreads });
   const turnPages = flags.turn ? (n >= 20 ? 2 : 1) : 0;
-  const total = planSequence(units, { blank, guidePages: flags.guide ? GUIDE_PAGES_EST : 0, passport: flags.guide, turnPages }).length;
-  return { n, blank, flags, units, turnPages, total };
+  // Front matter: 4 páginas (portada, copyright, pertenece a, prueba de color)
+  const frontMatterPages = 4;
+  const total = planSequence(units, { blank, guidePages: flags.guide ? GUIDE_PAGES_EST : 0, passport: flags.guide, turnPages, frontMatterPages }).length;
+  return { n, blank, flags, units, turnPages, total, frontMatterPages };
 }
 
 function updateBookSummary() {
@@ -583,16 +590,27 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
 
 // Páginas que no son diseños: guía y pasaporte (con los tangles que de
 // verdad salen en el libro) y «Tu turno» (figuras con secciones vacías).
+// También incluye front matter (portada, copyright, pertenece a, prueba de color).
 async function buildBookExtras(review) {
   const { g, flags, turnPages, baseSeed } = review;
   const geo = { w: g.paper.w, h: g.paper.h, m: g.marginMm };
-  const out = { guide: [], passport: null, turn: [] };
+  const out = { guide: [], passport: null, turn: [], frontMatter: [] };
+  
+  // Front matter: portada, copyright, pertenece a, prueba de color
+  const title = ui.bookTitle?.value?.trim() || "Libro para colorear";
+  const author = ui.bookAuthor?.value?.trim() || "";
+  out.frontMatter = generateFrontMatter(geo, { title, author, lineThicknessProfile: g.opts.lineThicknessProfile });
+  
   if (flags.guide) {
     const found = [...new Set(review.pages.flatMap((p) => p.tangles || []))];
     const ids = found.length >= 3 ? found : Object.keys(TANGLE_INFO);
     out.guide = tangleGuidePages(ids, geo, { lineThicknessProfile: g.opts.lineThicknessProfile });
     out.passport = tanglePassportPage(ids, geo, { lineThicknessProfile: g.opts.lineThicknessProfile });
   }
+  
+  // Soluciones de figuras escondidas (M8): recopilar todas las figuras data-hidden
+  out.hiddenSolutions = collectHiddenSolutions(review, geo);
+  
   // «Tu turno» usa figuras que no salen en el libro (si quedan).
   const usedFigs = new Set(review.pages.map((p) => p.figure).filter(Boolean));
   // Del repertorio del estilo elegido (adultas o tiernas).
@@ -608,13 +626,71 @@ async function buildBookExtras(review) {
   return out;
 }
 
+// Recopila todas las figuras escondidas (data-hidden) del libro y genera una
+// página de soluciones mostrando cada figura resaltada (M8).
+function collectHiddenSolutions(review, geo) {
+  const solutions = [];
+  review.pages.forEach((page, pageIndex) => {
+    const svg = page.svg || "";
+    // Buscar todas las figuras escondidas en esta página
+    const hiddenMatches = [...svg.matchAll(/data-hidden="([^"]+)"/g)];
+    hiddenMatches.forEach((match) => {
+      solutions.push({
+        pageIndex,
+        figureName: match[1],
+      });
+    });
+  });
+  
+  if (solutions.length === 0) return null;
+  
+  // Generar página de soluciones
+  return generateSolutionsPage(solutions, geo);
+}
+
+// Genera una página SVG mostrando las soluciones de las figuras escondidas.
+function generateSolutionsPage(solutions, geo) {
+  const { w, h, m } = geo;
+  const FONT = `font-family="Helvetica, Arial, sans-serif"`;
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  
+  const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#fff"/>`];
+  
+  // Título
+  out.push(`<text x="${fmt(w / 2)}" y="${fmt(m + 10)}" ${FONT} font-size="8" font-weight="bold" text-anchor="middle">Soluciones: figuras escondidas</text>`);
+  out.push(`<text x="${fmt(w / 2)}" y="${fmt(m + 18)}" ${FONT} font-size="3.5" text-anchor="middle">Aquí están todas las figuras que se esconden en el libro</text>`);
+  
+  // Lista de soluciones (página - figura)
+  const startY = m + 30;
+  const lineHeight = 6;
+  const maxSolutions = Math.floor((h - startY - m) / lineHeight);
+  
+  solutions.slice(0, maxSolutions).forEach((sol, i) => {
+    const y = startY + i * lineHeight;
+    const pageNum = sol.pageIndex + 1;
+    out.push(`<text x="${fmt(m)}" y="${fmt(y)}" ${FONT} font-size="4">Página ${pageNum}: <tspan font-weight="bold">${esc(sol.figureName)}</tspan></text>`);
+  });
+  
+  if (solutions.length > maxSolutions) {
+    const y = startY + maxSolutions * lineHeight;
+    out.push(`<text x="${fmt(m)}" y="${fmt(y)}" ${FONT} font-size="3.5" font-style="italic">...y ${solutions.length - maxSolutions} más</text>`);
+  }
+  
+  out.push("</svg>");
+  return out.join("");
+}
+
+const fmt = (n) => (Math.round(Number(n) * 100) / 100).toString();
+
 const extrasList = (ex) => [
+  ...(ex.frontMatter || []).map((svg, i) => ({ svg, label: ["Portada", "Copyright", "Pertenece a", "Prueba de color"][i] || `Front matter ${i + 1}` })),
   ...ex.guide.map((svg, i) => ({ svg, label: `Guía ${i + 1}` })),
   ...(ex.passport ? [{ svg: ex.passport, label: "Pasaporte" }] : []),
+  ...(ex.hiddenSolutions ? [{ svg: ex.hiddenSolutions, label: "Soluciones" }] : []),
   ...ex.turn.map((svg, i) => ({ svg, label: `Tu turno ${i + 1}` })),
 ];
 
-const bookSequence = (review, ex) => planSequence(review.units, { blank: review.blank, guidePages: ex.guide.length, passport: !!ex.passport, turnPages: ex.turn.length });
+const bookSequence = (review, ex) => planSequence(review.units, { blank: review.blank, guidePages: ex.guide.length, passport: !!ex.passport, turnPages: ex.turn.length, frontMatterPages: (ex.frontMatter || []).length, hiddenSolutions: !!ex.hiddenSolutions });
 
 function freeBookReview() {
   closeViewer();
@@ -633,6 +709,8 @@ function updateBookButton() {
   const fresh = reviewIsFresh();
   const view = $("btnBookReview");
   if (view) view.hidden = !fresh;
+  const openBook = $("btnOpenBook");
+  if (openBook) openBook.hidden = !fresh;
   ui.btnBook.textContent = fresh
     ? `⬇ Descargar libro (PDF · ${bookReview.total} págs)`
     : (bookReview ? "📖 Preparar libro de nuevo (cambiaste ajustes)" : "📖 Preparar libro (revisar páginas)");
@@ -1100,7 +1178,7 @@ async function restoreBookFromRecipe(recipe) {
     key: bookKey(g, plan), g, n: recipe.designs, blank: recipe.blankBacks,
     flags: { ...recipe.flags }, units: plan.units, turnPages: plan.turnPages,
     baseSeed, pages: [],
-    extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0, done: {},
+    extras: { guide: [], passport: null, turn: [], frontMatter: [] }, extraUrls: [], total: 0, done: {},
   };
 
   ui.btnBook.textContent = "✖ Cancelar";
@@ -1218,7 +1296,7 @@ async function prepareBook() {
   const others = busyButtons().filter((b) => b && b !== ui.btnBook);
   others.forEach((b) => (b.disabled = true));
   freeBookReview();
-  const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [] }, extraUrls: [], total: 0, done: {} };
+  const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [], frontMatter: [] }, extraUrls: [], total: 0, done: {} };
   ui.btnBook.textContent = "✖ Cancelar";
   ui.bookBar.hidden = false; ui.bookBar.value = 0;
   try {
@@ -1286,9 +1364,11 @@ async function createBook() {
       return regen.page;
     };
     const svgOf = async (e) => ({ design: async () => (await full(e.i)).svg, spreadL: async () => (await full(e.i)).left, spreadR: async () => (await full(e.i)).right,
-      guide: async () => extras.guide[e.i], passport: async () => extras.passport, turn: async () => extras.turn[e.i] })[e.type]();
+      guide: async () => extras.guide[e.i], passport: async () => extras.passport, turn: async () => extras.turn[e.i],
+      frontMatter: async () => extras.frontMatter[e.i], hiddenSolutions: async () => extras.hiddenSolutions })[e.type]();
     const doc = await buildBookPdf({
       widthMm: g.paper.w, heightMm: g.paper.h, sequence, getEntrySvg: async (e) => svgOf(e), title,
+      bleedMm: g.opts.kdpBleedMm || 0,
       isCancelled: () => job.cancelled,
       onProgress: (i, count) => {
         ui.bookBar.value = i / count;
@@ -1298,12 +1378,14 @@ async function createBook() {
       getSvg: async (i) => pages[i].svg,
     });
     if (!doc) { ui.status.textContent = "PDF cancelado"; return; }
-    const name = `libro_${n}disenos_${g.paperKey}_${g.zPresetKey}_seed${baseSeed}.pdf`;
+    const bleedSuffix = g.opts.kdpBleedMm ? "_con_sangrado" : "";
+    const name = `libro_${n}disenos_${g.paperKey}_${g.zPresetKey}_seed${baseSeed}${bleedSuffix}.pdf`;
     doc.save(name);
     bookReview.done.pdf = true;
     updateNextSteps();
     const changed = pages.filter((p) => p.tries).length;
-    ui.status.textContent = `✓ PDF listo (${total} páginas). Siguiente: 📝 ficha KDP y 🧾 receta, arriba en la revisión. · ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
+    const bleedNotice = g.opts.kdpBleedMm ? " · ⚠ Al subir a KDP, selecciona «Con sangrado»" : "";
+    ui.status.textContent = `✓ PDF listo (${total} páginas). Siguiente: 📝 ficha KDP y 🧾 receta, arriba en la revisión. · ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}${bleedNotice}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
   } catch (err) {
     ui.status.textContent = `✗ No se pudo crear el libro: ${err.message}`;
     console.error("Error al crear libro:", err);
@@ -1344,11 +1426,80 @@ function downloadListing() {
   ui.status.textContent = "✓ Ficha de KDP descargada: título, descripción, palabras clave y medidas de portada";
 }
 
+// Genera y descarga la portada PDF para KDP.
+async function downloadCover() {
+  try {
+    const plan = bookPlan();
+    const g = pageGeometry();
+    const fresh = reviewIsFresh();
+    const pages = fresh ? bookReview.total : plan.total;
+    const title = ui.bookTitle?.value?.trim() || "Libro para colorear";
+    const author = ui.bookAuthor?.value?.trim() || "";
+    
+    ui.status.textContent = "Generando portada...";
+    const { spec, filename } = await downloadCoverPdf({
+      pages,
+      trimWmm: g.paper.w,
+      trimHmm: g.paper.h,
+      paper: plan.blank ? "white" : "premium",
+      title,
+      author,
+    });
+    
+    if (fresh) { bookReview.done.cover = true; updateNextSteps(); }
+    ui.status.textContent = `✓ Portada lista: ${spec.widthMm} × ${spec.heightMm} mm · lomo ${spec.spineMm} mm · ${filename}`;
+  } catch (err) {
+    ui.status.textContent = `✗ No se pudo generar la portada: ${err.message}`;
+    console.error("Error al generar portada:", err);
+  }
+}
+
+// Descarga un PDF con la vista de libro abierto (pliegos dobles).
+async function downloadOpenBook() {
+  if (!bookReview) {
+    ui.status.textContent = "⚠ Primero prepara el libro";
+    return;
+  }
+  try {
+    const { g, baseSeed, pages, units, blank } = bookReview;
+    const geo = { w: g.paper.w, h: g.paper.h, m: g.marginMm };
+    const title = ui.bookTitle?.value?.trim() || "Libro para colorear";
+    
+    ui.status.textContent = "Generando vista de libro abierto...";
+    const extras = await buildBookExtras(bookReview);
+    const sequence = bookSequence(bookReview, extras);
+    
+    // Regenerar páginas si es necesario
+    let regen = null;
+    const full = async (i) => {
+      if (pages[i].svg) return pages[i];
+      if (regen?.i !== i) regen = { i, page: await makeBookPage(g, pages[i].seed, i, baseSeed, bookReview, { thumb: false, quality: false }) };
+      return regen.page;
+    };
+    const svgOf = async (e) => ({ 
+      design: async () => (await full(e.i)).svg, 
+      spreadL: async () => (await full(e.i)).left, 
+      spreadR: async () => (await full(e.i)).right,
+      guide: async () => extras.guide[e.i], 
+      passport: async () => extras.passport, 
+      turn: async () => extras.turn[e.i],
+      frontMatter: async () => extras.frontMatter[e.i],
+      hiddenSolutions: async () => extras.hiddenSolutions
+    })[e.type]();
+    
+    const filename = await downloadOpenBookPdf(sequence, geo, svgOf, title);
+    ui.status.textContent = `✓ Vista de libro abierta lista: ${filename}`;
+  } catch (err) {
+    ui.status.textContent = `✗ No se pudo generar la vista de libro abierto: ${err.message}`;
+    console.error("Error al generar vista de libro abierto:", err);
+  }
+}
+
 let picker = null;
 
 // ---------- Recordar ajustes entre sesiones (uso personal) ----------
 const SETTINGS_KEY = "zentangle.settings.v1";
-const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "bookAutoFix", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
+const PERSIST_IDS = ["paper", "marginMm", "zPreset", "bookPages", "bookBlank", "bookTitle", "bookAuthor", "bookProgressive", "bookGuide", "bookSpreads", "bookTurn", "bookAutoFix", "kdpBleedMm", "showSafeZone", "fillDeadSpace"];
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || {}; } catch { return {}; }
 }
@@ -1788,6 +1939,8 @@ function bind() {
   ui.btnBook.addEventListener("click", onBookButton);
   $("btnBookReview")?.addEventListener("click", showBookReview);
   $("btnKdpListing")?.addEventListener("click", downloadListing);
+  $("btnCover")?.addEventListener("click", downloadCover);
+  $("btnOpenBook")?.addEventListener("click", downloadOpenBook);
   // Cargar receta: restaura un libro completo desde su JSON.
   $("btnLoadRecipe")?.addEventListener("click", loadBookRecipe);
   $("inputRecipe")?.addEventListener("change", (e) => {

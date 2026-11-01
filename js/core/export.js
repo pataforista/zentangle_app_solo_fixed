@@ -85,23 +85,30 @@ export async function downloadPdf(filename, svgString, widthMm, heightMm) {
  */
 // Con `sequence` (ver core/bookPlan.js) cada entrada es una página: null = en
 // blanco; si no, getEntrySvg(entrada) da su SVG. Sin ella, el modo clásico.
-export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = true, title = "Libro para colorear", getSvg, onProgress, isCancelled, sequence = null, getEntrySvg = null }) {
+// Con `bleedMm` > 0, el PDF se exporta con sangrado (tamaño aumentado).
+export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = true, title = "Libro para colorear", getSvg, onProgress, isCancelled, sequence = null, getEntrySvg = null, bleedMm = 0 }) {
   if (typeof window === "undefined" || !window.jspdf || !window.jspdf.jsPDF) {
     throw new Error("La librería jsPDF no está cargada. Verifica que js/vendor/jspdf.umd.min.js existe y recarga.");
   }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF(widthMm > heightMm ? "l" : "p", "mm", [widthMm, heightMm]);
+  
+  // Si hay sangrado, aumentar las dimensiones del PDF
+  const pdfWidth = widthMm + 2 * bleedMm;
+  const pdfHeight = heightMm + 2 * bleedMm;
+  
+  const doc = new jsPDF(pdfWidth > pdfHeight ? "l" : "p", "mm", [pdfWidth, pdfHeight]);
   doc.setProperties({ title });
 
-  const orient = widthMm > heightMm ? "l" : "p";
+  const orient = pdfWidth > pdfHeight ? "l" : "p";
   if (sequence) {
     for (let i = 0; i < sequence.length; i++) {
       if (isCancelled && isCancelled()) return null;
-      if (i > 0) doc.addPage([widthMm, heightMm], orient);
+      if (i > 0) doc.addPage([pdfWidth, pdfHeight], orient);
       const e = sequence[i];
       if (e) {
+        // Renderizar el SVG al tamaño original y colocarlo centrado con sangrado
         const png = await generatePngDataUrl(await getEntrySvg(e), widthMm, heightMm);
-        doc.addImage(png, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+        doc.addImage(png, "PNG", bleedMm, bleedMm, widthMm, heightMm, undefined, "FAST");
       }
       if (onProgress) onProgress(i + 1, sequence.length);
       await new Promise((r) => setTimeout(r, 0));
@@ -113,11 +120,11 @@ export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = tr
     if (isCancelled && isCancelled()) return null;
     const svg = await getSvg(i);
     const png = await generatePngDataUrl(svg, widthMm, heightMm);
-    if (!first) doc.addPage([widthMm, heightMm], widthMm > heightMm ? "l" : "p");
+    if (!first) doc.addPage([pdfWidth, pdfHeight], pdfWidth > pdfHeight ? "l" : "p");
     first = false;
-    doc.addImage(png, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+    doc.addImage(png, "PNG", bleedMm, bleedMm, widthMm, heightMm, undefined, "FAST");
     // Diseño a la derecha (impar), blanco a la izquierda (par): evita que la tinta traspase al siguiente diseño.
-    if (blankBetween) doc.addPage([widthMm, heightMm], widthMm > heightMm ? "l" : "p");
+    if (blankBetween) doc.addPage([pdfWidth, pdfHeight], pdfWidth > pdfHeight ? "l" : "p");
     if (onProgress) onProgress(i + 1, count);
     await new Promise((r) => setTimeout(r, 0)); // deja respirar a la UI
   }

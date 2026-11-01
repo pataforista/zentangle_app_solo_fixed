@@ -729,6 +729,16 @@
               </select>
             </div>
           </div>
+          <div class="form-row">
+            <div>
+              <label for="bookTitle">Título del libro</label>
+              <input id="bookTitle" type="text" placeholder="Libro para colorear" maxlength="80" />
+            </div>
+            <div>
+              <label for="bookAuthor">Autor (opcional)</label>
+              <input id="bookAuthor" type="text" placeholder="" maxlength="60" />
+            </div>
+          </div>
           <div class="book-extras">
             <label class="check"><input type="checkbox" id="bookProgressive" /> 📈 Dificultad progresiva: de fácil a difícil, con nivel y tiempo en cada página</label>
             <label class="check"><input type="checkbox" id="bookGuide" /> 📘 Guía paso a paso de los tangles (al inicio) y pasaporte (al final)</label>
@@ -740,6 +750,8 @@
           <progress id="bookBar" class="book-bar" max="1" value="0" hidden></progress>
           <button id="btnBookReview" type="button" class="link-btn" hidden>👁 Ver las páginas del libro</button>
           <button id="btnKdpListing" type="button" class="link-btn">📝 Texto para la ficha de KDP (sin marcas ajenas)</button>
+          <button id="btnCover" type="button" class="link-btn">🎨 Generar portada PDF para KDP</button>
+          <button id="btnOpenBook" type="button" class="link-btn" hidden>📖 Vista de libro abierto (pliegos dobles)</button>
           <p class="hint">Primero ves todas las páginas: cambia con ↻ las que no te gusten y luego descarga el PDF. Cada página deriva su semilla de la tuya, así que el libro se puede regenerar idéntico.</p>
         </section>
 
