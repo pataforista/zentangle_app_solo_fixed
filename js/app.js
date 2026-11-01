@@ -22,6 +22,11 @@ import { downloadCoverPdf } from "./generators/cover.js";
 import { downloadOpenBookPdf } from "./generators/openBookView.js";
 import { saveCurrentBook, loadCurrentBook, clearCurrentBook, saveBookToLibrary, listLibraryBooks, getLibraryBook, renameLibraryBook, updateLibraryBookState, duplicateLibraryBook, deleteLibraryBook } from "./core/bookStorage.js";
 
+// Fase 4 - Venta: nuevos módulos
+import { generateBilingualListing, generateFullListingText, calculateRoyaltyTable, validateKeyword } from "./generators/bookListing.js";
+import { generateBatch, generateBookListing, generateBookRecipe, downloadBatchFiles, validateBatchConfig, calculateBatchStats } from "./core/batchGenerator.js";
+import { exportPageAsImage, exportBestPages, getBestPagesForMockup, downloadImage, getCanvaInstructions, EXPORT_PRESETS } from "./core/mockupExport.js";
+
 const $ = (id) => document.getElementById(id);
 
 const DEFAULT_STATE = {
@@ -1369,6 +1374,73 @@ function togglePinPage(i) {
     : `Diseño ${i + 1} desfijado`;
 }
 
+// ===================== MODO ESCAPARATE (§6.2) =====================
+// Ordena las páginas por calidad para que las 4 mejores queden al principio.
+// La puntuación combina cobertura (60%) y contraste (40%) de la figura.
+// Solo se aplica si el toggle "Modo escaparate" está activo.
+
+// Calcula el score de composición de una página (para modo escaparate).
+// score = coverage * 0.6 + contrast * 0.4
+// Si no hay métricas de figura, devuelve 0.
+function pageShowcaseScore(page) {
+  const q = page.quality || {};
+  const coverage = q.coverage ?? 0;
+  const contrast = q.contrast ?? 0;
+  // Normalizar contraste a 0-1 (puede ser negativo)
+  const normalizedContrast = Math.max(0, Math.min(1, (contrast + 0.5) / 1.5));
+  return coverage * 0.6 + normalizedContrast * 0.4;
+}
+
+// Reordena las páginas del libro para modo escaparate:
+// las 4 mejores (por score de composición) van al principio.
+// Las páginas fijadas (📌) mantienen su posición.
+function applyShowcaseOrder(review) {
+  if (!review?.pages?.length) return;
+  const showcaseEnabled = $("showcaseMode")?.checked;
+  if (!showcaseEnabled) return;
+
+  // Separar páginas fijadas y no fijadas
+  const pinned = [];
+  const unpinned = [];
+  review.pages.forEach((page, idx) => {
+    const entry = { page, origIdx: idx };
+    if (page.pinned) pinned.push(entry);
+    else unpinned.push(entry);
+  });
+
+  // Ordenar las no fijadas por score (mejor primero)
+  unpinned.sort((a, b) => pageShowcaseScore(b.page) - pageShowcaseScore(a.page));
+
+  // Reconstruir: las 4 mejores al principio, luego el resto
+  const showcaseCount = Math.min(4, unpinned.length);
+  const showcase = unpinned.slice(0, showcaseCount);
+  const rest = unpinned.slice(showcaseCount);
+
+  // Mezclar el resto para que no quede todo ordenado (variety)
+  // Usar Fisher-Yates con semilla para reproducibilidad
+  const seed = review.baseSeed;
+  let rng = seed;
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      rng = (rng * 1103515245 + 12345) >>> 0;
+      const j = rng % (i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+  shuffle(rest);
+
+  // Reconstruir el array de páginas
+  const ordered = [...showcase, ...rest];
+
+  // Actualizar las páginas del review
+  review.pages = ordered.map((entry) => entry.page);
+
+  // Log para debug
+  const scores = review.pages.slice(0, showcaseCount).map((p) => pageShowcaseScore(p).toFixed(2));
+  console.log(`Modo escaparate: top ${showcaseCount} páginas con scores [${scores.join(", ")}]`);
+}
+
 async function prepareBook() {
   const plan = bookPlan();
   const { n, blank } = plan;
@@ -1411,6 +1483,10 @@ async function prepareBook() {
       ui.status.textContent = `Preparando libro… diseño ${i + 1} de ${n}`;
       await new Promise((r) => setTimeout(r, 0)); // deja respirar a la UI
     }
+
+    // Modo escaparate: ordenar páginas por calidad (las 4 mejores al principio)
+    applyShowcaseOrder(review);
+
     review.extras = await buildBookExtras(review);
     review.extraUrls = extrasList(review.extras).map((x) => URL.createObjectURL(new Blob([x.svg], { type: "image/svg+xml" })));
     review.total = bookSequence(review, review.extras).length;
@@ -1421,10 +1497,12 @@ async function prepareBook() {
     await saveCurrentBook(review);
     const nFlag = flaggedPages(review).length;
     const nPinned = oldPinned.length;
+    const showcaseEnabled = $("showcaseMode")?.checked;
+    const showcaseMsg = showcaseEnabled ? " · 🏪 modo escaparate activado (4 mejores al inicio)" : "";
     // Prueba automática: verificar que no hay figuras excluidas (U9).
     const figCheck = verifyNoExcludedFigures(review);
     const figWarn = !figCheck.ok ? ` · ⚠ ${figCheck.violations.length} figura${figCheck.violations.length > 1 ? "s" : ""} excluida${figCheck.violations.length > 1 ? "s" : ""} encontrada${figCheck.violations.length > 1 ? "s" : ""}` : "";
-    ui.status.textContent = `✓ ${n} diseños listos (${review.total} páginas)` + (nPinned ? ` · ${nPinned} fijad${nPinned === 1 ? "a" : "as"}` : "") + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad: pulsa «🛠 Arreglar»` : " · todas pasan el control de calidad") + figWarn + " · luego descarga el PDF";
+    ui.status.textContent = `✓ ${n} diseños listos (${review.total} páginas)` + (nPinned ? ` · ${nPinned} fijad${nPinned === 1 ? "a" : "as"}` : "") + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad: pulsa «🛠 Arreglar»` : " · todas pasan el control de calidad") + showcaseMsg + figWarn + " · luego descarga el PDF";
   } catch (err) {
     review.pages.forEach((p) => URL.revokeObjectURL(p.url));
     ui.status.textContent = `✗ No se pudo preparar el libro: ${err.message}`;
@@ -2325,6 +2403,188 @@ function bind() {
   $("inputRecipe")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if (file) handleRecipeFile(file);
+  });
+
+  // ===================== FASE 4 - VENTA: Event Listeners =====================
+
+  // Ficha bilingüe para KDP
+  let currentBilingualListing = null;
+  $("btnBilingualListing")?.addEventListener("click", () => {
+    const theme = $("listingTheme")?.value || "adult";
+    const printType = $("listingPrintType")?.value || "blackWhite";
+    const plan = bookPlan();
+    const g = pageGeometry();
+    const fresh = reviewIsFresh();
+
+    const listingOpts = {
+      theme,
+      designs: plan.n,
+      pages: fresh ? bookReview.total : plan.total,
+      paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
+      flags: plan.flags,
+      blank: plan.blank,
+      printType,
+      channel: "amazon",
+    };
+
+    try {
+      currentBilingualListing = generateFullListingText(listingOpts);
+      const preview = $("bilingualListingPreview");
+      const textEl = $("bilingualListingText");
+      if (preview && textEl) {
+        textEl.textContent = currentBilingualListing;
+        preview.hidden = false;
+      }
+      // Habilitar botones de copiar y descargar
+      const btnCopy = $("btnCopyListing");
+      const btnDownload = $("btnDownloadBilingualListing");
+      if (btnCopy) btnCopy.disabled = false;
+      if (btnDownload) btnDownload.disabled = false;
+      ui.status.textContent = "✓ Ficha bilingüe generada: título, subtítulo, palabras clave, categorías y regalías en español e inglés";
+    } catch (err) {
+      ui.status.textContent = `✗ Error generando ficha bilingüe: ${err.message}`;
+      console.error("Error generando ficha bilingüe:", err);
+    }
+  });
+
+  // Copiar ficha al portapapeles
+  $("btnCopyListing")?.addEventListener("click", async () => {
+    if (!currentBilingualListing) return;
+    try {
+      await navigator.clipboard.writeText(currentBilingualListing);
+      ui.status.textContent = "✓ Ficha bilingüe copiada al portapapeles";
+    } catch (err) {
+      // Fallback para navegadores sin soporte de clipboard API
+      const textarea = document.createElement("textarea");
+      textarea.value = currentBilingualListing;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand("copy");
+        ui.status.textContent = "✓ Ficha bilingüe copiada al portapapeles";
+      } catch (e) {
+        ui.status.textContent = "✗ No se pudo copiar al portapapeles";
+      }
+      document.body.removeChild(textarea);
+    }
+  });
+
+  // Descargar ficha bilingüe como TXT
+  $("btnDownloadBilingualListing")?.addEventListener("click", () => {
+    if (!currentBilingualListing) return;
+    const theme = $("listingTheme")?.value || "adult";
+    downloadTextFile(`ficha_bilingue_${theme}.txt`, currentBilingualListing, "text/plain;charset=utf-8");
+    ui.status.textContent = "✓ Ficha bilingüe descargada como TXT";
+  });
+
+  // Generar lote de libros
+  $("btnGenerateBatch")?.addEventListener("click", async () => {
+    const count = int($("batchCount")?.value, 5);
+    const baseName = $("batchBaseName")?.value?.trim() || "libro";
+    const pages = int($("batchPages")?.value, 50);
+    const theme = $("batchTheme")?.value || "adult";
+
+    // Validar configuración
+    const validation = validateBatchConfig({ count, baseName, pages });
+    if (!validation.valid) {
+      ui.status.textContent = `✗ Configuración inválida: ${validation.errors.join(", ")}`;
+      return;
+    }
+
+    const batchBar = $("batchBar");
+    const batchStatus = $("batchStatus");
+    if (batchBar) batchBar.hidden = false;
+
+    ui.status.textContent = `Generando lote de ${count} libros...`;
+
+    try {
+      const books = [];
+      for (let i = 0; i < count; i++) {
+        if (batchBar) batchBar.value = (i + 1) / count;
+        if (batchStatus) batchStatus.textContent = `Generando libro ${i + 1} de ${count}...`;
+
+        const seed = Math.floor(Math.random() * 2147483647);
+        const bookData = {
+          seed,
+          name: `${baseName}_${i + 1}`,
+          theme,
+          pages,
+          paperKey: String(ui.paper.value || "LETTER"),
+          printType: $("listingPrintType")?.value || "blackWhite",
+          channel: "amazon",
+          batchId: `batch_${Date.now()}`,
+          bookIndex: i,
+        };
+
+        // Generar listing y recipe para cada libro
+        bookData.listingText = generateFullListingText({
+          theme,
+          designs: pages,
+          pages,
+          paperLabel: PAPER_LABELS[bookData.paperKey] || bookData.paperKey,
+          flags: {},
+          blank: true,
+          printType: bookData.printType,
+          channel: bookData.channel,
+        });
+        bookData.recipe = generateBookRecipe(bookData);
+
+        books.push(bookData);
+        await new Promise((r) => setTimeout(r, 10));
+      }
+
+      // Descargar archivos del lote
+      await downloadBatchFiles(books, baseName);
+
+      const stats = calculateBatchStats(books);
+      if (batchBar) batchBar.hidden = true;
+      if (batchStatus) batchStatus.textContent = `✓ Lote completado: ${stats.totalBooks} libros, ${stats.totalPages} páginas totales`;
+      ui.status.textContent = `✓ Lote de ${count} libros generado y descargado (listing + recipe de cada uno)`;
+    } catch (err) {
+      ui.status.textContent = `✗ Error generando lote: ${err.message}`;
+      console.error("Error generando lote:", err);
+      if (batchBar) batchBar.hidden = true;
+    }
+  });
+
+  // Exportar mejores páginas para mockups
+  $("btnExportMockups")?.addEventListener("click", async () => {
+    if (!bookReview) {
+      ui.status.textContent = "⚠ Primero prepara un libro para exportar sus páginas";
+      return;
+    }
+
+    try {
+      ui.status.textContent = "Exportando mejores páginas para mockups...";
+      const bestPages = getBestPagesForMockup(bookReview, 6);
+
+      if (bestPages.length === 0) {
+        ui.status.textContent = "⚠ No hay páginas con métricas de calidad disponibles";
+        return;
+      }
+
+      // Exportar cada página como PNG de alta resolución
+      for (let i = 0; i < bestPages.length; i++) {
+        const bp = bestPages[i];
+        const svg = bp.page.svg;
+        if (!svg) continue;
+
+        const blob = await exportPageAsImage(svg, EXPORT_PRESETS.quickPreview);
+        downloadImage(blob, `mockup_pagina_${bp.pageIndex + 1}.png`);
+        await new Promise((r) => setTimeout(r, 500)); // Esperar entre descargas
+      }
+
+      // Mostrar instrucciones de Canva
+      const instructions = getCanvaInstructions();
+      console.log(instructions);
+
+      ui.status.textContent = `✓ ${bestPages.length} páginas exportadas para mockups. Revisa la consola (F12) para ver las instrucciones de Canva.`;
+    } catch (err) {
+      ui.status.textContent = `✗ Error exportando mockups: ${err.message}`;
+      console.error("Error exportando mockups:", err);
+    }
   });
   // Tipos de libro de un clic.
   const recipeBox = $("bookRecipes");

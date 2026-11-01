@@ -113,6 +113,26 @@
     .hint.ok { color: #15803d; font-weight: 500; }
     .book-box { background: #eef2ff; border-color: #c7d2fe; }
     .book-bar { width: 100%; height: 10px; margin-top: 8px; accent-color: var(--accent); }
+
+    /* Fase 4 - Ficha bilingüe */
+    .listing-preview {
+      margin-top: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .listing-text {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      color: var(--text-main);
+      margin: 0;
+    }
     .btn-lg { padding: 14px 16px; font-size: 15px; font-weight: 600; }
     .row { display: grid; gap: 10px; }
     .row3 { grid-template-columns: repeat(3, 1fr); }
@@ -654,6 +674,10 @@
                   <option value="zen_figure_bio">🧬 Biología: neurona, ADN, células... (ciencia)</option>
                   <option value="zen_figure_cryptids">👣 Críptidos del mundo (Pie Grande, Nessie, kraken...)</option>
                   <option value="zen_figure_kids">🧸 Animales tiernos (infantil: búho, gato, oso...)</option>
+                  <option value="zen_figure_ocean">🐢 Océano (tortugas, medusas, ballenas) — placeholder</option>
+                  <option value="zen_figure_cats">🐱 Gatos con patrones — placeholder</option>
+                  <option value="zen_figure_birds">🦅 Aves exóticas (colibríes, loros) — placeholder</option>
+                  <option value="zen_figure_christmas">🎄 Navidad (árboles, estrellas, adornos) — placeholder</option>
                   <option value="zen_star">⭐ Estrella subdividida (string)</option>
                   <option value="icon_mandala">🐱 Mandala de iconos con tangles</option>
                   <option value="facet_spiral">💎 Pétalos facetados en espiral</option>
@@ -770,6 +794,7 @@
             <label class="check"><input type="checkbox" id="bookSpreads" /> ↔️ Dobles páginas: 1 de cada 8 diseños sigue en la página de enfrente (con franja segura en el lomo)</label>
             <label class="check"><input type="checkbox" id="bookAutoFix" checked /> 🛠 Arreglar solas las páginas con zonas difíciles al prepararlas</label>
             <label class="check"><input type="checkbox" id="bookTurn" /> ✏️ Páginas «Tu turno»: figura vacía para dibujar tus propios tangles</label>
+            <label class="check"><input type="checkbox" id="showcaseMode" /> 🏪 Modo escaparate: las 4 mejores páginas al inicio (ordenadas por calidad)</label>
           </div>
           <p id="bookSummary" class="hint" aria-live="polite"></p>
           <progress id="bookBar" class="book-bar" max="1" value="0" hidden></progress>
@@ -792,6 +817,88 @@
             <div id="libraryList"></div>
           </div>
           <p class="hint">Primero ves todas las páginas: cambia con ↻ las que no te gusten y luego descarga el PDF. Cada página deriva su semilla de la tuya, así que el libro se puede regenerar idéntico.</p>
+        </section>
+
+        <!-- ④ Ficha bilingüe (Fase 4 - Venta) -->
+        <section class="step" id="stepListing" aria-labelledby="stepListingTitle">
+          <div class="step-head">
+            <h2 id="stepListingTitle"><span class="step-num">4</span> Ficha bilingüe para KDP</h2>
+          </div>
+          <p class="hint">Genera título, subtítulo, 7 palabras clave, 3 categorías y tabla de regalías en español e inglés.</p>
+          <div class="form-row">
+            <div>
+              <label for="listingTheme">Tema del libro</label>
+              <select id="listingTheme">
+                <option value="adult">Adultos (patrones y figuras)</option>
+                <option value="glass">Vitral</option>
+                <option value="dino">Dinosaurios</option>
+                <option value="bio">Biología</option>
+                <option value="cryptids">Críptidos</option>
+                <option value="kids">Infantil</option>
+                <option value="ocean">Océano</option>
+                <option value="cats">Gatos</option>
+                <option value="birds">Aves</option>
+                <option value="christmas">Navidad</option>
+              </select>
+            </div>
+            <div>
+              <label for="listingPrintType">Tipo de impresión</label>
+              <select id="listingPrintType">
+                <option value="blackWhite">B/N papel blanco</option>
+                <option value="colorPremium">Color prémium</option>
+                <option value="colorStandard">Color estándar</option>
+              </select>
+            </div>
+          </div>
+          <button id="btnBilingualListing" type="button" class="btn btn-primary">📝 Generar ficha bilingüe</button>
+          <button id="btnCopyListing" type="button" class="btn btn-secondary" disabled>📋 Copiar al portapapeles</button>
+          <button id="btnDownloadBilingualListing" type="button" class="btn btn-secondary" disabled>⬇ Descargar como TXT</button>
+          <div id="bilingualListingPreview" class="listing-preview" hidden>
+            <pre id="bilingualListingText" class="listing-text"></pre>
+          </div>
+          <p class="hint">La ficha incluye: título y subtítulo en ambos idiomas, 7 palabras clave (máx. 50 caracteres cada una), 3 categorías BISAC, tabla de regalías según páginas y tipo de impresión, y atribución oficial de Zentangle®.</p>
+        </section>
+
+        <!-- ⑤ Lote de libros (Fase 4 - Venta) -->
+        <section class="step" id="stepBatch" aria-labelledby="stepBatchTitle">
+          <div class="step-head">
+            <h2 id="stepBatchTitle"><span class="step-num">5</span> Generar lote de libros</h2>
+          </div>
+          <p class="hint">Genera varios libros de una vez con diferentes semillas. Cada libro incluye: interior PDF, portada, ficha KDP y receta.</p>
+          <div class="form-row">
+            <div>
+              <label for="batchCount">Número de libros</label>
+              <input id="batchCount" type="number" min="1" max="20" step="1" value="5" />
+            </div>
+            <div>
+              <label for="batchBaseName">Nombre base</label>
+              <input id="batchBaseName" type="text" placeholder="mi_libro" value="libro" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="batchPages">Páginas por libro</label>
+              <input id="batchPages" type="number" min="24" max="828" step="1" value="50" />
+            </div>
+            <div>
+              <label for="batchTheme">Tema</label>
+              <select id="batchTheme">
+                <option value="adult">Adultos</option>
+                <option value="glass">Vitral</option>
+                <option value="dino">Dinosaurios</option>
+                <option value="kids">Infantil</option>
+                <option value="ocean">Océano</option>
+                <option value="cats">Gatos</option>
+                <option value="birds">Aves</option>
+                <option value="christmas">Navidad</option>
+              </select>
+            </div>
+          </div>
+          <button id="btnGenerateBatch" type="button" class="btn btn-primary">📦 Generar lote de libros</button>
+          <button id="btnExportMockups" type="button" class="btn btn-secondary">🖼️ Exportar mejores páginas (mockups)</button>
+          <progress id="batchBar" class="book-bar" max="1" value="0" hidden></progress>
+          <p id="batchStatus" class="hint" aria-live="polite"></p>
+          <p class="hint">💡 Consejo: usa las páginas exportadas para crear mockups en Canva y contenido A+ para Amazon. Cada libro se genera con una semilla diferente para máxima variedad.</p>
         </section>
 
         <!-- Ajustes finos (planos: sin desplegables anidados) -->

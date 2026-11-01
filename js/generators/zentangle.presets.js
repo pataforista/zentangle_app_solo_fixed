@@ -1052,4 +1052,76 @@ export const ZENTANGLE_PRESETS = {
     minGapMm: 1.8,
     sketchy: 0,
   },
+
+  // ========== NUEVOS TEMAS (FASE 4) ==========
+  // Presets placeholder para nuevos temas. Requieren figuras SVG específicas
+  // que se implementarán en una fase posterior. Por ahora usan figuras existentes.
+
+  // Océano: tortugas, medusas, ballenas, rayos, pulpos, caballitos de mar.
+  // Placeholder: usa figuras de adultos con fondo temático oceánico.
+  zen_figure_ocean: {
+    cellLayout: "zen_figure",
+    figures: ADULT_FIGURES, // TODO: añadir FIGURE_SETS.ocean cuando existan las figuras
+    themedBackground: "ocean", // olas, burbujas, corales
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+    // Nota: cuando se implementen las figuras de océano, cambiar a:
+    // figures: FIGURE_SETS.ocean
+  },
+
+  // Gatos: diferentes poses y razas de gatos con patrones.
+  // Placeholder: usa figuras de kids (animales tiernos) como base.
+  zen_figure_cats: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.kids, // TODO: añadir FIGURE_SETS.cats cuando existan las figuras
+    themedBackground: "cats", // ovillos, huellas, ratones
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+    // Nota: cuando se implementen las figuras de gatos, cambiar a:
+    // figures: FIGURE_SETS.cats
+  },
+
+  // Aves: colibríes, loros, águilas, búhos, pavos reales, flamencos.
+  // Placeholder: usa figuras de adultos (incluye colibrí).
+  zen_figure_birds: {
+    cellLayout: "zen_figure",
+    figures: ADULT_FIGURES, // TODO: añadir FIGURE_SETS.birds cuando existan las figuras
+    themedBackground: "birds", // ramas, hojas, flores
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+    // Nota: cuando se implementen las figuras de aves, cambiar a:
+    // figures: FIGURE_SETS.birds
+  },
+
+  // Navidad: árboles, estrellas, adornos, regalos, renos, muñecos de nieve.
+  // Placeholder: usa figuras de kids (animales tiernos) con fondo festivo.
+  zen_figure_christmas: {
+    cellLayout: "zen_figure",
+    figures: FIGURE_SETS.kids, // TODO: añadir FIGURE_SETS.christmas cuando existan las figuras
+    themedBackground: "christmas", // estrellas, nieve, copos
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.75,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+    // Nota: cuando se implementen las figuras de Navidad, cambiar a:
+    // figures: FIGURE_SETS.christmas
+  },
 };
