@@ -905,6 +905,7 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_kids: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.kids,
+    themedBackground: "kids", // nubes, corazones, estrellitas
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
@@ -917,6 +918,7 @@ export const ZENTANGLE_PRESETS = {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.dino,
     origamiMix: FIGURE_SETS.dinoOrigamiMix, // páginas alternas en origami
+    themedBackground: "dino", // helechos prehistóricos
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
@@ -930,6 +932,7 @@ export const ZENTANGLE_PRESETS = {
     figureStyle: "facet",
     figureAngular: true,
     figures: FIGURE_SETS.dinoOrigami,
+    themedBackground: "dino", // helechos prehistóricos
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
@@ -940,6 +943,7 @@ export const ZENTANGLE_PRESETS = {
   },  zen_figure_bio: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.bio,
+    themedBackground: "bio", // moléculas, átomos, ADN
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
@@ -955,6 +959,7 @@ export const ZENTANGLE_PRESETS = {
     // una sale ~1,7 veces en un libro de 28 (con 1 de cada 3, las origami salían 3).
     origamiMix: FIGURE_SETS.cryptidsOrigami,
     origamiEvery: 5,
+    themedBackground: "cryptids", // estrellas, luna, cielo nocturno
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,

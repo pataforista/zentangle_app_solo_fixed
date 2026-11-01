@@ -42,19 +42,280 @@ const POOL = [
   legacy("florz", fillFlorz, 0.95, 4.6),
   legacy("crescent", fillCrescentMoon, 0.9, 6.5),
   legacy("scallops", fillScallops, 1.1),
+  ...ORIGINAL_TANGLES,
 ];
 // Fondo: tangles amplios y tranquilos, para que la figura destaque.
-const BG_POOL = ["tipple", "purk", "printemps", "beadlines", "static", "nzeppel", "scallops", "cubine", "keeko"];
+const BG_POOL = ["tipple", "purk", "printemps", "beadlines", "static", "nzeppel", "scallops", "cubine", "keeko",
+  "ondas", "dunas", "corrientes", "panal", "semillas"];
 // Rellenos de detalle (alas, cola, aletas): de grano fino y direccional.
-const DETAIL_POOL = ["static", "keeko", "scallops", "beadlines", "nzeppel", "cubine", "tipple"];
+const DETAIL_POOL = ["static", "keeko", "scallops", "beadlines", "nzeppel", "cubine", "tipple",
+  "flechas", "espinas", "lianas", "dunas"];
 const byId = new Map(POOL.map((t) => [t.id, t]));
 // Para la guía de tangles del libro (bookExtras.js).
 export const FIGURE_TANGLES = POOL;
 // Tangles de trazo exigente (muchas líneas cortas o cruces): van al final de
 // un libro con dificultad progresiva.
-const HARD = new Set(["paradox", "hollibaugh", "bales", "cubine", "cadent", "florz", "printemps", "keeko"]);
+const HARD = new Set(["paradox", "hollibaugh", "bales", "cubine", "cadent", "florz", "printemps", "keeko",
+  "telarana", "nido", "lianas", "rizos"]);
+
+/* ---- M5: Mapa de zonas anatómicas a familias de tangles ---- */
+// Cada zona anatómica tiene una familia de tangles apropiados. Al asignar un
+// tangle a una parte de la figura, se filtra por zona para que las alas reciban
+// patrones tipo pluma, la panza patrones suaves, etc.
+const ZONE_TANGLE_MAP = {
+  wing: ["scallops", "beadlines", "flechas", "espinas", "lianas", "static", "keeko"],
+  belly: ["tipple", "purk", "printemps", "semillas", "gotas", "rizos", "ondas"],
+  skin: ["keeko", "static", "scallops", "ladrillos", "musgo", "espinas", "panal"],
+  shell: ["cubine", "florz", "paradox", "telarana", "red", "panal", "ladrillos"],
+  head: ["hollibaugh", "bales", "nido", "telarana", "rizos", "musgo"],
+  leg: ["static", "cadent", "ladrillos", "espinas", "flechas", "dunas"],
+  tail: ["printemps", "crescent", "ondas", "corrientes", "dunas", "lianas"],
+};
+// Resolver pool de tangles para una zona. Si la zona no tiene mapeo, devolver
+// el pool completo (fallback).
+function zonePool(zone, fallbackPool) {
+  if (zone && ZONE_TANGLE_MAP[zone]) {
+    const ids = ZONE_TANGLE_MAP[zone];
+    const mapped = ids.map((id) => byId.get(id)).filter(Boolean);
+    return mapped.length >= 3 ? mapped : fallbackPool;
+  }
+  return fallbackPool;
+}
 // El fondo usa una escala más abierta que la figura: así la figura destaca.
 const BG_GAP = 1.7;
+
+/* ======================= Fondos temáticos ======================= */
+// Generadores de fondo específicos para cada tema. Cada uno recibe
+// (rng, frame, opts) y devuelve un string de elementos SVG dentro del frame.
+// Son formas simples para no interferir con la figura principal.
+
+// Helechos: tallo central curvo con hojas laterales (dinosaurios, prehistoria).
+function bgFerns(rng, frame, opts) {
+  const { x0, y0, x1, y1 } = frame;
+  const w = x1 - x0, h = y1 - y0;
+  const stroke = opts._stroke || 0.35;
+  const n = rInt(rng, 4, 7);
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    const bx = x0 + rng() * w, by = y0 + rng() * h;
+    const ang = rFloat(rng, -0.8, 0.8);
+    const len = rFloat(rng, h * 0.12, h * 0.25);
+    const side = rng() < 0.5 ? -1 : 1;
+    // Tallo central (curva suave).
+    const cx1 = bx + side * len * 0.15, cy1 = by - len * 0.4;
+    const cx2 = bx + side * len * 0.25, cy2 = by - len * 0.75;
+    const tx = bx + side * len * 0.1, ty = by - len;
+    parts.push(`<path d="M${fmt(bx)} ${fmt(by)} C${fmt(cx1)} ${fmt(cy1)} ${fmt(cx2)} ${fmt(cy2)} ${fmt(tx)} ${fmt(ty)}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}" stroke-linecap="round"/>`);
+    // Hojas laterales (3-5 pares a lo largo del tallo).
+    const leaves = rInt(rng, 3, 6);
+    for (let j = 1; j <= leaves; j++) {
+      const t = j / (leaves + 1);
+      // Punto en la curva del tallo (aproximación lineal).
+      const lx = bx + (tx - bx) * t + (cx1 - bx) * 2 * t * (1 - t) + (cx2 - bx) * t * t * 0;
+      const ly = by + (ty - by) * t;
+      const leafLen = len * 0.15 * (1 - t * 0.5);
+      const leafAng = ang + (j % 2 === 0 ? 0.6 : -0.6);
+      const lex = lx + Math.cos(leafAng) * leafLen * (j % 2 === 0 ? 1 : -1);
+      const ley = ly - Math.abs(Math.sin(leafAng)) * leafLen * 0.5;
+      parts.push(`<path d="M${fmt(lx)} ${fmt(ly)} Q${fmt((lx + lex) / 2)} ${fmt(ly - leafLen * 0.3)} ${fmt(lex)} ${fmt(ley)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.8)}" stroke-linecap="round"/>`);
+    }
+  }
+  return parts.join("");
+}
+
+// Burbujas: círculos de diferentes tamaños (océano, agua).
+function bgBubbles(rng, frame, opts) {
+  const { x0, y0, x1, y1 } = frame;
+  const w = x1 - x0, h = y1 - y0;
+  const stroke = opts._stroke || 0.35;
+  const n = rInt(rng, 12, 22);
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    const cx = x0 + rng() * w, cy = y0 + rng() * h;
+    const r = rFloat(rng, Math.min(w, h) * 0.01, Math.min(w, h) * 0.045);
+    parts.push(`<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(r)}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+    // Algunas burbujas llevan un brillo (arco interior).
+    if (rng() < 0.4) {
+      const br = r * 0.5;
+      const bx = cx - r * 0.2, by = cy - r * 0.2;
+      parts.push(`<path d="M${fmt(bx - br * 0.5)} ${fmt(by)} A${fmt(br)} ${fmt(br)} 0 0 1 ${fmt(bx)} ${fmt(by - br * 0.5)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.6)}" stroke-linecap="round"/>`);
+    }
+  }
+  // Algas onduladas en la parte inferior (2-4).
+  const algae = rInt(rng, 2, 4);
+  for (let i = 0; i < algae; i++) {
+    const ax = x0 + w * (0.1 + rng() * 0.8);
+    const aH = h * rFloat(rng, 0.15, 0.3);
+    const ay = y1;
+    const segments = rInt(rng, 3, 5);
+    let d = `M${fmt(ax)} ${fmt(ay)}`;
+    for (let s = 1; s <= segments; s++) {
+      const t = s / segments;
+      const sx = ax + Math.sin(t * Math.PI * 2 + rng() * 2) * w * 0.03;
+      const sy = ay - aH * t;
+      d += ` Q${fmt(sx + rFloat(rng, -5, 5))} ${fmt(sy + aH / segments * 0.3)} ${fmt(sx)} ${fmt(sy)}`;
+    }
+    parts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}" stroke-linecap="round"/>`);
+  }
+  return parts.join("");
+}
+
+// Estrellas y luna: cielo nocturno misterioso (críptidos).
+function bgStars(rng, frame, opts) {
+  const { x0, y0, x1, y1 } = frame;
+  const w = x1 - x0, h = y1 - y0;
+  const stroke = opts._stroke || 0.35;
+  const parts = [];
+  // Estrellas de 4 puntas (15-25).
+  const n = rInt(rng, 15, 25);
+  for (let i = 0; i < n; i++) {
+    const cx = x0 + rng() * w, cy = y0 + rng() * h;
+    const r = rFloat(rng, Math.min(w, h) * 0.008, Math.min(w, h) * 0.025);
+    // Estrella de 4 puntas: dos líneas cruzadas con rombo central.
+    const ri = r * 0.35; // radio interior
+    let d = "";
+    for (let p = 0; p < 8; p++) {
+      const ang = (p / 8) * TAU - Math.PI / 2;
+      const rad = p % 2 === 0 ? r : ri;
+      const px = cx + Math.cos(ang) * rad, py = cy + Math.sin(ang) * rad;
+      d += (p === 0 ? "M" : "L") + `${fmt(px)} ${fmt(py)}`;
+    }
+    d += "Z";
+    parts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.8)}" stroke-linejoin="round"/>`);
+  }
+  // Luna creciente (1, en una esquina superior).
+  if (rng() < 0.7) {
+    const mx = x0 + w * rFloat(rng, 0.1, 0.9);
+    const my = y0 + h * rFloat(rng, 0.05, 0.25);
+    const mr = Math.min(w, h) * rFloat(rng, 0.04, 0.07);
+    const offset = mr * 0.35;
+    // Luna = círculo exterior - círculo interior desplazado (dos arcos).
+    parts.push(`<path d="M${fmt(mx)} ${fmt(my - mr)} A${fmt(mr)} ${fmt(mr)} 0 1 1 ${fmt(mx)} ${fmt(my + mr)} A${fmt(mr * 0.85)} ${fmt(mr * 0.85)} 0 1 0 ${fmt(mx)} ${fmt(my - mr)}Z" fill="none" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+  }
+  // Puntos pequeños (estrellas lejanas, 8-15): círculos diminutos de contorno
+  // (sin relleno negro, apto para colorear).
+  const dots = rInt(rng, 8, 15);
+  for (let i = 0; i < dots; i++) {
+    const dx = x0 + rng() * w, dy = y0 + rng() * h;
+    const dr = rFloat(rng, 0.4, 1.2);
+    parts.push(`<circle cx="${fmt(dx)}" cy="${fmt(dy)}" r="${fmt(dr)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.6)}"/>`);
+  }
+  return parts.join("");
+}
+
+// Moléculas: átomos (círculos) conectados por enlaces (líneas) (biología).
+function bgMolecules(rng, frame, opts) {
+  const { x0, y0, x1, y1 } = frame;
+  const w = x1 - x0, h = y1 - y0;
+  const stroke = opts._stroke || 0.35;
+  const parts = [];
+  // Generar átomos en una cuadrícula irregular (8-14 átomos).
+  const n = rInt(rng, 8, 14);
+  const atoms = [];
+  for (let i = 0; i < n; i++) {
+    atoms.push({ x: x0 + rng() * w, y: y0 + rng() * h, r: rFloat(rng, Math.min(w, h) * 0.012, Math.min(w, h) * 0.025) });
+  }
+  // Dibujar átomos.
+  for (const at of atoms) {
+    parts.push(`<circle cx="${fmt(at.x)}" cy="${fmt(at.y)}" r="${fmt(at.r)}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+  }
+  // Dibujar enlaces: conectar cada átomo con sus 1-2 vecinos más cercanos.
+  const maxDist = Math.min(w, h) * 0.3;
+  for (let i = 0; i < atoms.length; i++) {
+    const dists = atoms.map((at, j) => j === i ? Infinity : Math.hypot(at.x - atoms[i].x, at.y - atoms[i].y));
+    // Conectar con los 1-2 más cercanos (si están dentro de maxDist).
+    const sorted = dists.map((d, j) => ({ d, j })).filter(o => o.d < maxDist).sort((a, b) => a.d - b.d).slice(0, rInt(rng, 1, 3));
+    for (const { d: dist, j } of sorted) {
+      if (j < i) continue; // evitar duplicados
+      const a = atoms[i], b = atoms[j];
+      // Línea con pequeño offset desde el borde del círculo.
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      const sx = a.x + Math.cos(ang) * a.r, sy = a.y + Math.sin(ang) * a.r;
+      const ex = b.x - Math.cos(ang) * b.r, ey = b.y - Math.sin(ang) * b.r;
+      parts.push(`<line x1="${fmt(sx)}" y1="${fmt(sy)}" x2="${fmt(ex)}" y2="${fmt(ey)}" stroke="#000" stroke-width="${fmt(stroke * 0.7)}"/>`);
+    }
+  }
+  // Algunas formas de ADN helicoidal (1-2 hélices).
+  const helices = rInt(rng, 1, 2);
+  for (let hi = 0; hi < helices; hi++) {
+    const hx = x0 + w * rFloat(rng, 0.15, 0.85);
+    const hy = y0 + h * rFloat(rng, 0.1, 0.4);
+    const hH = h * rFloat(rng, 0.2, 0.35);
+    const hW = w * 0.04;
+    const steps = 8;
+    let d1 = "", d2 = "";
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const py = hy + hH * t;
+      const px1 = hx + Math.sin(t * Math.PI * 3) * hW;
+      const px2 = hx - Math.sin(t * Math.PI * 3) * hW;
+      d1 += (s === 0 ? "M" : "L") + `${fmt(px1)} ${fmt(py)}`;
+      d2 += (s === 0 ? "M" : "L") + `${fmt(px2)} ${fmt(py)}`;
+      // Travesaños cada 2 pasos.
+      if (s % 2 === 0 && s > 0 && s < steps) {
+        parts.push(`<line x1="${fmt(px1)}" y1="${fmt(py)}" x2="${fmt(px2)}" y2="${fmt(py)}" stroke="#000" stroke-width="${fmt(stroke * 0.5)}"/>`);
+      }
+    }
+    parts.push(`<path d="${d1}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.7)}" stroke-linecap="round"/>`);
+    parts.push(`<path d="${d2}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.7)}" stroke-linecap="round"/>`);
+  }
+  return parts.join("");
+}
+
+// Nubes y formas simples: nubes (arcos), corazones, estrellitas (infantil).
+function bgClouds(rng, frame, opts) {
+  const { x0, y0, x1, y1 } = frame;
+  const w = x1 - x0, h = y1 - y0;
+  const stroke = opts._stroke || 0.35;
+  const parts = [];
+  // Nubes (3-5): grupos de 3-4 arcos.
+  const nClouds = rInt(rng, 3, 5);
+  for (let i = 0; i < nClouds; i++) {
+    const cx = x0 + w * rFloat(rng, 0.1, 0.9);
+    const cy = y0 + h * rFloat(rng, 0.05, 0.35);
+    const cw = Math.min(w, h) * rFloat(rng, 0.06, 0.12);
+    // Base de la nube (línea horizontal) con 3-4 arcos por encima.
+    const bumps = rInt(rng, 3, 5);
+    let d = `M${fmt(cx - cw)} ${fmt(cy)}`;
+    for (let b = 0; b < bumps; b++) {
+      const bx = cx - cw + (2 * cw * (b + 0.5)) / bumps;
+      const by = cy - cw * rFloat(rng, 0.2, 0.45);
+      const bxe = cx - cw + (2 * cw * (b + 1)) / bumps;
+      d += ` Q${fmt(bx)} ${fmt(by)} ${fmt(bxe)} ${fmt(cy)}`;
+    }
+    parts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}" stroke-linecap="round"/>`);
+  }
+  // Corazones pequeños (3-6).
+  const nHearts = rInt(rng, 3, 6);
+  for (let i = 0; i < nHearts; i++) {
+    const hx = x0 + w * rng(), hy = y0 + h * rng();
+    const hs = Math.min(w, h) * rFloat(rng, 0.015, 0.03);
+    // Corazón simple con dos arcos y una V.
+    parts.push(`<path d="M${fmt(hx)} ${fmt(hy + hs * 0.6)} C${fmt(hx - hs)} ${fmt(hy - hs * 0.2)} ${fmt(hx - hs * 0.6)} ${fmt(hy - hs)} ${fmt(hx)} ${fmt(hy - hs * 0.4)} C${fmt(hx + hs * 0.6)} ${fmt(hy - hs)} ${fmt(hx + hs)} ${fmt(hy - hs * 0.2)} ${fmt(hx)} ${fmt(hy + hs * 0.6)}Z" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.8)}" stroke-linejoin="round"/>`);
+  }
+  // Estrellitas simples (5-8): cruces de líneas.
+  const nStars = rInt(rng, 5, 8);
+  for (let i = 0; i < nStars; i++) {
+    const sx = x0 + w * rng(), sy = y0 + h * rng();
+    const sr = Math.min(w, h) * rFloat(rng, 0.008, 0.018);
+    // 4 líneas desde el centro (cruz).
+    for (let a = 0; a < 4; a++) {
+      const ang = (a / 4) * TAU;
+      parts.push(`<line x1="${fmt(sx)}" y1="${fmt(sy)}" x2="${fmt(sx + Math.cos(ang) * sr)}" y2="${fmt(sy + Math.sin(ang) * sr)}" stroke="#000" stroke-width="${fmt(stroke * 0.7)}" stroke-linecap="round"/>`);
+    }
+  }
+  return parts.join("");
+}
+
+// Mapa: tema → generador de fondo temático.
+const THEME_BG_GENERATORS = {
+  dino: bgFerns,
+  ocean: bgBubbles,
+  cryptids: bgStars,
+  bio: bgMolecules,
+  kids: bgClouds,
+};
+
 // Fracción del marco que cubre la silueta encajada (centrada): por debajo, la
 // figura es delgada o apaisada (neurona, diplodoco, Nessie, mosasaurio) y en
 // «offset» apenas se encoge (antes quedaba diminuta en un mar de fondo).
@@ -1172,8 +1433,8 @@ const OWLMAN_BODY = [["M", 0, -0.8], ["L", 0.18, -0.98], ["C", 0.26, -0.82, 0.3,
 
 const FIGURES = {
   owl: {
-    parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] } }],
-    front: [{ cmds: OWL_WING, mirror: true, tangle: "detail" }],
+    parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] }, zone: "skin" }],
+    front: [{ cmds: OWL_WING, mirror: true, tangle: "detail", zone: "wing" }],
     deco: () => [
       ...eyeDeco(0.3, -0.42, 0.25), ...eyeDeco(-0.3, -0.42, 0.25),
       { cmds: [["M", -0.09, -0.2], ["L", 0.09, -0.2], ["L", 0, 0.04], ["Z"]], fill: W },
@@ -1183,8 +1444,8 @@ const FIGURES = {
     branch: 0.98,
   },
   cat: {
-    parts: [{ cmds: CAT_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] } }],
-    back: [{ cmds: CAT_TAIL, tangle: "detail" }],
+    parts: [{ cmds: CAT_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] }, zone: "skin" }],
+    back: [{ cmds: CAT_TAIL, tangle: "detail", zone: "tail" }],
     front: [{ cmds: CAT_FACE, tangle: null }],
     deco: () => {
       const eye = (m) => [["M", 0.06 * m, -0.27], ["Q", 0.17 * m, -0.38, 0.28 * m, -0.27], ["Q", 0.17 * m, -0.16, 0.06 * m, -0.27], ["Z"]];
@@ -1201,9 +1462,9 @@ const FIGURES = {
   },
   fish: {
     rot: -0.38,
-    parts: [{ cmds: FISH_BODY, strings: { angle: Math.PI / 2, a: [2, 3], b: [1, 2], bShape: "chevron" } },
-      { cmds: FISH_TAIL, strings: { angle: 0, a: [2, 2], b: [0, 0] } }],
-    back: [{ cmds: FISH_DORSAL, tangle: "detail" }, { cmds: FISH_VENTRAL, tangle: "detail" }],
+    parts: [{ cmds: FISH_BODY, strings: { angle: Math.PI / 2, a: [2, 3], b: [1, 2], bShape: "chevron" }, zone: "skin" },
+      { cmds: FISH_TAIL, strings: { angle: 0, a: [2, 2], b: [0, 0] }, zone: "tail" }],
+    back: [{ cmds: FISH_DORSAL, tangle: "detail", zone: "wing" }, { cmds: FISH_VENTRAL, tangle: "detail", zone: "leg" }],
     deco: () => [
       ...eyeDeco(0.5, -0.08, 0.1, 9),
       { cmds: [["M", 0.3, -0.3], ["Q", 0.18, 0, 0.3, 0.3]], fill: "none" },
@@ -1214,7 +1475,7 @@ const FIGURES = {
   },
   butterfly: {
     mirror: true,
-    parts: [{ cmds: BF_UP, strings: { angle: -0.5, a: [2, 3], b: [1, 1] } }, { cmds: BF_LOW, strings: { angle: 0.6, a: [2, 2], b: [1, 1] } }],
+    parts: [{ cmds: BF_UP, strings: { angle: -0.5, a: [2, 3], b: [1, 1] }, zone: "wing" }, { cmds: BF_LOW, strings: { angle: 0.6, a: [2, 2], b: [1, 1] }, zone: "wing" }],
     deco: () => [...eyeDeco(0.66, -0.5, 0.13, 10), ...eyeDeco(0.46, 0.52, 0.09, 8)],
     center: () => [
       { cmds: BF_BODY, fill: W }, { cmds: ell(0, -0.48, 0.09), fill: W },
@@ -1230,11 +1491,11 @@ const FIGURES = {
     silhouette: [HEART],
   },
   turtle: {
-    parts: [{ cmds: TURTLE_SHELL, strings: { angle: 0, a: [3, 3], b: [2, 2], bShape: "chevron" } }],
+    parts: [{ cmds: TURTLE_SHELL, strings: { angle: 0, a: [3, 3], b: [2, 2], bShape: "chevron" }, zone: "shell" }],
     back: [
-      { cmds: TURTLE_HEAD, tangle: null },
-      { cmds: xform(FLIPPER, 0.45, -0.42, -0.5, 1.15), tangle: "detail" }, { cmds: xform(FLIPPER, -0.45, -0.42, Math.PI + 0.5, 1.15, -1.15), tangle: "detail" },
-      { cmds: xform(FLIPPER, 0.42, 0.55, 0.55, 0.95), tangle: "detail" }, { cmds: xform(FLIPPER, -0.42, 0.55, Math.PI - 0.55, 0.95, -0.95), tangle: "detail" },
+      { cmds: TURTLE_HEAD, tangle: null, zone: "head" },
+      { cmds: xform(FLIPPER, 0.45, -0.42, -0.5, 1.15), tangle: "detail", zone: "leg" }, { cmds: xform(FLIPPER, -0.45, -0.42, Math.PI + 0.5, 1.15, -1.15), tangle: "detail", zone: "leg" },
+      { cmds: xform(FLIPPER, 0.42, 0.55, 0.55, 0.95), tangle: "detail", zone: "leg" }, { cmds: xform(FLIPPER, -0.42, 0.55, Math.PI - 0.55, 0.95, -0.95), tangle: "detail", zone: "leg" },
       { cmds: [["M", -0.07, 0.72], ["L", 0, 0.95], ["L", 0.07, 0.72], ["Z"]], tangle: null },
     ],
     deco: () => [{ cmds: ell(0.07, -0.86, 0.025), fill: W }, { cmds: ell(-0.07, -0.86, 0.025), fill: W }],
@@ -1265,8 +1526,8 @@ const FIGURES = {
     silhouette: [LEAF],
   },
   elephant: {
-    parts: [{ cmds: ELE_BODY, strings: { angle: 0.15, a: [3, 4], b: [2, 3] } }],
-    front: [{ cmds: ELE_EAR, tangle: "any" }],
+    parts: [{ cmds: ELE_BODY, strings: { angle: 0.15, a: [3, 4], b: [2, 3] }, zone: "skin" }],
+    front: [{ cmds: ELE_EAR, tangle: "any", zone: "head" }],
     deco: () => [
       ...eyeDeco(0.6, -0.3, 0.065, 8),
       ...[0.31, 0.44, -0.52, -0.38].map((u) => ({ cmds: [["M", u - 0.05, 0.9], ["Q", u, 0.82, u + 0.05, 0.9]], fill: "none" })),
@@ -1275,11 +1536,11 @@ const FIGURES = {
     branch: 0.86,
   },
   snail: {
-    parts: [{ cmds: ell(...SNAIL_SHELL[0]), strings: { angle: 0.8, a: [2, 3], b: [1, 2] } }],
-    back: [{ cmds: SNAIL_BODY, tangle: "detail" }],
+    parts: [{ cmds: ell(...SNAIL_SHELL[0]), strings: { angle: 0.8, a: [2, 3], b: [1, 2] }, zone: "shell" }],
+    back: [{ cmds: SNAIL_BODY, tangle: "detail", zone: "skin" }],
     front: [
-      { cmds: ell(...SNAIL_SHELL[1]), tangle: "any" },
-      { cmds: ell(...SNAIL_SHELL[2]), tangle: "round" },
+      { cmds: ell(...SNAIL_SHELL[1]), tangle: "any", zone: "shell" },
+      { cmds: ell(...SNAIL_SHELL[2]), tangle: "round", zone: "shell" },
       { cmds: ell(...SNAIL_SHELL[3]), tangle: null },
     ],
     deco: () => [
@@ -1291,9 +1552,9 @@ const FIGURES = {
     branch: 0.66,
   },
   bird: {
-    parts: [{ cmds: BIRD_BODY, strings: { angle: 0.35, a: [2, 3], b: [1, 2] } }],
-    back: [{ cmds: BIRD_TAIL, tangle: "detail" }],
-    front: [{ cmds: BIRD_WING, tangle: "any" }],
+    parts: [{ cmds: BIRD_BODY, strings: { angle: 0.35, a: [2, 3], b: [1, 2] }, zone: "skin" }],
+    back: [{ cmds: BIRD_TAIL, tangle: "detail", zone: "tail" }],
+    front: [{ cmds: BIRD_WING, tangle: "any", zone: "wing" }],
     deco: () => [
       { cmds: BIRD_BEAK, fill: W }, ...eyeDeco(0.64, -0.32, 0.08, 8),
       ...[0.02, 0.2].map((u) => ({ cmds: [["M", u, 0.78], ["L", u, 0.9], ["M", u - 0.05, 0.9], ["L", u + 0.06, 0.9]], fill: "none" })),
@@ -1302,9 +1563,9 @@ const FIGURES = {
     branch: 0.86,
   },
   whale: {
-    parts: [{ cmds: WHALE_BODY, strings: { angle: 0, a: [3, 4], b: [2, 3] } }],
-    back: [{ cmds: WHALE_FLUKE, tangle: "detail" }, { cmds: WHALE_SPOUT, tangle: null }],
-    front: [{ cmds: WHALE_FIN, tangle: "detail" }],
+    parts: [{ cmds: WHALE_BODY, strings: { angle: 0, a: [3, 4], b: [2, 3] }, zone: "skin" }],
+    back: [{ cmds: WHALE_FLUKE, tangle: "detail", zone: "tail" }, { cmds: WHALE_SPOUT, tangle: null }],
+    front: [{ cmds: WHALE_FIN, tangle: "detail", zone: "leg" }],
     deco: () => [
       ...eyeDeco(0.62, 0.0, 0.065, 8),
       { cmds: [["M", 0.95, 0.12], ["C", 0.82, 0.18, 0.66, 0.18, 0.55, 0.12]], fill: "none" },
@@ -1342,9 +1603,9 @@ const FIGURES = {
     silhouette: [MOON, ...MOON_STARS],
   },
   bear: {
-    parts: [{ cmds: BEAR_BODY, strings: { angle: 0.3, a: [2, 3], b: [1, 2] } }, { cmds: BEAR_HEAD, strings: { angle: -0.2, a: [1, 2], b: [1, 1] } }],
-    back: [...BEAR_EARS.map((cmds) => ({ cmds, tangle: "detail" })), ...BEAR_ARMS.map((cmds) => ({ cmds, tangle: "detail" }))],
-    front: [{ cmds: ell(0, -0.3, 0.18, 0.13), tangle: null }, { cmds: ell(0, 0.46, 0.32, 0.3), tangle: "round" }, ...BEAR_FEET.map((cmds) => ({ cmds, tangle: null }))],
+    parts: [{ cmds: BEAR_BODY, strings: { angle: 0.3, a: [2, 3], b: [1, 2] }, zone: "skin" }, { cmds: BEAR_HEAD, strings: { angle: -0.2, a: [1, 2], b: [1, 1] }, zone: "head" }],
+    back: [...BEAR_EARS.map((cmds) => ({ cmds, tangle: "detail", zone: "head" })), ...BEAR_ARMS.map((cmds) => ({ cmds, tangle: "detail", zone: "leg" }))],
+    front: [{ cmds: ell(0, -0.3, 0.18, 0.13), tangle: null }, { cmds: ell(0, 0.46, 0.32, 0.3), tangle: "round", zone: "belly" }, ...BEAR_FEET.map((cmds) => ({ cmds, tangle: null, zone: "leg" }))],
     deco: () => [
       ...[1, -1].map((m) => ({ cmds: ell(0.17 * m, -0.52, 0.045, 0.055), fill: W })),
       { cmds: ell(0, -0.36, 0.06, 0.04), fill: W },
@@ -2279,6 +2540,8 @@ export async function generateZenFigure(doc, opts) {
   const silArea = unitRings.reduce((acc, r) => acc + Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p.x * q.y - q.x * p.y; }, 0)) / 2, 0);
   const thin = (silArea * sFit * sFit) / (a.w * a.h) < SMALL_FIGURE_COVER;
   const s = sFit * (layout === "offset" ? (thin ? rFloat(rng, 0.86, 0.94) : rFloat(rng, 0.66, 0.8)) : layout === "zoom" ? rFloat(rng, 1.1, 1.22) : 1);
+  // Cobertura real de la silueta sobre el marco (para auditoría M2).
+  const coverage = Math.min(1, (silArea * s * s) / (a.w * a.h));
   const figW = (ub.x1 - ub.x0) * s, figH = (ub.y1 - ub.y0) * s;
   // Holgura para mover la figura: dentro del marco (offset) o hasta un ~25 %
   // fuera de él (zoom).
@@ -2350,12 +2613,21 @@ export async function generateZenFigure(doc, opts) {
   // Fondo denso (rayos o strings) para que la figura se funda con él; el
   // fondo ligero («airy») queda para «Tu turno» y el preset de fondo ligero.
   // Con variante, el fondo alterna rayos / strings entre apariciones de la figura.
+  // Fondos temáticos: si el preset define themedBackground, usar el generador
+  // específico del tema (dino → helechos, ocean → burbujas, etc.).
   const bgPick = (dflt) => (variant ? (Math.floor(variant.rng() * 2) + variant.cycle) % 2 === 0 ? "rays" : "strings" : dflt);
-  const bgKind = fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : bgPick(rng() < 0.5 ? "rays" : "strings"));
+  const themedBgFn = opts.themedBackground && THEME_BG_GENERATORS[opts.themedBackground] ? THEME_BG_GENERATORS[opts.themedBackground] : null;
+  const bgKind = themedBgFn ? "themed" : fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : bgPick(rng() < 0.5 ? "rays" : "strings"));
   const frameRings = [[{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]];
   const frameClip = clipOf(frameD);
   const bg = [], bgLines = [];
-  if (bgKind === "rays") {
+  if (bgKind === "themed") {
+    // Fondo temático: el generador específico del tema produce formas simples
+    // que se recortan al marco. No usa tangles del BG_POOL, sino geometría
+    // propia del tema (helechos, burbujas, estrellas, moléculas, nubes…).
+    const themedSvg = themedBgFn(rng, frame, { _stroke: stroke });
+    if (themedSvg) bg.push(`<g clip-path="url(#${frameClip})">${themedSvg}</g>`);
+  } else if (bgKind === "rays") {
     // Cuñas desde el centro de la figura hasta el marco, cada una con un tangle amplio.
     const n = rInt(rng, 5, 8), t0 = rng() * TAU, Rr = Math.hypot(a.w, a.h);
     const fx = fcx, fy = fcy;
@@ -2532,7 +2804,9 @@ export async function generateZenFigure(doc, opts) {
     }
     let inner = "";
     if (p.tangle && !empty && fStyle !== "glass") {
-      const pool = p.tangle === "detail" ? DETAIL_POOL : p.tangle === "round" ? ["printemps", "purk", "tipple"] : POOL.map((t) => t.id);
+      // M5: usar zona anatómica para filtrar tangles apropiados.
+      const basePool = p.tangle === "detail" ? DETAIL_POOL : p.tangle === "round" ? ["printemps", "purk", "tipple"] : POOL.map((t) => t.id);
+      const pool = p.zone ? zonePool(p.zone, basePool.map((id) => byId.get(id)).filter(Boolean)).map((t) => t.id) : basePool;
       inner = `<g clip-path="url(#${clipOf(dc)})">${tangleIn(pickTangle(pool), bb, p.tangle === "detail" ? 0.9 : 1)}</g>`;
     }
     // Piezas de delante (orgánulos, caras): halo blanco fino para que el
@@ -2653,7 +2927,9 @@ export async function generateZenFigure(doc, opts) {
       // Respiro: como mucho una sección lisa por parte, y nunca una grande
       // (una banda vacía de media figura se lee como un error).
       if (!plainUsed && q.area < Math.min(900, totalArea * 0.12) && rng() < 0.25) { plainUsed = true; continue; }
-      const t = pickTangle(POOL);
+      // M5: usar zona anatómica de la parte para filtrar tangles apropiados.
+      const partPool = p.zone ? zonePool(p.zone, POOL) : POOL;
+      const t = pickTangle(partPool);
       let g = tangleIn(t, q, rFloat(rng, 0.95, 1.15));
       if (rich) g += sectionExtras(q, sec, edgeD, t);
       if (sec.nB) g = `<g clip-path="url(#${clipOf(polyD(sec.stripB(q.j)))})">${g}</g>`;
@@ -2705,10 +2981,14 @@ export async function generateZenFigure(doc, opts) {
     figure.push(...parts.map(partSvg), ...pieces(front, true), nestedSvg());
     if (def.deco) figure.push(decoSvg(def.deco()));
   }
+  // Path de la silueta (sin sketchy) para auditoría de cobertura y contraste (M2, M10).
+  // Se genera aquí, cuando todo el dibujo ya está hecho y el estado del rng no importa.
+  const silAuditD = silCmds.map((cm) => shapeD(cm, 0)).join(" ");
+  const covPct = Math.round(coverage * 1000) / 10; // 1 decimal
   // En «zoom» la figura sale del marco: se recorta a él.
   body.push(layout === "zoom"
-    ? `<g data-figure="${figName}" data-layout="zoom" data-bg="${bgKind}"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
-    : `<g data-figure="${figName}" data-layout="${layout}" data-bg="${bgKind}">${figure.join("")}</g>`);
+    ? `<g data-figure="${figName}" data-layout="zoom" data-bg="${bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
+    : `<g data-figure="${figName}" data-layout="${layout}" data-bg="${bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}">${figure.join("")}</g>`);
 
   // Marco.
   body.push(el(polyD(frameRings[0]), "none", outStroke * 1.1));
