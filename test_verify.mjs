@@ -904,7 +904,7 @@ async function runTests() {
       assert.strictEqual(new Set(p0).size, FIGURE_PALETTE_SIZE);
       assert.ok(p0.every((t) => all.has(t)));
       assert.notDeepStrictEqual(p0, p1);
-      assert.strictEqual(new Set([0, 1, 2].flatMap((n) => figurePalette(42, n))).size, all.size, "ERROR: 3 páginas de figura no recorren todos los tangles.");
+      assert.strictEqual(new Set([0, 1, 2, 3].flatMap((n) => figurePalette(42, n))).size, all.size, "ERROR: 4 páginas de figura no recorren todos los tangles.");
       assert.deepStrictEqual(figurePalette(42, 5), figurePalette(42, 5));
       // Las paletas no se repiten en ciclo corto (antes solo había 3 por libro).
       const pals = new Set(Array.from({ length: 24 }, (_, n) => figurePalette(42, n).slice().sort().join(",")));
