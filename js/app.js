@@ -16,7 +16,7 @@ import { kdpListingText } from "./core/kdpListing.js";
 import { analyzeColorability, qualityVerdict, qualityScore, QUALITY_LIMITS } from "./core/pageQuality.js";
 import { BOOK_RECIPES, STYLE_THEME } from "./core/bookRecipes.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
-import { THICKNESS_PROFILES, getThicknessProfile, applyThicknessProfile, scaleStrokeForProfile } from "./core/thicknessProfiles.js";
+import { THICKNESS_PROFILES, getThicknessProfile, applyThicknessProfile, scaleStrokeForProfile, getQualityLimitsForProfile } from "./core/thicknessProfiles.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -292,6 +292,13 @@ function applyPresetToUI(presetKey, { force = false } = {}) {
   if (ui.samplerLayoutRow) ui.samplerLayoutRow.hidden = p.cellLayout !== "sampler";
   set(ui.focalStrength, p.focalStrength != null ? p.focalStrength : 0.3);
   set(ui.rotationJitterDeg, p.rotationJitterDeg != null ? p.rotationJitterDeg : 2.5);
+
+  // Perfil de grosor automático según el preset: bold_easy usa perfil "bold"
+  // para garantizar trazos ≥ 1 mm y límite de calidad más estricto (badPerDm2 ≤ 4).
+  if (presetKey === "bold_easy" && ui.lineThicknessProfile && !keep(ui.lineThicknessProfile)) {
+    ui.lineThicknessProfile.value = "bold";
+    touched.add("lineThicknessProfile"); // Marcar como tocado para que no se sobrescriba
+  }
 }
 
 // Genera N variaciones (misma configuración, distintas semillas) como galería
@@ -501,11 +508,13 @@ function keepOrDropSvg(review, page, freed = 0) {
 // zonas donde no cabe la punta de un rotulador (core/pageQuality.js).
 const QPX = 6;
 const stripFooter = (svg) => svg.replace(/<g data-footer="1">[\s\S]*?<\/g>/, "");
-async function measurePage(svg, wMm, hMm, artAreaMm2) {
+async function measurePage(svg, wMm, hMm, artAreaMm2, thicknessProfile = "standard") {
   const r = await rasterizeSvg(svg, Math.round(wMm * QPX), Math.round(hMm * QPX));
   const q = analyzeColorability(r, QPX);
+  // Usar límites de calidad según el perfil de grosor (bold es más estricto: badPerDm2 ≤ 4)
+  const profileLimits = getQualityLimitsForProfile(thicknessProfile);
   // ZT_QUALITY_BAD_DM2: solo para pruebas (fuerza páginas marcadas).
-  const v = qualityVerdict(q, artAreaMm2, { ...QUALITY_LIMITS, badPerDm2: Number(globalThis.ZT_QUALITY_BAD_DM2) || QUALITY_LIMITS.badPerDm2 });
+  const v = qualityVerdict(q, artAreaMm2, { ...profileLimits, badPerDm2: Number(globalThis.ZT_QUALITY_BAD_DM2) || profileLimits.badPerDm2 });
   return { bad: q.bad, ink: Math.round(q.ink * 10) / 10, ok: v.ok, reasons: v.reasons, maxBad: v.maxBad };
 }
 const artArea = (g, spread = false) => g.inner.w * g.inner.h * (spread ? 2 : 1);
@@ -525,7 +534,7 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
     const sp = await generateSpread({ paper: g.paper, marginMm: g.marginMm, seed, difficulty, figureName, rasterize: rasterizeSvg });
     const right = appendToSvg(sp.right, footer);
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
-    const q = quality ? await measurePage(sp.wide, g.paper.w * 2, g.paper.h, artArea(g, true)) : null;
+    const q = quality ? await measurePage(sp.wide, g.paper.w * 2, g.paper.h, artArea(g, true), g.opts.lineThicknessProfile) : null;
     return { kind, seed, svg: sp.wide, left: sp.left, right, url, quality: q, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure };
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
@@ -548,7 +557,7 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
   const svg = appendToSvg(bare, pageFooter);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
   // El pie (texto) no cuenta: se mide el dibujo solo.
-  const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g)) : null;
+  const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g), g.opts.lineThicknessProfile) : null;
   return { kind, seed, svg, url, quality: q, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null };
 }
 

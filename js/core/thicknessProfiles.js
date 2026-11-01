@@ -17,6 +17,8 @@ export const THICKNESS_PROFILES = {
     patternStrokeMm: 0.35,     // detalle / patrón interno
     stringStrokeMm: 0.55,      // trazo medio / strings (no expuesto en UI)
     minStrokeMm: 0.28,         // suelo mínimo de trazo (no expuesto en UI)
+    // Límites de calidad por defecto (badPerDm2: zonas problemáticas por dm²)
+    qualityLimits: { badPerDm2: 13, inkPct: 25 },
   },
   bold: {
     label: "Grueso",
@@ -24,6 +26,9 @@ export const THICKNESS_PROFILES = {
     patternStrokeMm: 0.50,
     stringStrokeMm: 0.75,
     minStrokeMm: 0.40,
+    // Perfil infantil "bold & easy": límite de calidad más estricto
+    // (badPerDm2 ≤ 4 = máximo 4 zonas diminutas por dm², vs 13 del estándar)
+    qualityLimits: { badPerDm2: 4, inkPct: 25 },
   },
   fine: {
     label: "Fino",
@@ -31,6 +36,7 @@ export const THICKNESS_PROFILES = {
     patternStrokeMm: 0.25,
     stringStrokeMm: 0.40,
     minStrokeMm: 0.20,
+    qualityLimits: { badPerDm2: 13, inkPct: 25 },
   },
 };
 
@@ -69,4 +75,11 @@ export function scaleStrokeForProfile(base, profileKey) {
   const ratio = p.patternStrokeMm / ref;
   // Redondear a 2 decimales para evitar artefactos SVG.
   return Math.round(base * ratio * 100) / 100;
+}
+
+// Devuelve los límites de calidad asociados a un perfil de grosor.
+// Útil para que el perfil "bold" use un límite más estricto (badPerDm2 ≤ 4).
+export function getQualityLimitsForProfile(profileKey) {
+  const p = getThicknessProfile(profileKey);
+  return p.qualityLimits || { badPerDm2: 13, inkPct: 25 };
 }
