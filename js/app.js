@@ -16,6 +16,7 @@ import { kdpListingText } from "./core/kdpListing.js";
 import { analyzeColorability, qualityVerdict, qualityScore, QUALITY_LIMITS } from "./core/pageQuality.js";
 import { BOOK_RECIPES, STYLE_THEME } from "./core/bookRecipes.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
+import { THICKNESS_PROFILES, getThicknessProfile, applyThicknessProfile, scaleStrokeForProfile } from "./core/thicknessProfiles.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,6 +43,7 @@ const ui = {
 
   cellBorderWidthMm: $("cellBorderWidthMm"),
   patternStrokeMm: $("patternStrokeMm"),
+  lineThicknessProfile: $("lineThicknessProfile"),
   minGapMm: $("minGapMm"),
   whiteSpaceMm: $("whiteSpaceMm"),
   sketchy: $("sketchy"),
@@ -178,6 +180,7 @@ function buildOptsFromUI() {
       paperTextureEnabled: bool01(ui.paperTextureEnabled.value),
       cellShadowEnabled: bool01(ui.cellShadowEnabled.value),
       fillDeadSpace: ui.fillDeadSpace ? ui.fillDeadSpace.checked : true,
+      lineThicknessProfile: String(ui.lineThicknessProfile.value || "standard"),
     };
     if (touched.has("sketchy")) opts.sketchy = num(ui.sketchy.value, 0);
     return { opts, zPresetKey };
@@ -192,6 +195,7 @@ function buildOptsFromUI() {
     minCellSizeMm: int(ui.minCellSizeMm.value, 14),
     cellBorderWidthMm: num(ui.cellBorderWidthMm.value, 0.70),
     patternStrokeMm: num(ui.patternStrokeMm.value, 0.35),
+    lineThicknessProfile: String(ui.lineThicknessProfile.value || "standard"),
     minGapMm: num(ui.minGapMm.value, 1.4),
     whiteSpaceMm: num(ui.whiteSpaceMm.value, 1.0),
     sketchy: num(ui.sketchy.value, 0),
@@ -511,7 +515,7 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
   const kind = plan?.units?.[pageIndex]?.kind || "single";
   const difficulty = plan?.flags?.progressive ? difficultyAt(pageIndex, plan.n) : null;
   const lv = difficulty === null ? null : levelInfo(difficulty);
-  const footer = lv ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min`, level: lv.level }) : "";
+  const footer = lv ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min`, level: lv.level, lineThicknessProfile: g.opts.lineThicknessProfile }) : "";
   if (kind === "spread") {
     // Las dobles páginas recorren sus figuras en orden (la n-ésima doble de
     // este libro), en vez de sortearlas: así no se repiten seguidas.
@@ -539,8 +543,8 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
   const nHidden = (bare.match(/data-hidden="/g) || []).length;
   const seek = nHidden ? `busca ${nHidden} figura${nHidden > 1 ? "s" : ""} escondida${nHidden > 1 ? "s" : ""}` : "";
   const pageFooter = lv
-    ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min${seek ? ` · ${seek}` : ""}`, level: lv.level })
-    : seek ? footerSvg(geo, { text: `${seek[0].toUpperCase()}${seek.slice(1)}` }) : ""; // sin emoji: se imprimiría en color
+    ? footerSvg(geo, { text: `Nivel ${lv.level} de 5 · ≈ ${lv.minutes} min${seek ? ` · ${seek}` : ""}`, level: lv.level, lineThicknessProfile: g.opts.lineThicknessProfile })
+    : seek ? footerSvg(geo, { text: `${seek[0].toUpperCase()}${seek.slice(1)}`, lineThicknessProfile: g.opts.lineThicknessProfile }) : ""; // sin emoji: se imprimiría en color
   const svg = appendToSvg(bare, pageFooter);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
   // El pie (texto) no cuenta: se mide el dibujo solo.
@@ -557,8 +561,8 @@ async function buildBookExtras(review) {
   if (flags.guide) {
     const found = [...new Set(review.pages.flatMap((p) => p.tangles || []))];
     const ids = found.length >= 3 ? found : Object.keys(TANGLE_INFO);
-    out.guide = tangleGuidePages(ids, geo);
-    out.passport = tanglePassportPage(ids, geo);
+    out.guide = tangleGuidePages(ids, geo, { lineThicknessProfile: g.opts.lineThicknessProfile });
+    out.passport = tanglePassportPage(ids, geo, { lineThicknessProfile: g.opts.lineThicknessProfile });
   }
   // «Tu turno» usa figuras que no salen en el libro (si quedan).
   const usedFigs = new Set(review.pages.map((p) => p.figure).filter(Boolean));
@@ -570,7 +574,7 @@ async function buildBookExtras(review) {
     const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
     await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { ...ZENTANGLE_PRESETS.zen_figure, seed, emptySections: true, figureName: freshFigs.length ? freshFigs[k % freshFigs.length] : figureForPage(baseSeed ^ 0x7777, k, turnSet) }, areaMm: g.inner });
     const text = flags.guide ? "Tu turno: dibuja en cada sección un tangle de la guía" : "Tu turno: dibuja tus propios tangles en cada sección";
-    out.turn.push(appendToSvg(renderSvgToString(d), footerSvg(geo, { text })));
+    out.turn.push(appendToSvg(renderSvgToString(d), footerSvg(geo, { text, lineThicknessProfile: g.opts.lineThicknessProfile })));
   }
   return out;
 }
@@ -955,6 +959,7 @@ function restoreOptsToUI(opts) {
   set(ui.minCellSizeMm, opts.minCellSizeMm);
   set(ui.cellBorderWidthMm, opts.cellBorderWidthMm);
   set(ui.patternStrokeMm, opts.patternStrokeMm);
+  set(ui.lineThicknessProfile, opts.lineThicknessProfile);
   set(ui.minGapMm, opts.minGapMm);
   set(ui.whiteSpaceMm, opts.whiteSpaceMm);
   set(ui.sketchy, opts.sketchy);
@@ -1841,6 +1846,20 @@ function bind() {
     const evt = el.type === "checkbox" ? "change" : "input";
     el.addEventListener(evt, () => { touched.add(el.id); debouncedRender(); });
   });
+
+  // Perfil de grosor: al cambiar, actualiza los sliders de trazo para reflejar
+  // los valores del perfil y re-renderiza.
+  if (ui.lineThicknessProfile) {
+    ui.lineThicknessProfile.addEventListener("change", () => {
+      const p = getThicknessProfile(ui.lineThicknessProfile.value);
+      if (p && ui.cellBorderWidthMm) ui.cellBorderWidthMm.value = p.cellBorderWidthMm;
+      if (p && ui.patternStrokeMm) ui.patternStrokeMm.value = p.patternStrokeMm;
+      touched.add("lineThicknessProfile");
+      touched.add("cellBorderWidthMm");
+      touched.add("patternStrokeMm");
+      debouncedRender();
+    });
+  }
 
   // Controles no ligados al estilo del preset: solo re-renderizan.
   [

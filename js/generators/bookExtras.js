@@ -6,6 +6,7 @@
 // Todo devuelve SVG en texto (página completa o fragmento), en mm.
 import { createRNG, hash } from "../core/prng.js";
 import { FIGURE_TANGLES } from "./figure.js";
+import { scaleStrokeForProfile } from "../core/thicknessProfiles.js";
 
 const fmt = (n) => (Math.round(Number(n) * 100) / 100).toString();
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -41,11 +42,12 @@ export const byComplexity = (ids) => [...new Set(ids)].filter((id) => TANGLE_INF
   .sort((a, b) => TANGLE_INFO[a].level - TANGLE_INFO[b].level || ORDER.indexOf(a) - ORDER.indexOf(b));
 
 // Tres puntos de nivel (contorno; los alcanzados llevan un punto dentro).
-function levelDots(x, y, level, r = 1.3) {
+function levelDots(x, y, level, r = 1.3, profileKey = "standard") {
+  const sw = scaleStrokeForProfile(0.3, profileKey);
   let out = "";
   for (let i = 0; i < 3; i++) {
     const cx = x + i * (r * 3);
-    out += `<circle cx="${fmt(cx)}" cy="${fmt(y)}" r="${r}" fill="none" stroke="#000" stroke-width="0.3"/>`;
+    out += `<circle cx="${fmt(cx)}" cy="${fmt(y)}" r="${r}" fill="none" stroke="#000" stroke-width="${sw}"/>`;
     if (i < level) out += `<circle cx="${fmt(cx)}" cy="${fmt(y)}" r="${fmt(r * 0.48)}" fill="#000"/>`;
   }
   return out;
@@ -60,10 +62,11 @@ export function tanglesInSvgs(svgs) {
 }
 
 // Capas del tangle en un cuadrado (semilla fija: la guía es estable).
-function layersIn(id, box, gap) {
+function layersIn(id, box, gap, profileKey = "standard") {
   const t = byId.get(id);
   if (!t) return [];
-  try { return (t.fn(createRNG(hash(0x9a1de, id.length * 31 + id.charCodeAt(0))), box, { gap, stroke: 0.3, sketchy: 0 }) || []).filter((l) => l && l.d); } catch (e) { return []; }
+  const sw = scaleStrokeForProfile(0.3, profileKey);
+  try { return (t.fn(createRNG(hash(0x9a1de, id.length * 31 + id.charCodeAt(0))), box, { gap, stroke: sw, sketchy: 0 }) || []).filter((l) => l && l.d); } catch (e) { return []; }
 }
 
 // Centro de un trazo: media de sus puntos. En los arcos (A rx ry rot f f x y)
@@ -121,15 +124,16 @@ function wrap(text, maxChars) {
 const pageOpen = (w, h) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#fff"/>`;
 
 // Estrella de 4 puntas (contorno) que marca los tangles oficiales verificados.
-function officialMark(x, y, r = 1.7) {
+function officialMark(x, y, r = 1.7, profileKey = "standard") {
+  const sw = scaleStrokeForProfile(0.35, profileKey);
   const pts = [];
   for (let k = 0; k < 8; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 4, rr = k % 2 ? r * 0.38 : r; pts.push(`${fmt(x + Math.cos(a) * rr)} ${fmt(y + Math.sin(a) * rr)}`); }
-  return `<path d="M ${pts.join(" L ")} Z" fill="none" stroke="#000" stroke-width="0.35" stroke-linejoin="round"/>`;
+  return `<path d="M ${pts.join(" L ")} Z" fill="none" stroke="#000" stroke-width="${sw}" stroke-linejoin="round"/>`;
 }
 
 // «Antes de empezar»: de dónde vienen los nombres, cómo leer los niveles y
 // las reglas para combinar tangles.
-export function guideIntroPage(ids, { w, h, m }) {
+export function guideIntroPage(ids, { w, h, m }, { lineThicknessProfile = "standard" } = {}) {
   const list = byComplexity(ids).filter((id) => byId.has(id));
   const off = list.filter((id) => TANGLE_INFO[id].official).map((id) => TANGLE_INFO[id].name);
   const out = [pageOpen(w, h)];
@@ -142,7 +146,7 @@ export function guideIntroPage(ids, { w, h, m }) {
   title("¿De dónde vienen estos nombres?");
   para("Un «tangle» es un patrón que se construye repitiendo trazos sencillos. Varios de los nombres de esta guía vienen del método Zentangle®, creado por Rick Roberts y Maria Thomas: cada tangle tiene un nombre propio y se aprende paso a paso.");
   if (off.length) {
-    out.push(officialMark(m + 1.7, y - 1.2));
+    out.push(officialMark(m + 1.7, y - 1.2, 1.7, lineThicknessProfile));
     out.push(`<text x="${fmt(m + 5)}" y="${fmt(y)}" ${FONT} font-size="4.2">${esc("Marca los tangles oficiales del método:")}</text>`);
     y += 6;
     para(off.join(" · "));
@@ -151,7 +155,7 @@ export function guideIntroPage(ids, { w, h, m }) {
   para("Inspirado en el método Zentangle® de dibujo de patrones (zentangle.com). Zentangle® es una marca registrada de Zentangle, Inc.; este libro no es un producto oficial ni está afiliado a la empresa. Todas las ilustraciones son originales.", 3.6);
   title("Los niveles");
   [[1, "Básico: una sola forma repetida (burbujas, zigzag, líneas)."], [2, "Intermedio: una retícula con una forma encima."], [3, "Avanzado: cruces, tejidos o capas que pasan unas por detrás de otras."]].forEach(([lv, t]) => {
-    out.push(levelDots(m + 1.3, y - 1.1, lv));
+    out.push(levelDots(m + 1.3, y - 1.1, lv, 1.3, lineThicknessProfile));
     out.push(`<text x="${fmt(m + 14)}" y="${fmt(y)}" ${FONT} font-size="4.2">${esc(t)}</text>`);
     y += 7.5;
   });
@@ -175,7 +179,7 @@ export function guideIntroPage(ids, { w, h, m }) {
 
 // Páginas de la guía: 3 tangles por página; cada uno con su explicación,
 // tres pasos, el tangle terminado y un recuadro vacío para practicar.
-export function tangleGuidePages(ids, { w, h, m }) {
+export function tangleGuidePages(ids, { w, h, m }, { lineThicknessProfile = "standard" } = {}) {
   // Complejidad creciente: primero los básicos, al final los avanzados.
   const list = byComplexity(ids).filter((id) => byId.has(id));
   const per = 3, pages = [];
@@ -193,9 +197,9 @@ export function tangleGuidePages(ids, { w, h, m }) {
       const info = TANGLE_INFO[id];
       const y0 = m + head + k * rowH;
       out.push(`<text x="${fmt(m)}" y="${fmt(y0 + 5)}" ${FONT} font-size="5.2" font-weight="bold">${esc(info.name)}</text>`);
-      if (info.official) out.push(officialMark(m + info.name.length * 3.25 + 3.2, y0 + 3));
+      if (info.official) out.push(officialMark(m + info.name.length * 3.25 + 3.2, y0 + 3, 1.7, lineThicknessProfile));
       // Nivel a la derecha del renglón del nombre.
-      out.push(levelDots(w - m - 30, y0 + 3.4, info.level));
+      out.push(levelDots(w - m - 30, y0 + 3.4, info.level, 1.3, lineThicknessProfile));
       out.push(`<text x="${fmt(w - m)}" y="${fmt(y0 + 4.6)}" ${FONT} font-size="3.4" text-anchor="end">${LEVEL_NAMES[info.level]}</text>`);
       wrap(info.how, Math.floor((w - 2 * m) / 1.75)).slice(0, 2).forEach((ln, i) => {
         out.push(`<text x="${fmt(m)}" y="${fmt(y0 + 10.5 + i * 4.6)}" ${FONT} font-size="3.5">${esc(ln)}</text>`);
@@ -207,14 +211,16 @@ export function tangleGuidePages(ids, { w, h, m }) {
       const top = y0 + 23.5;
       const gap = Math.max(1.5, sq / 22);
       const box = { x0: 0, y0: 0, x1: sq, y1: sq };
-      const full = layersIn(id, box, gap);
+      const full = layersIn(id, box, gap, lineThicknessProfile);
       ["1", "2", "3", "✓", ""].forEach((label, i) => {
         const x = m + i * (sq + gapX);
         const cid = `g_${p}_${k}_${i}`;
         const layers = i < 3 ? reveal(full, box, [0.3, 0.55, 0.8][i]) : i === 3 ? full : [];
+        const layerSw = scaleStrokeForProfile(0.3, lineThicknessProfile);
+        const boxSw = scaleStrokeForProfile(i === 4 ? 0.4 : 0.5, lineThicknessProfile);
         out.push(`<clipPath id="${cid}"><rect x="0" y="0" width="${fmt(sq)}" height="${fmt(sq)}"/></clipPath>`);
-        out.push(`<g transform="translate(${fmt(x)} ${fmt(top)})"><g clip-path="url(#${cid})">${layerEls(layers, 0.3)}</g>`
-          + `<rect x="0" y="0" width="${fmt(sq)}" height="${fmt(sq)}" fill="none" stroke="#000" stroke-width="${i === 4 ? 0.4 : 0.5}"${i === 4 ? ' stroke-dasharray="1.6 1.2"' : ""}/></g>`);
+        out.push(`<g transform="translate(${fmt(x)} ${fmt(top)})"><g clip-path="url(#${cid})">${layerEls(layers, layerSw)}</g>`
+          + `<rect x="0" y="0" width="${fmt(sq)}" height="${fmt(sq)}" fill="none" stroke="#000" stroke-width="${boxSw}"${i === 4 ? ' stroke-dasharray="1.6 1.2"' : ""}/></g>`);
         const cap = i < 3 ? `Paso ${label}` : i === 3 ? "Terminado" : "Tu práctica";
         out.push(`<text x="${fmt(x + sq / 2)}" y="${fmt(top + sq + 4.2)}" ${FONT} font-size="3.2" text-anchor="middle">${cap}</text>`);
       });
@@ -222,20 +228,20 @@ export function tangleGuidePages(ids, { w, h, m }) {
     out.push("</svg>");
     pages.push(out.join(""));
   }
-  const combo = combineGuidePage(list, { w, h, m });
+  const combo = combineGuidePage(list, { w, h, m }, { lineThicknessProfile });
   if (combo) pages.push(combo);
-  return [guideIntroPage(list, { w, h, m }), ...pages];
+  return [guideIntroPage(list, { w, h, m }, { lineThicknessProfile }), ...pages];
 }
 
 // Nivel 4 · Combina: un cuadro dividido por strings en 2, 3 y 4 secciones,
 // cada sección con un tangle (cada vez de un nivel más alto), y al lado el
 // mismo cuadro con los strings y las secciones vacías para practicar.
-export function combineGuidePage(ids, { w, h, m }) {
+export function combineGuidePage(ids, { w, h, m }, { lineThicknessProfile = "standard" } = {}) {
   const list = byComplexity(ids).filter((id) => byId.has(id));
   if (list.length < 4) return null;
   const out = [pageOpen(w, h)];
   out.push(`<text x="${fmt(m)}" y="${fmt(m + 8)}" ${FONT} font-size="8" font-weight="bold">Guía de tangles · Combina</text>`);
-  out.push(levelDots(w - m - 42, m + 6.5, 3));
+  out.push(levelDots(w - m - 42, m + 6.5, 3, 1.3, lineThicknessProfile));
   out.push(`<text x="${fmt(w - m)}" y="${fmt(m + 7.7)}" ${FONT} font-size="3.4" text-anchor="end">Nivel 4</text>`);
   out.push(`<text x="${fmt(m)}" y="${fmt(m + 15)}" ${FONT} font-size="3.6">Un string divide el cuadro; cada sección lleva un tangle distinto. A la derecha, el mismo string para ti.</text>`);
   const head = 22, rows = 3, rowH = (h - 2 * m - head) / rows;
@@ -276,12 +282,13 @@ export function combineGuidePage(ids, { w, h, m }) {
         const cid = `cb_${k}_${j}`;
         out.push(`<clipPath id="${cid}"><path d="${poly(j)}"/></clipPath>`);
         const gap = Math.max(1.5, sq / 26);
-        inner += `<g clip-path="url(#${cid})">${layerEls(layersIn(id, { x0: 0, y0: 0, x1: sq, y1: sq }, gap), 0.3)}</g>`;
+        inner += `<g clip-path="url(#${cid})">${layerEls(layersIn(id, { x0: 0, y0: 0, x1: sq, y1: sq }, gap, lineThicknessProfile), scaleStrokeForProfile(0.3, lineThicknessProfile))}</g>`;
       });
       const clipSq = `cbs_${k}_${side}`;
       out.push(`<clipPath id="${clipSq}"><rect width="${fmt(sq)}" height="${fmt(sq)}"/></clipPath>`);
-      out.push(`<g transform="translate(${fmt(x)} ${fmt(y)})"><g clip-path="url(#${clipSq})">${inner}<path d="${strings}" fill="none" stroke="#000" stroke-width="0.6" stroke-linecap="round"/></g>`
-        + `<rect width="${fmt(sq)}" height="${fmt(sq)}" fill="none" stroke="#000" stroke-width="0.6"${side ? ' stroke-dasharray="1.6 1.2"' : ""}/></g>`);
+      const stringSw = scaleStrokeForProfile(0.6, lineThicknessProfile);
+      out.push(`<g transform="translate(${fmt(x)} ${fmt(y)})"><g clip-path="url(#${clipSq})">${inner}<path d="${strings}" fill="none" stroke="#000" stroke-width="${stringSw}" stroke-linecap="round"/></g>`
+        + `<rect width="${fmt(sq)}" height="${fmt(sq)}" fill="none" stroke="#000" stroke-width="${stringSw}"${side ? ' stroke-dasharray="1.6 1.2"' : ""}/></g>`);
       out.push(`<text x="${fmt(x + sq / 2)}" y="${fmt(y + sq + 4.2)}" ${FONT} font-size="3.2" text-anchor="middle">${side ? "Tu práctica" : "Ejemplo"}</text>`);
     });
   }
@@ -290,7 +297,7 @@ export function combineGuidePage(ids, { w, h, m }) {
 }
 
 // Pasaporte: cada tangle con una muestra redonda y dos casillas para marcar.
-export function tanglePassportPage(ids, { w, h, m }) {
+export function tanglePassportPage(ids, { w, h, m }, { lineThicknessProfile = "standard" } = {}) {
   const list = byComplexity(ids).filter((id) => byId.has(id));
   if (!list.length) return null;
   const out = [pageOpen(w, h)];
@@ -300,18 +307,21 @@ export function tanglePassportPage(ids, { w, h, m }) {
   const rows = Math.ceil(list.length / cols);
   const top = m + 24, rowH = Math.min(30, (h - top - m) / rows), colW = (w - 2 * m) / cols;
   const r = Math.min(11, rowH * 0.4);
+  const circleSw = scaleStrokeForProfile(0.5, lineThicknessProfile);
+  const sampleSw = scaleStrokeForProfile(0.25, lineThicknessProfile);
+  const checkboxSw = scaleStrokeForProfile(0.4, lineThicknessProfile);
   list.forEach((id, i) => {
     const cx = m + Math.floor(i / rows) * colW, cy = top + (i % rows) * rowH + rowH / 2;
     const box = { x0: -r, y0: -r, x1: r, y1: r };
     const cid = `pp_${i}`;
     out.push(`<clipPath id="${cid}"><circle cx="0" cy="0" r="${fmt(r)}"/></clipPath>`);
-    out.push(`<g transform="translate(${fmt(cx + r + 1)} ${fmt(cy)})"><g clip-path="url(#${cid})">${layerEls(layersIn(id, box, Math.max(1.2, r / 9)), 0.25)}</g><circle r="${fmt(r)}" fill="none" stroke="#000" stroke-width="0.5"/></g>`);
+    out.push(`<g transform="translate(${fmt(cx + r + 1)} ${fmt(cy)})"><g clip-path="url(#${cid})">${layerEls(layersIn(id, box, Math.max(1.2, r / 9), lineThicknessProfile), sampleSw)}</g><circle r="${fmt(r)}" fill="none" stroke="#000" stroke-width="${circleSw}"/></g>`);
     const tx = cx + 2 * r + 6;
     out.push(`<text x="${fmt(tx)}" y="${fmt(cy - 1.5)}" ${FONT} font-size="4.6" font-weight="bold">${esc(TANGLE_INFO[id].name)}</text>`);
-    out.push(levelDots(tx + 44, cy - 3, TANGLE_INFO[id].level, 1.1));
+    out.push(levelDots(tx + 44, cy - 3, TANGLE_INFO[id].level, 1.1, lineThicknessProfile));
     [["Lo coloreé", 0], ["Lo dibujé", 1]].forEach(([lab, j]) => {
       const bx = tx + j * 30;
-      out.push(`<rect x="${fmt(bx)}" y="${fmt(cy + 2)}" width="4" height="4" fill="none" stroke="#000" stroke-width="0.4"/>`);
+      out.push(`<rect x="${fmt(bx)}" y="${fmt(cy + 2)}" width="4" height="4" fill="none" stroke="#000" stroke-width="${checkboxSw}"/>`);
       out.push(`<text x="${fmt(bx + 5.5)}" y="${fmt(cy + 5.3)}" ${FONT} font-size="3.3">${lab}</text>`);
     });
   });
@@ -328,7 +338,7 @@ export function levelInfo(difficulty) {
 
 // Pie de página (dentro del margen inferior, a ≥ 6.35 mm del corte como pide
 // KDP). Devuelve "" si el margen no deja sitio.
-export function footerSvg({ w, h, m }, { text = "", level = 0 } = {}) {
+export function footerSvg({ w, h, m }, { text = "", level = 0, lineThicknessProfile = "standard" } = {}) {
   if (m < 10 || (!text && !level)) return "";
   // 5 mm bajo el área del dibujo, pero nunca a menos de 7.6 mm del borde: KDP
   // pide el contenido a ≥ 6.35 mm del corte y el texto baja ~1 mm de la línea base.
@@ -337,10 +347,11 @@ export function footerSvg({ w, h, m }, { text = "", level = 0 } = {}) {
   let x = w / 2;
   if (level) {
     // Cinco puntos de nivel (contorno; el nivel alcanzado lleva un punto dentro).
+    const dotSw = scaleStrokeForProfile(0.3, lineThicknessProfile);
     const dots = [];
     for (let i = 0; i < 5; i++) {
       const cx = w / 2 - 34 + i * 4;
-      dots.push(`<circle cx="${fmt(cx)}" cy="${fmt(y - 1.1)}" r="1.3" fill="none" stroke="#000" stroke-width="0.3"/>`);
+      dots.push(`<circle cx="${fmt(cx)}" cy="${fmt(y - 1.1)}" r="1.3" fill="none" stroke="#000" stroke-width="${dotSw}"/>`);
       if (i < level) dots.push(`<circle cx="${fmt(cx)}" cy="${fmt(y - 1.1)}" r="0.6" fill="#000"/>`);
     }
     parts.push(...dots);

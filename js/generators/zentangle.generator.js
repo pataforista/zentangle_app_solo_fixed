@@ -7,6 +7,7 @@ import { fillDeadSpace } from "./deadSpace.js";
 import { generateZenFigure, figureForPage, figurePalette, FIGURE_IDS } from "./figure.js";
 import { isRandomKey, resolveBookStyle } from "./randomStyle.js";
 import { hash } from "../core/prng.js";
+import { getThicknessProfile, scaleStrokeForProfile } from "../core/thicknessProfiles.js";
 
 // Sal por tipo de libro: con la misma semilla, «Adultos» y «Mezcla» (que
 // comparten repertorio) no salen con las mismas figuras en el mismo orden.
@@ -64,6 +65,13 @@ export async function generateZentangle(doc, {
     seed,
     areaMm: area,
   };
+  // Perfil de grosor de línea: inyecta los valores de stroke que no tienen
+  // control en la UI (stringStrokeMm, minStrokeMm) a partir del perfil elegido.
+  // Los valores con slider (cellBorderWidthMm, patternStrokeMm) ya vienen en
+  // overrides desde la UI; el perfil solo completa los que faltan.
+  const profile = getThicknessProfile(finalOpts.lineThicknessProfile);
+  if (finalOpts.stringStrokeMm === undefined) finalOpts.stringStrokeMm = profile.stringStrokeMm;
+  if (finalOpts.minStrokeMm === undefined) finalOpts.minStrokeMm = profile.minStrokeMm;
   // Dificultad progresiva (0 fácil … 1 difícil) en estilos que no son figura:
   // el hueco mínimo se abre al principio del libro y se cierra al final.
   if (Number.isFinite(finalOpts.difficulty) && finalOpts.cellLayout !== "zen_figure") {
