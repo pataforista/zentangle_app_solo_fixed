@@ -29,6 +29,22 @@ export const TANGLE_INFO = {
   florz: { name: "Rombos en red", level: 2, combo: "Suaviza su cuadrícula con Perlas en ondas o Anillos al lado.", how: "Una cuadrícula de líneas con un pequeño rombo en cada cruce." },
   crescent: { name: "Crescent Moon", level: 1, official: true, combo: "Ideal en el borde de una sección; el centro, con Keeko o Rombos en red.", how: "Semicírculos en fila sobre una línea. Repite las filas para formar escamas." },
   scallops: { name: "Escamas", level: 1, combo: "Junto a Paradox o Cubos; repítelo en dos secciones alejadas para dar unidad.", how: "Arcos en fila; cada fila se desplaza media escama, como tejas o escamas de pez." },
+  // 15 tangles originales (sin autor CZT) para mayor variedad en libros largos.
+  ondas: { name: "Ondas", level: 1, combo: "Ideal para colas y aletas; combina con Gotas o Corrientes para un efecto acuático.", how: "Líneas onduladas paralelas suaves, como olas de agua calma." },
+  semillas: { name: "Semillas", level: 1, combo: "Va bien junto a Gotas o Rizos; formas orgánicas que llenan sin saturar.", how: "Formas almendradas (ojos) empaquetadas en filas." },
+  telarana: { name: "Telaraña", level: 2, combo: "Contrasta con Ondas o Semillas; aporta estructura geométrica.", how: "Espiral conectada con radios desde el centro, como una tela de araña." },
+  ladrillos: { name: "Ladrillos", level: 1, combo: "Ideal para zonas de piel; combina con Escamas o Static.", how: "Rectángulos desplazados en fila, como ladrillos o muros." },
+  corrientes: { name: "Corrientes", level: 2, combo: "Para colas y aletas; aporta movimiento direccional.", how: "Líneas paralelas con remolinos espirales cada cierta distancia." },
+  espinas: { name: "Espinas", level: 1, combo: "Para alas y piel; textura direccional que combina con Escamas.", how: "Triángulos pequeños en fila apuntando en la misma dirección, como espinas de pez." },
+  red: { name: "Red", level: 2, combo: "Para caparazones y conchas; estructura geométrica abierta.", how: "Líneas cruzadas en diagonal formando rombos, como una red o malla." },
+  gotas: { name: "Gotas", level: 1, combo: "Para vientres y zonas suaves; combina con Semillas o Rizos.", how: "Formas de gota empaquetadas, redondeadas y apretadas." },
+  lianas: { name: "Lianas", level: 2, combo: "Para alas y zonas alargadas; aporta verticalidad orgánica.", how: "Curvas verticales entrelazadas como lianas o plantas trepadoras." },
+  nido: { name: "Nido", level: 3, combo: "Para cabezas y zonas de detalle; textura densa y compleja.", how: "Círculos concéntricos irregulares conectados entre sí, como un nido de pájaro." },
+  panal: { name: "Panal", level: 1, combo: "Para caparazones y conchas; estructura geométrica regular.", how: "Hexágonos en panal de abeja, todos del mismo tamaño." },
+  rizos: { name: "Rizos", level: 2, combo: "Para vientres y zonas suaves; aporta textura curva y orgánica.", how: "Espirales pequeñas y apretadas en filas, como rizos de pelo." },
+  flechas: { name: "Flechas", level: 1, combo: "Para alas y zonas alargadas; aporta dirección y movimiento.", how: "V-formas en fila apuntando en la misma dirección, como flechas o puntas de lanza." },
+  musgo: { name: "Musgo", level: 1, combo: "Para piel y cabezas; textura orgánica y suave.", how: "Puntos pequeños agrupados en parches, como musgo o líquen." },
+  dunas: { name: "Dunas", level: 2, combo: "Para colas y zonas alargadas; aporta curvas suaves y ondulantes.", how: "Curvas paralelas suaves como dunas de arena, desplazadas en altura." },
 };
 
 const byId = new Map(FIGURE_TANGLES.map((t) => [t.id, t]));

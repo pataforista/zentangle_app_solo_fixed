@@ -14,6 +14,7 @@ import { PathBuilder } from "../core/pathBuilder.js";
 import { CLASSIC_TANGLES, smoothPath } from "./patterns/classicTangles.js";
 import { fillCadent, fillFlorz, fillCrescentMoon } from "./patterns/tangles.js";
 import { fillScallops } from "./patterns/organic.js";
+import { ORIGINAL_TANGLES } from "./patterns/originalTangles.js";
 
 const TAU = Math.PI * 2;
 const W = "#fff";
@@ -36,6 +37,7 @@ const legacy = (id, f, gapMul = 1, cellMul = 0) => ({
 
 const POOL = [
   ...CLASSIC_TANGLES,
+  ...ORIGINAL_TANGLES,
   legacy("cadent", fillCadent, 0.95, 4.2),
   legacy("florz", fillFlorz, 0.95, 4.6),
   legacy("crescent", fillCrescentMoon, 0.9, 6.5),
