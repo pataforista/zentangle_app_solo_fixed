@@ -13,7 +13,7 @@ import { pageSeed, spreadFigureFor, singlesBefore } from "./core/bookSeeds.js";
 import { generateSpread, SPREAD_FIGURES } from "./generators/spread.js";
 import { figureForPage, FIGURE_IDS } from "./generators/figure.js";
 import { kdpListingText } from "./core/kdpListing.js";
-import { analyzeColorability, qualityVerdict, qualityScore, QUALITY_LIMITS } from "./core/pageQuality.js";
+import { analyzeColorability, qualityVerdict, qualityScore, QUALITY_LIMITS, extractFigureMetrics, analyzeContrast, coverageVerdict } from "./core/pageQuality.js";
 import { BOOK_RECIPES, STYLE_THEME } from "./core/bookRecipes.js";
 import { TANGLE_INFO, tanglesInSvgs, tangleGuidePages, tanglePassportPage, footerSvg, levelInfo, appendToSvg } from "./generators/bookExtras.js";
 import { THICKNESS_PROFILES, getThicknessProfile, applyThicknessProfile, scaleStrokeForProfile, getQualityLimitsForProfile } from "./core/thicknessProfiles.js";
@@ -506,6 +506,7 @@ function keepOrDropSvg(review, page, freed = 0) {
 
 // Control de calidad de cada página: se rasteriza a 6 px/mm y se cuentan las
 // zonas donde no cabe la punta de un rotulador (core/pageQuality.js).
+// Además, para páginas con figura: cobertura (M2) y contraste figura/fondo (M10).
 const QPX = 6;
 const stripFooter = (svg) => svg.replace(/<g data-footer="1">[\s\S]*?<\/g>/, "");
 async function measurePage(svg, wMm, hMm, artAreaMm2, thicknessProfile = "standard") {
@@ -515,7 +516,26 @@ async function measurePage(svg, wMm, hMm, artAreaMm2, thicknessProfile = "standa
   const profileLimits = getQualityLimitsForProfile(thicknessProfile);
   // ZT_QUALITY_BAD_DM2: solo para pruebas (fuerza páginas marcadas).
   const v = qualityVerdict(q, artAreaMm2, { ...profileLimits, badPerDm2: Number(globalThis.ZT_QUALITY_BAD_DM2) || profileLimits.badPerDm2 });
-  return { bad: q.bad, ink: Math.round(q.ink * 10) / 10, ok: v.ok, reasons: v.reasons, maxBad: v.maxBad };
+  const result = { bad: q.bad, ink: Math.round(q.ink * 10) / 10, ok: v.ok, reasons: [...v.reasons], maxBad: v.maxBad };
+  // Auditoría de composición (M2, M10): cobertura y contraste para páginas con figura.
+  const figMetrics = extractFigureMetrics(svg);
+  if (figMetrics) {
+    result.coverage = figMetrics.coverage;
+    result.layout = figMetrics.layout;
+    const covV = coverageVerdict(figMetrics.coverage, figMetrics.layout);
+    if (!covV.ok) result.reasons.push(covV.reason);
+    // Contraste figura/fondo: requiere rasterizar la silueta como máscara.
+    const contrast = analyzeContrast(r, figMetrics.silD, wMm, hMm);
+    if (contrast) {
+      result.contrast = contrast.contrast;
+      result.densityInside = contrast.densityInside;
+      result.densityOutside = contrast.densityOutside;
+      if (!contrast.ok) result.reasons.push(contrast.reason);
+    }
+    // Si cobertura o contraste fallan, la página no pasa.
+    if (!covV.ok || (contrast && !contrast.ok)) result.ok = false;
+  }
+  return result;
 }
 const artArea = (g, spread = false) => g.inner.w * g.inner.h * (spread ? 2 : 1);
 
@@ -903,7 +923,7 @@ async function showViewerPage() {
   const q = page.quality;
   const style = isRandomKey(review.g.zPresetKey) ? ` · ${styleLabel(page.presetName)}` : "";
   viewer.label.textContent = `Diseño ${i + 1} de ${review.pages.length}${page.kind === "spread" ? " · doble página" : ""}${style}` +
-    (q ? (q.ok ? ` · ✓ calidad (${q.bad} zonas diminutas)` : ` · ⚠ ${q.reasons.join(" · ")}`) : "");
+    (q ? (q.ok ? ` · ✓ calidad (${q.bad} zonas${q.coverage != null ? ` · cobertura ${Math.round(q.coverage * 100)}%` : ""}${q.contrast != null ? ` · contraste ${q.contrast >= 0 ? "+" : ""}${q.contrast}` : ""})` : ` · ⚠ ${q.reasons.join(" · ")}`) : "");
   layoutViewer();
   viewer.canvas.width = viewer.canvas.height = 0;
   viewer.note.textContent = "Cargando…";
@@ -943,7 +963,7 @@ function bookRecipe(review) {
     app: "generador-libros-colorear", recipeVersion: 1, createdAt: new Date().toISOString(),
     paper: { key: g.paperKey, wMm: g.paper.w, hMm: g.paper.h }, marginMm: g.marginMm,
     style: g.zPresetKey, opts: printSafeOpts(g.opts), designs: n, blankBacks: blank, flags, baseSeed, totalPages: total,
-    pages: pages.map((p, i) => ({ design: i + 1, kind: p.kind, seed: p.seed, tries: p.tries || 0, style: p.presetName, figure: p.figure || null, tangles: p.tangles || [], quality: p.quality ? { bad: p.quality.bad, ink: p.quality.ink, ok: p.quality.ok } : null })),
+    pages: pages.map((p, i) => ({ design: i + 1, kind: p.kind, seed: p.seed, tries: p.tries || 0, style: p.presetName, figure: p.figure || null, tangles: p.tangles || [], quality: p.quality ? { bad: p.quality.bad, ink: p.quality.ink, ok: p.quality.ok, ...(p.quality.coverage != null ? { coverage: p.quality.coverage, layout: p.quality.layout } : {}), ...(p.quality.contrast != null ? { contrast: p.quality.contrast, densityInside: p.quality.densityInside, densityOutside: p.quality.densityOutside } : {}) } : null })),
   };
 }
 
@@ -1152,7 +1172,9 @@ function bookTile(i) {
     const badge = document.createElement("span");
     badge.className = `q-badge${flagged ? " bad" : ""}`;
     badge.textContent = flagged ? "⚠ revisar" : "✓";
-    badge.title = flagged ? page.quality.reasons.join(" · ") : `Calidad correcta (${page.quality.bad} zonas diminutas)`;
+    const covInfo = page.quality.coverage != null ? ` · cobertura ${Math.round(page.quality.coverage * 100)}%` : "";
+    const contInfo = page.quality.contrast != null ? ` · contraste ${page.quality.contrast >= 0 ? "+" : ""}${page.quality.contrast}` : "";
+    badge.title = flagged ? page.quality.reasons.join(" · ") : `Calidad correcta (${page.quality.bad} zonas diminutas${covInfo}${contInfo})`;
     cap.append(label, badge, redo);
   } else cap.append(label, redo);
   tile.append(img, cap);
