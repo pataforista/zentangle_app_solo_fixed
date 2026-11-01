@@ -20,6 +20,7 @@ import { THICKNESS_PROFILES, getThicknessProfile, applyThicknessProfile, scaleSt
 import { generateFrontMatter } from "./generators/frontMatter.js";
 import { downloadCoverPdf } from "./generators/cover.js";
 import { downloadOpenBookPdf } from "./generators/openBookView.js";
+import { saveCurrentBook, loadCurrentBook, clearCurrentBook, saveBookToLibrary, listLibraryBooks, getLibraryBook, renameLibraryBook, updateLibraryBookState, duplicateLibraryBook, deleteLibraryBook } from "./core/bookStorage.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -569,6 +570,11 @@ async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, 
   const overrides = { ...printSafeOpts(g.opts), seed, ...(difficulty === null ? {} : { difficulty }) };
   // Figura que toca: cuenta solo las páginas simples (los modos aleatorios llevan su propia cuenta).
   if (!isRandomKey(g.zPresetKey) && plan?.units) overrides.figurePage = singlesBefore(plan.units, pageIndex);
+  // Figuras excluidas por el usuario (selector de figuras): filtrar el repertorio.
+  const filteredFigs = getFilteredFigures();
+  if (filteredFigs.length && filteredFigs.length !== (ZENTANGLE_PRESETS[g.zPresetKey]?.figures || FIGURE_IDS).length) {
+    overrides.figures = filteredFigs;
+  }
   // En los modos aleatorios, la página original (tries 0) toma su estilo de la
   // secuencia del libro, que evita vecinas repetidas. Un ↻ cambia la semilla:
   // esa página sortea un estilo nuevo con ella (en «Más vendidos» sigue el mazo).
@@ -1227,7 +1233,7 @@ function bookTile(i) {
   const page = bookReview.pages[i];
   const tile = document.createElement("figure");
   const flagged = page.quality && !page.quality.ok;
-  tile.className = `gallery-item book-tile${page.kind === "spread" ? " spread" : ""}${flagged ? " flagged" : ""}`;
+  tile.className = `gallery-item book-tile${page.kind === "spread" ? " spread" : ""}${flagged ? " flagged" : ""}${page.pinned ? " pinned" : ""}`;
   tile.dataset.index = String(i);
   const img = document.createElement("img");
   img.src = page.url;
@@ -1240,12 +1246,33 @@ function bookTile(i) {
   const style = isRandomKey(bookReview.g.zPresetKey) ? ` · ${styleLabel(page.presetName)}` : "";
   const lv = bookReview.flags?.progressive ? ` · nivel ${levelInfo(difficultyAt(i, bookReview.n)).level}` : "";
   label.textContent = `${i + 1}${page.kind === "spread" ? " · doble página" : ""}${page.tries ? ` · cambio ${page.tries}` : ""}${style}${lv}`;
+  const btns = document.createElement("div");
+  btns.className = "tile-btns";
   const redo = document.createElement("button");
   redo.type = "button";
   redo.className = "btn btn-secondary tile-redo";
-  redo.textContent = "↻ Cambiar";
+  redo.textContent = "↻";
   redo.title = "Borrar este diseño y generar otro en su lugar";
   redo.addEventListener("click", () => replaceBookPage(i, tile));
+  btns.append(redo);
+  // Undo: solo si hay historial.
+  if (page.history && page.history.length) {
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.className = "btn btn-secondary tile-undo";
+    undo.textContent = "←";
+    undo.title = `Deshacer cambio (quedan ${page.history.length} versión${page.history.length > 1 ? "es" : ""})`;
+    undo.addEventListener("click", () => undoBookPage(i, tile));
+    btns.append(undo);
+  }
+  // Pin: fijar/desfijar la página para que sobreviva a «Preparar libro».
+  const pin = document.createElement("button");
+  pin.type = "button";
+  pin.className = `btn btn-secondary tile-pin${page.pinned ? " active" : ""}`;
+  pin.textContent = "📌";
+  pin.title = page.pinned ? "Desfijar (no sobrevivirá a «Preparar»)" : "Fijar (sobrevivirá a «Preparar»)";
+  pin.addEventListener("click", () => togglePinPage(i));
+  btns.append(pin);
   if (page.quality) {
     const badge = document.createElement("span");
     badge.className = `q-badge${flagged ? " bad" : ""}`;
@@ -1253,8 +1280,8 @@ function bookTile(i) {
     const covInfo = page.quality.coverage != null ? ` · cobertura ${Math.round(page.quality.coverage * 100)}%` : "";
     const contInfo = page.quality.contrast != null ? ` · contraste ${page.quality.contrast >= 0 ? "+" : ""}${page.quality.contrast}` : "";
     badge.title = flagged ? page.quality.reasons.join(" · ") : `Calidad correcta (${page.quality.bad} zonas diminutas${covInfo}${contInfo})`;
-    cap.append(label, badge, redo);
-  } else cap.append(label, redo);
+    cap.append(label, badge, btns);
+  } else cap.append(label, btns);
   tile.append(img, cap);
   return tile;
 }
@@ -1272,11 +1299,17 @@ async function replaceBookPage(i, tile) {
     const page = await makeBookPage(review.g, pageSeed(review.baseSeed, i, tries), i, review.baseSeed, review);
     if (bookReview !== review) { URL.revokeObjectURL(page.url); return; } // se descartó mientras tanto
     page.tries = tries;
+    // Undo: guardar la versión anterior en el historial (máx. 5 entradas).
+    if (!page.history) page.history = [];
+    page.history.push({ seed: old.seed, tries: old.tries || 0, presetName: old.presetName, figure: old.figure, quality: old.quality });
+    if (page.history.length > 5) page.history.shift();
     keepOrDropSvg(review, page, svgSize(old));
     review.pages[i] = page;
     URL.revokeObjectURL(old.url);
     tile.replaceWith(bookTile(i));
     updateQualitySummary();
+    // Autoguardado tras cada cambio de página.
+    saveCurrentBook(review);
     const q = page.quality;
     ui.status.textContent = `✓ Diseño ${i + 1} reemplazado` + (q && !q.ok ? ` · sigue marcado: ${q.reasons.join(" · ")}` : "");
   } catch (err) {
@@ -1287,6 +1320,55 @@ async function replaceBookPage(i, tile) {
   }
 }
 
+// Deshacer el último ↻ de una página: restaura la versión anterior del historial.
+async function undoBookPage(i, tile) {
+  if (!bookReview || bookJob) return;
+  const review = bookReview;
+  const page = review.pages[i];
+  if (!page.history || !page.history.length) {
+    ui.status.textContent = `✗ No hay versión anterior para el diseño ${i + 1}`;
+    return;
+  }
+  const btn = tile?.querySelector(".tile-redo");
+  if (btn) { btn.disabled = true; btn.textContent = "Deshaciendo…"; }
+  if (tile) tile.classList.add("busy");
+  try {
+    const prev = page.history.pop();
+    const restored = await makeBookPage(review.g, prev.seed, i, review.baseSeed, review);
+    if (bookReview !== review) { URL.revokeObjectURL(restored.url); return; }
+    restored.tries = prev.tries;
+    restored.history = page.history; // conservar el historial restante
+    restored.pinned = page.pinned;
+    keepOrDropSvg(review, restored, svgSize(page));
+    review.pages[i] = restored;
+    URL.revokeObjectURL(page.url);
+    const freshTile = bookTile(i);
+    if (tile) tile.replaceWith(freshTile);
+    else showBookReview();
+    updateQualitySummary();
+    saveCurrentBook(review);
+    ui.status.textContent = `✓ Diseño ${i + 1} restaurado a la versión anterior`;
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = "↻ Cambiar"; }
+    if (tile) tile.classList.remove("busy");
+    ui.status.textContent = `✗ No se pudo deshacer el diseño ${i + 1}: ${err.message}`;
+  }
+}
+
+// Fijar/desfijar una página: las fijadas sobreviven a «Preparar libro».
+function togglePinPage(i) {
+  if (!bookReview) return;
+  const page = bookReview.pages[i];
+  page.pinned = !page.pinned;
+  // Refrescar el tile para mostrar el indicador visual.
+  const tile = document.querySelector(`.book-tile[data-index="${i}"]`);
+  if (tile) tile.replaceWith(bookTile(i));
+  saveCurrentBook(bookReview);
+  ui.status.textContent = page.pinned
+    ? `📌 Diseño ${i + 1} fijado: sobrevivirá a «Preparar libro»`
+    : `Diseño ${i + 1} desfijado`;
+}
+
 async function prepareBook() {
   const plan = bookPlan();
   const { n, blank } = plan;
@@ -1295,6 +1377,12 @@ async function prepareBook() {
   const job = (bookJob = { cancelled: false });
   const others = busyButtons().filter((b) => b && b !== ui.btnBook);
   others.forEach((b) => (b.disabled = true));
+
+  // Conservar las páginas fijadas (📌) de la revisión anterior: mantienen su
+  // seed, tries e historial de undo. El resto se regenera con la semilla nueva.
+  // _origIndex guarda la posición original para saber dónde va cada fijada.
+  const oldPinned = bookReview ? bookReview.pages.map((p, idx) => ({ ...p, _origIndex: idx })).filter((p) => p.pinned) : [];
+
   freeBookReview();
   const review = { key: bookKey(g, plan), g, n, blank, flags: plan.flags, units: plan.units, turnPages: plan.turnPages, baseSeed, pages: [], extras: { guide: [], passport: null, turn: [], frontMatter: [] }, extraUrls: [], total: 0, done: {} };
   ui.btnBook.textContent = "✖ Cancelar";
@@ -1302,10 +1390,22 @@ async function prepareBook() {
   try {
     for (let i = 0; i < n; i++) {
       if (job.cancelled) { review.pages.forEach((p) => URL.revokeObjectURL(p.url)); ui.status.textContent = "Preparación cancelada"; return; }
-      const page = await makeBookPage(g, pageSeed(baseSeed, i, 0), i, baseSeed, review);
-      page.tries = 0;
-      keepOrDropSvg(review, page);
-      review.pages.push(page);
+      // ¿Hay una página fijada para este índice? Si es así, conservarla.
+      const pinned = oldPinned.find((p) => p._origIndex === i);
+      if (pinned) {
+        // Regenerar el SVG con la misma semilla (los diseños son deterministas).
+        const restored = await makeBookPage(g, pinned.seed, i, baseSeed, review);
+        restored.tries = pinned.tries;
+        restored.history = pinned.history;
+        restored.pinned = true;
+        keepOrDropSvg(review, restored);
+        review.pages.push(restored);
+      } else {
+        const page = await makeBookPage(g, pageSeed(baseSeed, i, 0), i, baseSeed, review);
+        page.tries = 0;
+        keepOrDropSvg(review, page);
+        review.pages.push(page);
+      }
       ui.bookBar.value = (i + 1) / n;
       ui.btnBook.textContent = `✖ Cancelar (${i + 1}/${n})`;
       ui.status.textContent = `Preparando libro… diseño ${i + 1} de ${n}`;
@@ -1316,8 +1416,15 @@ async function prepareBook() {
     review.total = bookSequence(review, review.extras).length;
     bookReview = review;
     showBookReview();
+    // Limpiar el autoguardado del libro anterior y guardar el nuevo.
+    await clearCurrentBook();
+    await saveCurrentBook(review);
     const nFlag = flaggedPages(review).length;
-    ui.status.textContent = `✓ ${n} diseños listos (${review.total} páginas)` + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad: pulsa «🛠 Arreglar»` : " · todas pasan el control de calidad") + " · luego descarga el PDF";
+    const nPinned = oldPinned.length;
+    // Prueba automática: verificar que no hay figuras excluidas (U9).
+    const figCheck = verifyNoExcludedFigures(review);
+    const figWarn = !figCheck.ok ? ` · ⚠ ${figCheck.violations.length} figura${figCheck.violations.length > 1 ? "s" : ""} excluida${figCheck.violations.length > 1 ? "s" : ""} encontrada${figCheck.violations.length > 1 ? "s" : ""}` : "";
+    ui.status.textContent = `✓ ${n} diseños listos (${review.total} páginas)` + (nPinned ? ` · ${nPinned} fijad${nPinned === 1 ? "a" : "as"}` : "") + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad: pulsa «🛠 Arreglar»` : " · todas pasan el control de calidad") + figWarn + " · luego descarga el PDF";
   } catch (err) {
     review.pages.forEach((p) => URL.revokeObjectURL(p.url));
     ui.status.textContent = `✗ No se pudo preparar el libro: ${err.message}`;
@@ -1508,6 +1615,8 @@ function saveSettings() {
     const data = { touched: {} };
     PERSIST_IDS.forEach((id) => { const el = $(id); if (el) data[id] = el.type === "checkbox" ? el.checked : el.value; });
     touched.forEach((id) => { const el = $(id); if (el) data.touched[id] = el.value; });
+    // Persistir figuras excluidas (selector de figuras del libro).
+    data.excludedFigures = [...excludedFigures];
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
   } catch { /* modo privado o sin permiso: no pasa nada */ }
 }
@@ -1746,6 +1855,276 @@ async function withBusy(fn) {
   btns.forEach((b) => { if (b) b.disabled = true; });
   try { return await fn(); }
   finally { btns.forEach((b) => { if (b) b.disabled = false; }); }
+}
+
+// ---------- Figura selector: elegir/excluir figuras del libro (U9) ----------
+
+// Conjunto de figuras excluidas por el usuario. Se guarda en settings.
+let excludedFigures = new Set();
+
+// Devuelve las figuras del estilo actual, filtrando las excluidas.
+function getFilteredFigures() {
+  const preset = ZENTANGLE_PRESETS[ui.zPreset.value];
+  const allFigs = preset?.figures || FIGURE_IDS;
+  return allFigs.filter((f) => !excludedFigures.has(f));
+}
+
+// Renderiza el selector de figuras en el panel de opciones del libro.
+function renderFigureSelector() {
+  const container = $("figureSelector");
+  if (!container) return;
+  const preset = ZENTANGLE_PRESETS[ui.zPreset.value];
+  const allFigs = preset?.figures || FIGURE_IDS;
+  // Solo mostrar el selector si el estilo tiene figuras (no muestrarios puros).
+  if (!allFigs || allFigs.length === 0 || !preset?.figures) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  container.innerHTML = "";
+  const title = document.createElement("p");
+  title.className = "hint";
+  title.style.margin = "0 0 8px";
+  title.textContent = "Figuras del libro (desmarca las que no quieras):";
+  container.append(title);
+  const grid = document.createElement("div");
+  grid.className = "figure-grid";
+  allFigs.forEach((figId) => {
+    const label = document.createElement("label");
+    label.className = "figure-check";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = !excludedFigures.has(figId);
+    cb.dataset.figure = figId;
+    cb.addEventListener("change", () => {
+      if (cb.checked) excludedFigures.delete(figId);
+      else excludedFigures.add(figId);
+      saveSettings();
+      updateFigureSummary();
+    });
+    const span = document.createElement("span");
+    span.textContent = figId;
+    label.append(cb, span);
+    grid.append(label);
+  });
+  container.append(grid);
+  updateFigureSummary();
+}
+
+// Resumen de figuras incluidas/excluidas.
+function updateFigureSummary() {
+  const el = $("figureSummary");
+  if (!el) return;
+  const preset = ZENTANGLE_PRESETS[ui.zPreset.value];
+  const allFigs = preset?.figures || [];
+  if (!allFigs.length) { el.textContent = ""; return; }
+  const included = allFigs.filter((f) => !excludedFigures.has(f)).length;
+  const excluded = allFigs.length - included;
+  el.textContent = `${included} figura${included !== 1 ? "s" : ""} incluida${included !== 1 ? "s" : ""}${excluded ? ` · ${excluded} excluida${excluded !== 1 ? "s" : ""}` : ""}`;
+  el.className = excluded ? "hint warn" : "hint ok";
+}
+
+// Verifica que el libro no contenga figuras excluidas (prueba automática).
+function verifyNoExcludedFigures(review) {
+  if (!excludedFigures.size) return { ok: true, violations: [] };
+  const violations = [];
+  review.pages.forEach((page, i) => {
+    if (page.figure && excludedFigures.has(page.figure)) {
+      violations.push({ pageIndex: i, figure: page.figure });
+    }
+  });
+  return { ok: violations.length === 0, violations };
+}
+
+// ---------- Biblioteca «Mis libros» (U5) ----------
+
+// Abre el panel de biblioteca y lista los libros guardados.
+async function showLibrary() {
+  const panel = $("libraryPanel");
+  if (!panel) return;
+  panel.hidden = false;
+  const list = $("libraryList");
+  if (!list) return;
+  list.innerHTML = "<p class=\"hint\">Cargando biblioteca…</p>";
+  try {
+    const books = await listLibraryBooks();
+    if (!books.length) {
+      list.innerHTML = "<p class=\"hint\">No hay libros guardados todavía. Termina un libro y guárdalo aquí.</p>";
+      return;
+    }
+    list.innerHTML = "";
+    const table = document.createElement("table");
+    table.className = "library-table";
+    table.innerHTML = "<thead><tr><th>Nombre</th><th>Tipo</th><th>Fecha</th><th>Estado</th><th>ASIN</th><th>Acciones</th></tr></thead>";
+    const tbody = document.createElement("tbody");
+    books.forEach((book) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(book.name)}</td>
+        <td>${escapeHtml(book.type)}</td>
+        <td>${new Date(book.date).toLocaleDateString("es")}</td>
+        <td><select class="lib-state" data-id="${book.id}">
+          <option value="draft"${book.state === "draft" ? " selected" : ""}>Borrador</option>
+          <option value="reviewed"${book.state === "reviewed" ? " selected" : ""}>Revisado</option>
+          <option value="published"${book.state === "published" ? " selected" : ""}>Publicado</option>
+        </select></td>
+        <td><input class="lib-asin" data-id="${book.id}" value="${escapeHtml(book.asin || "")}" placeholder="B0..." maxlength="10" /></td>
+        <td class="lib-actions">
+          <button class="btn btn-secondary lib-load" data-id="${book.id}" title="Cargar este libro">📂</button>
+          <button class="btn btn-secondary lib-dup" data-id="${book.id}" title="Duplicar (volumen 2)">📋</button>
+          <button class="btn btn-secondary lib-rename" data-id="${book.id}" title="Renombrar">✏️</button>
+          <button class="btn btn-secondary lib-del" data-id="${book.id}" title="Eliminar">🗑</button>
+        </td>`;
+      tbody.append(tr);
+    });
+    table.append(tbody);
+    list.append(table);
+    // Event listeners
+    list.querySelectorAll(".lib-state").forEach((sel) => sel.addEventListener("change", async (e) => {
+      await updateLibraryBookState(e.target.dataset.id, { state: e.target.value });
+    }));
+    list.querySelectorAll(".lib-asin").forEach((inp) => inp.addEventListener("change", async (e) => {
+      await updateLibraryBookState(e.target.dataset.id, { asin: e.target.value });
+    }));
+    list.querySelectorAll(".lib-load").forEach((btn) => btn.addEventListener("click", async (e) => {
+      const book = await getLibraryBook(e.target.dataset.id);
+      if (book?.recipe) await restoreBookFromRecipe(book.recipe);
+    }));
+    list.querySelectorAll(".lib-dup").forEach((btn) => btn.addEventListener("click", async (e) => {
+      await duplicateLibraryBook(e.target.dataset.id);
+      showLibrary(); // refrescar
+      ui.status.textContent = "✓ Libro duplicado (volumen 2 con semilla nueva)";
+    }));
+    list.querySelectorAll(".lib-rename").forEach((btn) => btn.addEventListener("click", async (e) => {
+      const book = await getLibraryBook(e.target.dataset.id);
+      const newName = prompt("Nuevo nombre:", book?.name || "");
+      if (newName) {
+        await renameLibraryBook(e.target.dataset.id, newName);
+        showLibrary();
+      }
+    }));
+    list.querySelectorAll(".lib-del").forEach((btn) => btn.addEventListener("click", async (e) => {
+      if (confirm("¿Eliminar este libro de la biblioteca?")) {
+        await deleteLibraryBook(e.target.dataset.id);
+        showLibrary();
+      }
+    }));
+  } catch (err) {
+    list.innerHTML = `<p class="hint warn">Error al cargar la biblioteca: ${err.message}</p>`;
+  }
+}
+
+// Guarda el libro actual en la biblioteca.
+async function saveCurrentBookToLibrary() {
+  if (!bookReview) {
+    ui.status.textContent = "✗ No hay un libro preparado para guardar";
+    return;
+  }
+  const name = prompt("Nombre del libro:", ui.bookTitle?.value?.trim() || `Libro ${bookReview.n} diseños`);
+  if (!name) return;
+  const recipe = bookRecipe(bookReview);
+  await saveBookToLibrary({ name, state: "reviewed", recipe });
+  ui.status.textContent = `✓ Libro «${name}» guardado en la biblioteca`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ---------- Autoguardado: continuar el último libro (U2) ----------
+
+// Intenta restaurar el libro autoguardado. Devuelve true si se restauró.
+async function tryRestoreAutosavedBook() {
+  const saved = await loadCurrentBook();
+  if (!saved) return false;
+  // Verificar que la clave coincide con los ajustes actuales.
+  const currentKey = bookKey(pageGeometry(), bookPlan());
+  if (saved.key !== currentKey) {
+    // Los ajustes cambiaron; ofrecer restaurar de todas formas.
+    const btn = $("btnContinueBook");
+    if (btn) {
+      btn.hidden = false;
+      btn.textContent = `📖 Continuar último libro (${saved.n} diseños, ${saved.savedAt ? new Date(saved.savedAt).toLocaleString("es") : ""})`;
+      btn.onclick = () => restoreAutosavedBook(saved);
+    }
+    return false;
+  }
+  // Mismos ajustes: restaurar directamente.
+  await restoreAutosavedBook(saved);
+  return true;
+}
+
+// Restaura el libro autoguardado: regenera las miniaturas con sus semillas.
+async function restoreAutosavedBook(saved) {
+  if (!saved || !saved.pages?.length) return;
+  // Restaurar ajustes de la UI.
+  if (saved.g.paperKey) ui.paper.value = saved.g.paperKey;
+  ui.marginMm.value = String(saved.g.marginMm);
+  if (ui.zPreset.querySelector(`option[value="${saved.g.zPresetKey}"]`) || isRandomKey(saved.g.zPresetKey)) {
+    ui.zPreset.value = saved.g.zPresetKey;
+  }
+  ui.bookPages.value = String(saved.n);
+  ui.bookBlank.value = saved.blank ? "1" : "0";
+  if (ui.bookProgressive) ui.bookProgressive.checked = !!saved.flags?.progressive;
+  if (ui.bookGuide) ui.bookGuide.checked = !!saved.flags?.guide;
+  if (ui.bookSpreads) ui.bookSpreads.checked = !!saved.flags?.spreads;
+  if (ui.bookTurn) ui.bookTurn.checked = !!saved.flags?.turn;
+  ui.seed.value = String(saved.baseSeed);
+  applyPresetToUI(saved.g.zPresetKey, { force: true });
+  restoreOptsToUI(saved.g.opts);
+  picker?.sync();
+  showCurrentStyle();
+  updateBookSummary();
+
+  // Regenerar las páginas con sus semillas y tries.
+  const plan = bookPlan();
+  const g = pageGeometry();
+  freeBookReview();
+  const job = (bookJob = { cancelled: false });
+  const review = {
+    key: bookKey(g, plan), g, n: saved.n, blank: saved.blank,
+    flags: { ...saved.flags }, units: plan.units, turnPages: plan.turnPages,
+    baseSeed: saved.baseSeed, pages: [],
+    extras: { guide: [], passport: null, turn: [], frontMatter: [] }, extraUrls: [], total: 0, done: {},
+  };
+  ui.btnBook.textContent = "✖ Cancelar";
+  ui.bookBar.hidden = false;
+  ui.bookBar.value = 0;
+  try {
+    for (let i = 0; i < saved.pages.length; i++) {
+      if (job.cancelled) { review.pages.forEach((p) => URL.revokeObjectURL(p.url)); return; }
+      const sp = saved.pages[i];
+      const page = await makeBookPage(g, sp.seed, i, saved.baseSeed, review);
+      page.tries = sp.tries || 0;
+      page.history = sp.history || [];
+      page.pinned = !!sp.pinned;
+      keepOrDropSvg(review, page);
+      review.pages.push(page);
+      ui.bookBar.value = (i + 1) / saved.pages.length;
+      ui.btnBook.textContent = `✖ Cancelar (${i + 1}/${saved.pages.length})`;
+      ui.status.textContent = `Restaurando libro… página ${i + 1} de ${saved.pages.length}`;
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    review.extras = await buildBookExtras(review);
+    review.extraUrls = extrasList(review.extras).map((x) => URL.createObjectURL(new Blob([x.svg], { type: "image/svg+xml" })));
+    review.total = bookSequence(review, review.extras).length;
+    bookReview = review;
+    showBookReview();
+    const nFlag = flaggedPages(review).length;
+    const nPinned = review.pages.filter((p) => p.pinned).length;
+    ui.status.textContent = `✓ Libro restaurado: ${review.n} diseños (${review.total} páginas)` + (nPinned ? ` · ${nPinned} fijad${nPinned === 1 ? "a" : "s"}` : "") + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad` : "");
+    const btn = $("btnContinueBook");
+    if (btn) btn.hidden = true;
+  } catch (err) {
+    review.pages.forEach((p) => URL.revokeObjectURL(p.url));
+    ui.status.textContent = `✗ Error al restaurar: ${err.message}`;
+    console.error("Error al restaurar autosave:", err);
+  } finally {
+    bookJob = null;
+    ui.bookBar.hidden = true;
+    updateBookButton();
+    updateQualitySummary();
+  }
 }
 
 function bind() {
@@ -2109,6 +2488,35 @@ function bind() {
       console.error("Error al descargar JSON:", err);
     }
   }));
+
+  // ---------- Nuevos botones: biblioteca, figuras, continuar libro ----------
+
+  // Biblioteca «Mis libros».
+  $("btnLibrary")?.addEventListener("click", showLibrary);
+  $("btnSaveToLibrary")?.addEventListener("click", saveCurrentBookToLibrary);
+  $("btnCloseLibrary")?.addEventListener("click", () => {
+    const panel = $("libraryPanel");
+    if (panel) panel.hidden = true;
+  });
+
+  // Continuar último libro (autoguardado).
+  $("btnContinueBook")?.addEventListener("click", async () => {
+    const saved = await loadCurrentBook();
+    if (saved) await restoreAutosavedBook(saved);
+  });
+
+  // Selector de figuras: renderizar al cambiar de estilo.
+  ui.zPreset.addEventListener("change", () => {
+    renderFigureSelector();
+  });
+
+  // Cargar figuras excluidas desde settings.
+  const savedFigs = saved.excludedFigures;
+  if (Array.isArray(savedFigs)) excludedFigures = new Set(savedFigs);
+  renderFigureSelector();
+
+  // Intentar restaurar el libro autoguardado al cargar la app.
+  tryRestoreAutosavedBook();
 
   render();
 }

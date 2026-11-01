@@ -537,6 +537,31 @@
     .dl-label { font-size: 12px; color: var(--text-muted); }
     .dl-row .btn { padding: 7px 4px; font-size: 12px; }
 
+    /* Botones de tile: undo, pin */
+    .tile-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tile-btns .btn { padding: 4px 8px; font-size: 12px; min-width: 28px; }
+    .tile-pin.active { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+    .book-tile.pinned { outline: 2px solid #f59e0b; outline-offset: -2px; border-radius: 8px; }
+
+    /* Selector de figuras */
+    .figure-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .figure-check { display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; }
+    .figure-check input { margin: 0; }
+    .figure-check:has(input:not(:checked)) { opacity: 0.5; text-decoration: line-through; }
+
+    /* Biblioteca */
+    .library-panel { margin-top: 16px; padding: 12px; border: 1px solid var(--border-light); border-radius: 8px; background: #f8fafc; }
+    .library-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .library-table th, .library-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border-light); }
+    .library-table th { font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; }
+    .library-table .lib-actions { display: flex; gap: 4px; }
+    .library-table .lib-actions .btn { padding: 4px 6px; font-size: 11px; }
+    .lib-state, .lib-asin { font-size: 11px; padding: 3px 6px; border: 1px solid var(--border-light); border-radius: 4px; }
+    .lib-asin { width: 80px; }
+
+    /* Botón continuar libro */
+    #btnContinueBook { margin-top: 8px; width: 100%; }
+
     @media (max-width: 899px) {
       .sp-grid { grid-template-columns: repeat(4, 1fr); max-height: 300px; }
       .seed-row { grid-template-columns: 1fr 1fr; }
@@ -752,6 +777,20 @@
           <button id="btnKdpListing" type="button" class="link-btn">📝 Texto para la ficha de KDP (sin marcas ajenas)</button>
           <button id="btnCover" type="button" class="link-btn">🎨 Generar portada PDF para KDP</button>
           <button id="btnOpenBook" type="button" class="link-btn" hidden>📖 Vista de libro abierto (pliegos dobles)</button>
+          <button id="btnSaveToLibrary" type="button" class="link-btn">💾 Guardar en «Mis libros»</button>
+          <button id="btnLibrary" type="button" class="link-btn">📚 Mis libros (biblioteca)</button>
+          <button id="btnContinueBook" type="button" class="btn btn-secondary" hidden>📖 Continuar último libro</button>
+          <!-- Selector de figuras (U9) -->
+          <div id="figureSelector" class="book-extras" hidden></div>
+          <p id="figureSummary" class="hint"></p>
+          <!-- Panel de biblioteca -->
+          <div id="libraryPanel" class="library-panel" hidden>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <strong>📚 Mis libros</strong>
+              <button id="btnCloseLibrary" type="button" class="link-btn">✕ Cerrar</button>
+            </div>
+            <div id="libraryList"></div>
+          </div>
           <p class="hint">Primero ves todas las páginas: cambia con ↻ las que no te gusten y luego descarga el PDF. Cada página deriva su semilla de la tuya, así que el libro se puede regenerar idéntico.</p>
         </section>
 
