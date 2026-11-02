@@ -2579,8 +2579,10 @@ export async function generateZenFigure(doc, opts) {
   const palette = Array.isArray(opts.tanglePalette) && opts.tanglePalette.length ? new Set(opts.tanglePalette) : null;
   const pickTangle = (pool) => {
     const full = pool.map((t) => (typeof t === "string" ? byId.get(t) : t)).filter(Boolean);
+    // Si hay paleta definida, usar solo tangles de la paleta (sin fallback al pool completo).
+    // Esto garantiza que las figuras respeten la paleta del libro.
     const inPal = palette ? full.filter((t) => palette.has(t.id)) : full;
-    const list = inPal.length >= 3 ? inPal : full;
+    const list = inPal.length > 0 ? inPal : full;
     let tot = 0;
     const ws = list.map((t) => {
       let w = last.includes(t.id) ? 0.05 : 1 / (1 + 3 * (used.get(t.id) || 0));
@@ -2805,8 +2807,9 @@ export async function generateZenFigure(doc, opts) {
     let inner = "";
     if (p.tangle && !empty && fStyle !== "glass") {
       // M5: usar zona anatómica para filtrar tangles apropiados.
+      // Si hay paleta definida (libro), priorizar la paleta sobre la zona.
       const basePool = p.tangle === "detail" ? DETAIL_POOL : p.tangle === "round" ? ["printemps", "purk", "tipple"] : POOL.map((t) => t.id);
-      const pool = p.zone ? zonePool(p.zone, basePool.map((id) => byId.get(id)).filter(Boolean)).map((t) => t.id) : basePool;
+      const pool = p.zone && !palette ? zonePool(p.zone, basePool.map((id) => byId.get(id)).filter(Boolean)).map((t) => t.id) : basePool;
       inner = `<g clip-path="url(#${clipOf(dc)})">${tangleIn(pickTangle(pool), bb, p.tangle === "detail" ? 0.9 : 1)}</g>`;
     }
     // Piezas de delante (orgánulos, caras): halo blanco fino para que el
@@ -2927,9 +2930,10 @@ export async function generateZenFigure(doc, opts) {
       // Respiro: como mucho una sección lisa por parte, y nunca una grande
       // (una banda vacía de media figura se lee como un error).
       if (!plainUsed && q.area < Math.min(900, totalArea * 0.12) && rng() < 0.25) { plainUsed = true; continue; }
-      // M5: usar zona anatómica de la parte para filtrar tangles apropiados.
-      const partPool = p.zone ? zonePool(p.zone, POOL) : POOL;
-      const t = pickTangle(partPool);
+      // M5: usar zona anatómica para filtrar tangles apropiados.
+      // Si hay paleta definida (libro), priorizar la paleta sobre la zona.
+      const basePool = p.zone && !palette ? zonePool(p.zone, POOL) : POOL;
+      const t = pickTangle(basePool);
       let g = tangleIn(t, q, rFloat(rng, 0.95, 1.15));
       if (rich) g += sectionExtras(q, sec, edgeD, t);
       if (sec.nB) g = `<g clip-path="url(#${clipOf(polyD(sec.stripB(q.j)))})">${g}</g>`;
