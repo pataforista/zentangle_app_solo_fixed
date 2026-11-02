@@ -1013,6 +1013,56 @@ async function runTests() {
       console.log(`✓ ${FIGURE_IDS.length} figuras y ${ICONS.length} iconos; zonas difíciles de media: zentangle ${bad.zen_figure.toFixed(0)}, facetado ${bad.zen_figure_facet.toFixed(0)}, vitral ${bad.zen_figure_glass.toFixed(0)}; ${hidden} figuras escondidas (${nested} dentro de su figura).`);
     }
 
+    console.log("\nPrueba 21: Importador y validador de siluetas SVG (Fase 3.1)...");
+    {
+      const { parseSvgPath, parseFigureSvg, validateFigureMeta, compileFigureDefinition, registerImportedFigure } = await import("./js/core/svgImporter.js");
+      const { FIGURES, FIGURE_IDS, FIGURE_SETS } = await import("./js/generators/figure.js");
+
+      // 1. Exigencia estricta de licencias y origen de derechos
+      const noLic = validateFigureMeta({ id: "fig_test", origin: "Propio" });
+      assert.strictEqual(noLic.valid, false, "ERROR: Debe exigir 'license'.");
+      const noOri = validateFigureMeta({ id: "fig_test", license: "CC0" });
+      assert.strictEqual(noOri.valid, false, "ERROR: Debe exigir 'origin'.");
+
+      // 2. Detección y rechazo de elementos prohibidos (image, text, style)
+      const badSvg = parseFigureSvg('<svg viewBox="0 0 1000 1000"><image href="a.png"/></svg>');
+      assert.strictEqual(badSvg.valid, false, "ERROR: Debe rechazar elementos prohibidos como <image>.");
+
+      // 3. Normalización de comandos de trayecto y conversión de arcos A -> C
+      const arcPath = "M 500 100 A 400 400 0 0 1 900 500 L 500 500 Z";
+      const normCmds = parseSvgPath(arcPath);
+      assert.strictEqual(normCmds[0][0], "M");
+      assert.strictEqual(normCmds[normCmds.length - 1][0], "Z");
+      assert.ok(normCmds.some((c) => c[0] === "C"), "ERROR: El arco A debe convertirse a cúbicas C.");
+
+      // 4. Compilación de silueta SVG con capas y renderizado en zen_figure
+      const testSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+        <g id="silhouette"><path d="M 500 100 C 800 100 800 900 500 900 C 200 900 200 100 500 100 Z" fill="#fff"/></g>
+        <g id="part-body"><path d="M 500 200 C 700 200 700 800 500 800 C 300 800 300 200 500 200 Z" fill="#fff"/></g>
+      </svg>`;
+      const testMeta = {
+        id: "imported_test_fig",
+        label: { es: "Figura Test", en: "Test Figure" },
+        theme: "birds",
+        author: "Ilustrador de Prueba",
+        license: "Cesión comercial exclusiva / CC0",
+        origin: "Dibujo original vectorial",
+      };
+      const compiled = compileFigureDefinition(testSvg, testMeta);
+      assert.strictEqual(compiled.success, true, "ERROR: Compilación de figura válida falló.");
+
+      registerImportedFigure(compiled, FIGURES, FIGURE_IDS, FIGURE_SETS);
+      assert.ok(FIGURE_IDS.includes("imported_test_fig"), "ERROR: No se registró en FIGURE_IDS.");
+
+      const d = { body: [], defs: [] };
+      await generateZentangle(d, { seed: 88, presetName: "zen_figure", areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, overrides: { figureName: "imported_test_fig" } });
+      const html = d.body.join("");
+      assert.ok(html.includes('data-figure="imported_test_fig"'), "ERROR: No generó la figura importada.");
+      assert.ok(!/NaN|Infinity/.test(html + d.defs.join("")), "ERROR: Coordenadas inválidas en figura importada.");
+      assert.ok(!/fill="#000"/.test(html), "ERROR: Rellenos negros en figura importada.");
+      console.log("✓ Parser SVG, validación de licencias, normalización de arcos y renderizado de silueta importada verificados.");
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

@@ -42,7 +42,6 @@ const POOL = [
   legacy("florz", fillFlorz, 0.95, 4.6),
   legacy("crescent", fillCrescentMoon, 0.9, 6.5),
   legacy("scallops", fillScallops, 1.1),
-  ...ORIGINAL_TANGLES,
 ];
 // Fondo: tangles amplios y tranquilos, para que la figura destaque.
 const BG_POOL = ["tipple", "purk", "printemps", "beadlines", "static", "nzeppel", "scallops", "cubine", "keeko",
@@ -1431,7 +1430,7 @@ const OWLMAN_WING = [["M", 0.2, -0.5], ["C", 0.5, -0.86, 0.92, -0.86, 1.0, -0.52
 const OWLMAN_BODY = [["M", 0, -0.8], ["L", 0.18, -0.98], ["C", 0.26, -0.82, 0.3, -0.7, 0.3, -0.5], ["C", 0.34, -0.1, 0.32, 0.3, 0.2, 0.6], ["L", 0.24, 0.95],
   ["L", 0.06, 0.95], ["L", 0, 0.7], ["Z"]];
 
-const FIGURES = {
+export const FIGURES = {
   owl: {
     parts: [{ cmds: OWL_BODY, strings: { angle: 0, a: [3, 4], b: [1, 2] }, zone: "skin" }],
     front: [{ cmds: OWL_WING, mirror: true, tangle: "detail", zone: "wing" }],

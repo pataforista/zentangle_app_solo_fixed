@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <g id="silhouette">
+    <path d="M 500 80 C 650 80 820 180 820 380 C 820 540 760 720 620 900 C 580 950 540 960 500 960 C 460 960 420 950 380 900 C 240 720 180 540 180 380 C 180 180 350 80 500 80 Z" fill="#ffffff" stroke="none"/>
+  </g>
+  <g id="part-body">
+    <path d="M 500 240 C 540 160 680 160 700 280 C 710 360 620 460 500 520 C 380 460 290 360 300 280 C 320 160 460 160 500 240 Z" fill="#ffffff" stroke="none"/>
+    <path d="M 500 530 C 620 530 680 680 620 850 C 560 920 520 940 500 940 C 480 940 440 920 380 850 C 320 680 380 530 500 530 Z" fill="#ffffff" stroke="none"/>
+  </g>
+  <g id="part-wings">
+    <path d="M 300 320 C 220 440 200 620 360 820 C 320 680 300 500 300 320 Z" fill="#ffffff" stroke="none"/>
+    <path d="M 700 320 C 780 440 800 620 640 820 C 680 680 700 500 700 320 Z" fill="#ffffff" stroke="none"/>
+  </g>
+  <g id="front-eyes">
+    <circle cx="430" cy="300" r="45" fill="#ffffff" stroke="none"/>
+    <circle cx="570" cy="300" r="45" fill="#ffffff" stroke="none"/>
+  </g>
+  <g id="deco-features">
+    <circle cx="430" cy="300" r="15" fill="none" stroke="#000000" stroke-width="3"/>
+    <circle cx="570" cy="300" r="15" fill="none" stroke="#000000" stroke-width="3"/>
+    <path d="M 500 320 L 485 370 L 515 370 Z" fill="none" stroke="#000000" stroke-width="3"/>
+  </g>
+</svg>

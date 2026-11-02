@@ -1,0 +1,17 @@
+{
+  "id": "barn_owl",
+  "label": { "es": "Lechuza", "en": "Barn owl" },
+  "theme": "birds",
+  "tags": ["animal", "nocturno", "ave", "bosque"],
+  "audience": "adult",
+  "hideable": true,
+  "ground": 0.94,
+  "strings": { "angle": 0.45, "a": [2, 3], "b": [2, 3] },
+  "zones": {
+    "part-wings": "wing",
+    "part-body": "belly"
+  },
+  "author": "Ilustrador Profesional",
+  "license": "Cesión comercial exclusiva / CC0",
+  "origin": "Dibujo original vectorial diseñado para Zentangle Creator"
+}

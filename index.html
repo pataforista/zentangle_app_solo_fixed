@@ -1076,6 +1076,57 @@
           </div>
         </details>
 
+        <!-- SVG Silhouette Importer Section (Fase 3.1) -->
+        <details class="more" id="svgImportSection">
+          <summary>✒️ Importar silueta SVG (Ilustrador)</summary>
+          <div class="control-group" style="margin:0; border:0; border-radius:0;">
+            <div style="margin-bottom: 12px; padding: 8px; background: rgba(99,102,241,0.05); border-radius: var(--radius-sm); border-left: 3px solid var(--accent);">
+              <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.4;">
+                Importa siluetas vectoriales SVG (viewBox 0 0 1000 1000) de ilustrador con capas <code>silhouette</code>, <code>part-*</code>, <code>front-*</code> y <code>deco-*</code>. El motor las subdivide y les aplica tangles automáticamente.
+              </p>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 4px;">Archivo SVG de silueta</label>
+              <input type="file" id="svgFigureUpload" accept=".svg" style="display: block; width: 100%; padding: 6px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 12px;" />
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 4px;">Ficha JSON (opcional)</label>
+              <input type="file" id="jsonFigureUpload" accept=".json" style="display: block; width: 100%; padding: 6px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 12px;" />
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+              <div>
+                <label style="display:block; font-size:11px; color:var(--text-muted);">ID de figura</label>
+                <input type="text" id="svgFigId" placeholder="ej. lechuza" style="width:100%; padding:5px; border:1px solid var(--border-light); border-radius:4px; font-size:12px;" />
+              </div>
+              <div>
+                <label style="display:block; font-size:11px; color:var(--text-muted);">Tema</label>
+                <select id="svgFigTheme" style="width:100%; padding:5px; border:1px solid var(--border-light); border-radius:4px; font-size:12px;">
+                  <option value="adult">Adultos</option>
+                  <option value="kids">Infantil</option>
+                  <option value="birds">Aves</option>
+                  <option value="ocean">Océano</option>
+                  <option value="cats">Gatos</option>
+                  <option value="dino">Dinosaurios</option>
+                  <option value="bio">Biología</option>
+                  <option value="cryptids">Críptidos</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="display:block; font-size:11px; color:var(--text-muted);">Licencia (obligatoria)</label>
+              <input type="text" id="svgFigLicense" placeholder="ej. Cesión comercial exclusiva / CC0" value="Cesión comercial exclusiva / CC0" style="width:100%; padding:5px; border:1px solid var(--border-light); border-radius:4px; font-size:12px;" />
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="display:block; font-size:11px; color:var(--text-muted);">Origen (declaración obligatoria)</label>
+              <input type="text" id="svgFigOrigin" placeholder="ej. Dibujo original vectorial" value="Dibujo original vectorial" style="width:100%; padding:5px; border:1px solid var(--border-light); border-radius:4px; font-size:12px;" />
+            </div>
+            <button type="button" id="btnImportSvgFigure" class="btn btn-secondary" style="width:100%; margin-top:6px; cursor:pointer;">
+              📥 Validar e incorporar silueta
+            </button>
+            <div id="svgImportFeedback" style="margin-top:8px; font-size:12px; padding:6px 8px; border-radius:4px; display:none;"></div>
+          </div>
+        </details>
+
         <!-- Image Integration Section -->
         <details class="more" id="imageSection">
           <summary>🖼️ Integrar una imagen (opcional)</summary>
