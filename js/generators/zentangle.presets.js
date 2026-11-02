@@ -1110,6 +1110,43 @@ export const ZENTANGLE_PRESETS = {
 
   // Navidad: árboles, estrellas, adornos, regalos, renos, muñecos de nieve.
   // Placeholder: usa figuras de kids (animales tiernos) con fondo festivo.
+  // Escenas con múltiples figuras (Fase 5: manada, arrecife, hábitat con suelo y horizonte).
+  zen_scene: {
+    cellLayout: "zen_scene",
+    sceneTheme: "nature",
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.70,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+
+  zen_scene_dino: {
+    cellLayout: "zen_scene",
+    sceneTheme: "dino",
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.70,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+
+  zen_scene_ocean: {
+    cellLayout: "zen_scene",
+    sceneTheme: "ocean",
+    cellCount: 1,
+    cellBorderWidthMm: 1.2,
+    patternStrokeMm: 0.35,
+    stringStrokeMm: 0.70,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+
   zen_figure_christmas: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.kids, // TODO: añadir FIGURE_SETS.christmas cuando existan las figuras

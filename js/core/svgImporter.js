@@ -399,6 +399,7 @@ export function parseFigureSvg(svgText) {
     back: [],
     front: [],
     deco: [],
+    skeleton: [],
   };
 
   // Buscar grupos <g id="..."> ... </g>
@@ -435,7 +436,9 @@ export function parseFigureSvg(svgText) {
 
     // Asignar según el ID del grupo
     const idLower = gId.toLowerCase();
-    if (idLower === "silhouette" || idLower.startsWith("silhouette")) {
+    if (idLower === "skeleton" || idLower.startsWith("skel")) {
+      for (const item of groupCmds) layers.skeleton.push(item.cmds);
+    } else if (idLower === "silhouette" || idLower.startsWith("silhouette")) {
       for (const item of groupCmds) layers.silhouette.push(item.cmds);
     } else if (idLower.startsWith("back")) {
       for (const item of groupCmds) layers.back.push({ id: gId, cmds: item.cmds });
@@ -469,7 +472,9 @@ export function parseFigureSvg(svgText) {
     const cmds = tag === "path" ? parseSvgPath(attrs.d, vb) : shapeElementToCmds(tag, attrs, vb);
     if (!cmds || cmds.length === 0) continue;
 
-    if (id === "silhouette" || id.startsWith("silhouette")) {
+    if (id === "skeleton" || id.startsWith("skel")) {
+      layers.skeleton.push(cmds);
+    } else if (id === "silhouette" || id.startsWith("silhouette")) {
       layers.silhouette.push(cmds);
     } else if (id.startsWith("back")) {
       layers.back.push({ id: attrs.id || "back", cmds });
@@ -538,6 +543,36 @@ export function validateFigureGeometry(layers) {
 /**
  * Compila una definición de figura completa para el motor FIGURES a partir de SVG + JSON.
  */
+// Aplana comandos SVG (M, L, Q, C) a puntos discretos [u, v] para esqueletos.
+function flattenCmdsToPts(cmds) {
+  const pts = [];
+  let curr = [0, 0];
+  for (const cmd of cmds) {
+    const type = cmd[0];
+    if (type === "M" || type === "L") {
+      curr = [cmd[1], cmd[2]];
+      pts.push(curr);
+    } else if (type === "Q") {
+      const [x1, y1, x, y] = [cmd[1], cmd[2], cmd[3], cmd[4]];
+      for (let t = 0.25; t <= 1; t += 0.25) {
+        const u = (1 - t) ** 2 * curr[0] + 2 * (1 - t) * t * x1 + t ** 2 * x;
+        const v = (1 - t) ** 2 * curr[1] + 2 * (1 - t) * t * y1 + t ** 2 * y;
+        pts.push([u, v]);
+      }
+      curr = [x, y];
+    } else if (type === "C") {
+      const [x1, y1, x2, y2, x, y] = [cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6]];
+      for (let t = 0.2; t <= 1; t += 0.2) {
+        const u = (1 - t) ** 3 * curr[0] + 3 * (1 - t) ** 2 * t * x1 + 3 * (1 - t) * t ** 2 * x2 + t ** 3 * x;
+        const v = (1 - t) ** 3 * curr[1] + 3 * (1 - t) ** 2 * t * y1 + 3 * (1 - t) * t ** 2 * y2 + t ** 3 * y;
+        pts.push([u, v]);
+      }
+      curr = [x, y];
+    }
+  }
+  return pts;
+}
+
 export function compileFigureDefinition(svgText, meta) {
   const metaVal = validateFigureMeta(meta);
   if (!metaVal.valid) {
@@ -558,15 +593,24 @@ export function compileFigureDefinition(svgText, meta) {
   const defaultStrings = meta.strings || { angle: 0.4, a: [2, 3], b: [2, 3] };
   const zones = meta.zones || {};
 
+  let skelPts = null;
+  if (Array.isArray(meta.skeleton) && meta.skeleton.length >= 2) {
+    skelPts = meta.skeleton;
+  } else if (layers.skeleton && layers.skeleton.length > 0) {
+    skelPts = flattenCmdsToPts(layers.skeleton[0]);
+  }
+
   // Mapear partes con sus strings y zonas anatómicas
   const parts = layers.parts.map((p, idx) => {
     // Buscar si hay zona anatómica asignada a este ID
     const zone = zones[p.id] || (p.id.includes("wing") ? "wing" : p.id.includes("belly") ? "belly" : p.id.includes("head") ? "head" : undefined);
-    return {
+    const partObj = {
       cmds: p.cmds,
       strings: defaultStrings,
       zone,
     };
+    if (skelPts) partObj.skeleton = skelPts;
+    return partObj;
   });
 
   const back = layers.back.map((b) => ({
@@ -592,6 +636,7 @@ export function compileFigureDefinition(svgText, meta) {
     branch: typeof meta.ground === "number" ? meta.ground : 0.94,
     hide: meta.hideable !== false,
   };
+  if (skelPts) figureDef.skeleton = skelPts;
 
   if (back.length > 0) figureDef.back = back;
   if (front.length > 0) figureDef.front = front;

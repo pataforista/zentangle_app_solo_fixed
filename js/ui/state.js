@@ -328,7 +328,10 @@ export const THUMB_OVERRIDES = {
   zen_figure_dino: { figureName: "triceratops" },
   zen_figure_dino_origami: { figureName: "stegosaurus" },
   zen_figure_bio: { figureName: "neuron" },
-  zen_figure_cryptids: { figureName: "kraken" }
+  zen_figure_cryptids: { figureName: "kraken" },
+  zen_scene: { sceneTheme: "nature" },
+  zen_scene_dino: { sceneTheme: "dino" },
+  zen_scene_ocean: { sceneTheme: "ocean" }
 };
 
 export async function renderThumb(key) {

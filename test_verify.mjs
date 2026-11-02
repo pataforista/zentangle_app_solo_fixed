@@ -9,6 +9,8 @@ import { RANDOM_STYLE_KEY, RANDOM_COLOR_KEY, BESTSELLER_KEY, BESTSELLERS, resolv
 import { POOLS } from "./js/generators/sampler.js";
 import { LAYOUT_TEMPLATES, getTemplateCells } from "./js/generators/layoutTemplates.js";
 import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
+import { compileFigureDefinition, registerImportedFigure } from "./js/core/svgImporter.js";
+import { FIGURES, FIGURE_IDS, FIGURE_SETS } from "./js/generators/figure.js";
 
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
@@ -1061,6 +1063,73 @@ async function runTests() {
       assert.ok(!/NaN|Infinity/.test(html + d.defs.join("")), "ERROR: Coordenadas inválidas en figura importada.");
       assert.ok(!/fill="#000"/.test(html), "ERROR: Rellenos negros en figura importada.");
       console.log("✓ Parser SVG, validación de licencias, normalización de arcos y renderizado de silueta importada verificados.");
+    }
+
+    // -------------------------------------------------------------
+    // Prueba 22: Escenas con múltiples figuras y cuerdas por esqueleto (Fase 5)
+    // -------------------------------------------------------------
+    {
+      console.log("\nPrueba 22: Escenas con múltiples figuras y cuerdas por esqueleto (Fase 5)...");
+
+      // 1. Cuerdas por esqueleto anatómico
+      const skelSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+        <g id="silhouette"><path d="M 100 500 C 100 200 900 200 900 500 C 900 800 100 800 100 500 Z" fill="#fff"/></g>
+        <g id="part-body"><path d="M 150 500 C 150 250 850 250 850 500 C 850 750 150 750 150 500 Z" fill="#fff"/></g>
+        <g id="skeleton"><path d="M 150 500 C 350 400 650 600 850 500" fill="none"/></g>
+      </svg>`;
+      const skelMeta = {
+        id: "skel_owl_test",
+        theme: "birds",
+        author: "Ilustrador",
+        license: "CC0",
+        origin: "Original",
+      };
+      const compiledSkel = compileFigureDefinition(skelSvg, skelMeta);
+      assert.strictEqual(compiledSkel.success, true, "ERROR: La compilación de silueta con esqueleto falló.");
+      assert.ok(compiledSkel.figureDef.skeleton && compiledSkel.figureDef.skeleton.length >= 2, "ERROR: El esqueleto no fue extraído.");
+
+      registerImportedFigure(compiledSkel, FIGURES, FIGURE_IDS, FIGURE_SETS);
+      const dSkel = { body: [], defs: [] };
+      await generateZentangle(dSkel, {
+        seed: 777,
+        presetName: "zen_figure",
+        areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 },
+        overrides: { figureName: "skel_owl_test" }
+      });
+      const skelHtml = dSkel.body.join("");
+      assert.ok(skelHtml.includes('data-figure="skel_owl_test"'), "ERROR: No generó la figura con esqueleto.");
+      assert.ok(skelHtml.includes("data-tangle="), "ERROR: La figura con esqueleto debe contener tangles.");
+      assert.ok(!/NaN|Infinity/.test(skelHtml), "ERROR: Coordenadas inválidas en figura con esqueleto.");
+
+      // 2. Escenas con múltiples figuras (2-3 figuras, suelo, horizonte)
+      const dScene = { body: [], defs: [] };
+      const sceneRes = await generateZentangle(dScene, {
+        seed: 42,
+        presetName: "zen_scene_dino",
+        areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }
+      });
+      const sceneHtml = dScene.body.join("");
+      assert.ok(sceneHtml.includes('data-scene="dino"'), "ERROR: Escena no incluye data-scene.");
+      assert.ok(sceneHtml.includes("data-figures="), "ERROR: Escena no incluye data-figures.");
+      assert.ok(sceneHtml.includes('data-scene-env="1"'), "ERROR: Escena debe incluir entorno paisajístico.");
+
+      const figsMatch = sceneHtml.match(/data-figures="([^"]+)"/);
+      assert.ok(figsMatch, "ERROR: No se encontraron figuras en la escena.");
+      const figsList = figsMatch[1].split(",");
+      assert.ok(figsList.length >= 2 && figsList.length <= 3, "ERROR: Escena debe componer entre 2 y 3 figuras.");
+      assert.ok(!/fill="#000"/.test(sceneHtml), "ERROR: Rellenos negros detectados en escena.");
+
+      // Escena marina
+      const dOcean = { body: [], defs: [] };
+      await generateZentangle(dOcean, {
+        seed: 99,
+        presetName: "zen_scene_ocean",
+        areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }
+      });
+      const oceanHtml = dOcean.body.join("");
+      assert.ok(oceanHtml.includes('data-scene="ocean"'), "ERROR: Escena marina no generó data-scene.");
+
+      console.log("✓ Cuerdas curvilíneas por esqueleto y composición de escenas temáticas con 2-3 figuras verificadas.");
     }
 
     console.log("\n==============================================");

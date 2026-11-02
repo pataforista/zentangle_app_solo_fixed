@@ -4,7 +4,7 @@ import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
 import { fillDeadSpace } from "./deadSpace.js";
-import { generateZenFigure, figureForPage, figurePalette, FIGURE_IDS } from "./figure.js";
+import { generateZenFigure, generateZenScene, figureForPage, figurePalette, FIGURE_IDS } from "./figure.js";
 import { isRandomKey, resolveBookStyle } from "./randomStyle.js";
 import { hash } from "../core/prng.js";
 import { getThicknessProfile, scaleStrokeForProfile } from "../core/thicknessProfiles.js";
@@ -120,7 +120,7 @@ export async function generateZentangle(doc, {
   }
   // La figura deja secciones lisas a propósito (respiro para colorear): el
   // relleno de huecos con burbujas no aplica.
-  if (rasterize && finalOpts.fillDeadSpace !== false && finalOpts.cellLayout !== "zen_figure") {
+  if (rasterize && finalOpts.fillDeadSpace !== false && finalOpts.cellLayout !== "zen_figure" && finalOpts.cellLayout !== "zen_scene") {
     await fillDeadSpace(doc, {
       areaMm: area, seed, rasterize,
       gapMm: Math.max(1.8, Number(finalOpts.minGapMm) || 0),
@@ -132,7 +132,7 @@ export async function generateZentangle(doc, {
 
 async function drawStyle(doc, finalOpts) {
   // Composiciones de página completa (mandala de iconos, pétalos facetados).
-  const ORNAMENTS = { icon_mandala: generateIconMandala, facet_spiral: generateFacetSpiral, zen_figure: generateZenFigure };
+  const ORNAMENTS = { icon_mandala: generateIconMandala, facet_spiral: generateFacetSpiral, zen_figure: generateZenFigure, zen_scene: generateZenScene };
   if (ORNAMENTS[finalOpts.cellLayout]) return ORNAMENTS[finalOpts.cellLayout](doc, finalOpts);
   // Muestrario: retícula de círculos/cuadros con un motivo por unidad.
   if (finalOpts.cellLayout === "sampler") return generateSampler(doc, finalOpts);

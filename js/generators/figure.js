@@ -2293,13 +2293,80 @@ function cutCount(rng, [lo, hi], level) {
   return Math.round(min + (hi + 1 - min) * Math.min(1, Math.max(0, level)));
 }
 
+// Construye un sistema de coordenadas curvilíneas a partir de una polilínea esquelética (eje anatómico).
+// Mapea (x, y) a distancia a lo largo del esqueleto (a) y distancia perpendicular con signo (u).
+function buildSkeletonCoords(pts) {
+  const segs = [];
+  let totalL = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i], p1 = pts[i + 1];
+    const dx = p1.x - p0.x, dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-6) continue;
+    const tx = dx / len, ty = dy / len;
+    const nx = -ty, ny = tx;
+    segs.push({ p0, p1, len, startL: totalL, tx, ty, nx, ny });
+    totalL += len;
+  }
+  if (!segs.length) return null;
+
+  function toL(x, y) {
+    let minD2 = Infinity;
+    let bestA = 0, bestU = 0;
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      const vx = x - s.p0.x, vy = y - s.p0.y;
+      const proj = vx * s.tx + vy * s.ty;
+      const t = Math.max(0, Math.min(s.len, proj));
+      const qx = s.p0.x + t * s.tx;
+      const qy = s.p0.y + t * s.ty;
+      const d2 = (x - qx) ** 2 + (y - qy) ** 2;
+      if (d2 < minD2) {
+        minD2 = d2;
+        bestA = s.startL + t;
+        bestU = (x - qx) * s.nx + (y - qy) * s.ny;
+      }
+    }
+    return { a: bestA, u: bestU };
+  }
+
+  function toP(a, u) {
+    let seg = segs[0];
+    if (a <= 0) {
+      const sx = seg.p0.x + a * seg.tx;
+      const sy = seg.p0.y + a * seg.ty;
+      return { x: sx + u * seg.nx, y: sy + u * seg.ny };
+    }
+    if (a >= totalL) {
+      seg = segs[segs.length - 1];
+      const extra = a - totalL;
+      const sx = seg.p1.x + extra * seg.tx;
+      const sy = seg.p1.y + extra * seg.ty;
+      return { x: sx + u * seg.nx, y: sy + u * seg.ny };
+    }
+    for (let i = 0; i < segs.length; i++) {
+      if (a <= segs[i].startL + segs[i].len || i === segs.length - 1) {
+        seg = segs[i];
+        const t = a - seg.startL;
+        const sx = seg.p0.x + t * seg.tx;
+        const sy = seg.p0.y + t * seg.ty;
+        return { x: sx + u * seg.nx, y: sy + u * seg.ny };
+      }
+    }
+    return { x: 0, y: 0 };
+  }
+
+  return { toL, toP, totalL };
+}
+
 function makeSections(rng, rings, spec, gap, level) {
   const bb = bboxOf(rings);
   const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
   const th = spec.angle + rFloat(rng, -0.25, 0.25);
   const dx = Math.cos(th), dy = Math.sin(th), nx = -dy, ny = dx;
-  const toL = (x, y) => ({ a: (x - cx) * dx + (y - cy) * dy, u: (x - cx) * nx + (y - cy) * ny });
-  const toP = (a, u) => ({ x: cx + a * dx + u * nx, y: cy + a * dy + u * ny });
+  const skCoords = spec.skeleton && spec.skeleton.length >= 2 ? buildSkeletonCoords(spec.skeleton) : null;
+  const toL = skCoords ? skCoords.toL : (x, y) => ({ a: (x - cx) * dx + (y - cy) * dy, u: (x - cx) * nx + (y - cy) * ny });
+  const toP = skCoords ? skCoords.toP : (a, u) => ({ x: cx + a * dx + u * nx, y: cy + a * dy + u * ny });
   let amin = Infinity, amax = -Infinity, umin = Infinity, umax = -Infinity;
   for (const p of rings) for (const q of p) { const l = toL(q.x, q.y); amin = Math.min(amin, l.a); amax = Math.max(amax, l.a); umin = Math.min(umin, l.u); umax = Math.max(umax, l.u); }
   const A = Math.max(1, amax - amin), U = Math.max(1, umax - umin);
@@ -2913,7 +2980,15 @@ export async function generateZenFigure(doc, opts) {
     const pc = clipOf(dc);
     if (fStyle !== "strings") return facetPartSvg(p, rings, dc, pc);
     // El ángulo de los strings es relativo a la figura: se suma su giro.
-    const sec = makeSections(rng, rings, { ...p.strings, angle: p.strings.angle + rot }, gap, level);
+    const skelRaw = p.skeleton || p.strings?.skeleton;
+    const skelPts = skelRaw && Array.isArray(skelRaw) && skelRaw.length >= 2
+      ? skelRaw.map((pt) => {
+          const [u, v] = Array.isArray(pt) ? pt : [pt.x, pt.y];
+          const [x, y] = tf(u, v);
+          return { x, y };
+        })
+      : null;
+    const sec = makeSections(rng, rings, { ...p.strings, angle: p.strings.angle + rot, skeleton: skelPts }, gap, level);
     let plainUsed = false;
     const totalArea = sec.sections.reduce((acc, q) => acc + q.area, 0);
     const out = [`<path d="${dc}" fill="#fff" stroke="none"/>`];
@@ -2994,10 +3069,188 @@ export async function generateZenFigure(doc, opts) {
     : `<g data-figure="${figName}" data-layout="${layout}" data-bg="${bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}">${figure.join("")}</g>`);
 
   // Marco.
-  body.push(el(polyD(frameRings[0]), "none", outStroke * 1.1));
+  if (opts.drawFrame !== false) {
+    body.push(el(polyD(frameRings[0]), "none", outStroke * 1.1));
+  }
 
   if (Array.isArray(doc.defs)) doc.defs.push(...defs);
   else doc.body.unshift(`<defs>${defs.join("")}</defs>`);
   doc.body.push(...body);
   return { figure: figName, background: bgKind };
+}
+
+/* ====================== Escenas con múltiples figuras (Fase 5) ====================== */
+
+// Genera un fondo paisajístico temático (suelo, horizonte, cielo, elementos de entorno).
+function generateSceneEnvironment(rng, frame, theme, opts = {}) {
+  const stroke = opts.stroke || 0.35;
+  const outStroke = opts.outStroke || 1.0;
+  const W = frame.x1 - frame.x0;
+  const H = frame.y1 - frame.y0;
+  const elements = [];
+
+  const fmt = (n) => (Math.round(Number(n) * 1000) / 1000).toString();
+  const el = (d, fill = "none", w = stroke) =>
+    `<path d="${d}" fill="${fill}" stroke="#000" stroke-width="${fmt(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  if (theme === "dino") {
+    // Escena prehistórica: volcanes al fondo, sol y suelo con helechos.
+    const sunX = frame.x0 + W * rFloat(rng, 0.45, 0.65);
+    const sunY = frame.y0 + H * 0.22;
+    const sunR = Math.min(W, H) * 0.08;
+    elements.push(`<circle cx="${fmt(sunX)}" cy="${fmt(sunY)}" r="${fmt(sunR)}" fill="#fff" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+    for (let i = 1; i <= 3; i++) {
+      elements.push(`<circle cx="${fmt(sunX)}" cy="${fmt(sunY)}" r="${fmt(sunR + i * 5)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.75)}" stroke-dasharray="2, 4"/>`);
+    }
+
+    const horizY = frame.y0 + H * 0.52;
+    const v1X = frame.x0 + W * 0.25;
+    const v2X = frame.x0 + W * 0.75;
+    const volcD = `M ${fmt(frame.x0)} ${fmt(horizY + 10)} ` +
+      `L ${fmt(v1X - 35)} ${fmt(horizY + 5)} L ${fmt(v1X - 8)} ${fmt(horizY - 28)} ` +
+      `L ${fmt(v1X + 8)} ${fmt(horizY - 28)} L ${fmt(v1X + 35)} ${fmt(horizY + 8)} ` +
+      `L ${fmt(v2X - 45)} ${fmt(horizY + 10)} L ${fmt(v2X - 12)} ${fmt(horizY - 42)} ` +
+      `L ${fmt(v2X + 12)} ${fmt(horizY - 42)} L ${fmt(v2X + 50)} ${fmt(horizY + 12)} ` +
+      `L ${fmt(frame.x1)} ${fmt(horizY + 15)}`;
+    elements.push(el(volcD, "#fff", stroke * 1.2));
+    elements.push(`<path d="M ${fmt(v2X - 5)} ${fmt(horizY - 44)} Q ${fmt(v2X - 15)} ${fmt(horizY - 60)} ${fmt(v2X + 5)} ${fmt(horizY - 75)} Q ${fmt(v2X + 25)} ${fmt(horizY - 90)} ${fmt(v2X + 15)} ${fmt(horizY - 105)}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}" stroke-dasharray="4, 3"/>`);
+
+    const groundY = frame.y0 + H * 0.76;
+    const g1 = `M ${fmt(frame.x0)} ${fmt(groundY)} Q ${fmt(frame.x0 + W * 0.35)} ${fmt(groundY - 12)} ${fmt(frame.x0 + W * 0.65)} ${fmt(groundY + 8)} Q ${fmt(frame.x0 + W * 0.85)} ${fmt(groundY + 16)} ${fmt(frame.x1)} ${fmt(groundY + 4)}`;
+    const g2 = `M ${fmt(frame.x0)} ${fmt(groundY + 18)} Q ${fmt(frame.x0 + W * 0.45)} ${fmt(groundY + 10)} ${fmt(frame.x1)} ${fmt(groundY + 22)}`;
+    elements.push(el(g1, "none", outStroke));
+    elements.push(el(g2, "none", stroke));
+
+    for (const [fx, fy, dir] of [[frame.x0 + 15, groundY + 10, 1], [frame.x1 - 15, groundY + 12, -1]]) {
+      elements.push(`<path d="M ${fmt(fx)} ${fmt(fy)} Q ${fmt(fx + dir * 25)} ${fmt(fy - 25)} ${fmt(fx + dir * 35)} ${fmt(fy - 45)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 1.2)}"/>`);
+      for (let k = 1; k <= 5; k++) {
+        const t = k / 6;
+        const px = fx + dir * (25 * t + 10 * t * t);
+        const py = fy - 45 * t;
+        elements.push(`<path d="M ${fmt(px)} ${fmt(py)} Q ${fmt(px + dir * 12)} ${fmt(py - 4)} ${fmt(px + dir * 16)} ${fmt(py + 4)}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+        elements.push(`<path d="M ${fmt(px)} ${fmt(py)} Q ${fmt(px - dir * 10)} ${fmt(py - 6)} ${fmt(px - dir * 14)} ${fmt(py + 2)}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+      }
+    }
+  } else if (theme === "ocean") {
+    // Escena marina: superficie ondulante arriba, fondo arenoso con algas abajo y burbujas.
+    const surfY = frame.y0 + H * 0.15;
+    const sD = `M ${fmt(frame.x0)} ${fmt(surfY)} Q ${fmt(frame.x0 + W * 0.25)} ${fmt(surfY - 6)} ${fmt(frame.x0 + W * 0.5)} ${fmt(surfY)} Q ${fmt(frame.x0 + W * 0.75)} ${fmt(surfY + 6)} ${fmt(frame.x1)} ${fmt(surfY)}`;
+    elements.push(el(sD, "none", stroke * 1.2));
+
+    const seaBedY = frame.y0 + H * 0.82;
+    const bD = `M ${fmt(frame.x0)} ${fmt(seaBedY)} Q ${fmt(frame.x0 + W * 0.3)} ${fmt(seaBedY - 14)} ${fmt(frame.x0 + W * 0.6)} ${fmt(seaBedY + 6)} Q ${fmt(frame.x0 + W * 0.85)} ${fmt(seaBedY - 8)} ${fmt(frame.x1)} ${fmt(seaBedY + 10)}`;
+    elements.push(el(bD, "none", outStroke));
+
+    for (let k = 0; k < 3; k++) {
+      const kx = frame.x0 + 12 + k * 14;
+      elements.push(`<path d="M ${fmt(kx)} ${fmt(seaBedY)} Q ${fmt(kx + 12)} ${fmt(seaBedY - 30)} ${fmt(kx - 4)} ${fmt(seaBedY - 60)} T ${fmt(kx + 8)} ${fmt(seaBedY - 95)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 1.2)}"/>`);
+    }
+    for (let k = 0; k < 3; k++) {
+      const kx = frame.x1 - 12 - k * 14;
+      elements.push(`<path d="M ${fmt(kx)} ${fmt(seaBedY)} Q ${fmt(kx - 12)} ${fmt(seaBedY - 30)} ${fmt(kx + 4)} ${fmt(seaBedY - 60)} T ${fmt(kx - 8)} ${fmt(seaBedY - 95)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 1.2)}"/>`);
+    }
+
+    for (let i = 0; i < 7; i++) {
+      const bx = frame.x0 + W * rFloat(rng, 0.15, 0.85);
+      const by = frame.y0 + H * rFloat(rng, 0.22, 0.75);
+      const br = rFloat(rng, 2.5, 5.5);
+      elements.push(`<circle cx="${fmt(bx)}" cy="${fmt(by)}" r="${fmt(br)}" fill="#fff" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+      elements.push(`<path d="M ${fmt(bx - br * 0.5)} ${fmt(by - br * 0.3)} A ${fmt(br * 0.6)} ${fmt(br * 0.6)} 0 0 1 ${fmt(bx + br * 0.2)} ${fmt(by - br * 0.6)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.75)}"/>`);
+    }
+  } else {
+    // Escena de naturaleza / bosque: colinas onduladas, astro y suelo orgánico.
+    const hill1Y = frame.y0 + H * 0.58;
+    const h1 = `M ${fmt(frame.x0)} ${fmt(hill1Y + 15)} Q ${fmt(frame.x0 + W * 0.4)} ${fmt(hill1Y - 20)} ${fmt(frame.x1)} ${fmt(hill1Y + 10)}`;
+    const hill2Y = frame.y0 + H * 0.76;
+    const h2 = `M ${fmt(frame.x0)} ${fmt(hill2Y)} Q ${fmt(frame.x0 + W * 0.55)} ${fmt(hill2Y - 14)} ${fmt(frame.x1)} ${fmt(hill2Y + 8)}`;
+    elements.push(el(h1, "#fff", stroke));
+    elements.push(el(h2, "none", outStroke));
+
+    const astroX = frame.x0 + W * 0.78;
+    const astroY = frame.y0 + H * 0.22;
+    const astroR = Math.min(W, H) * 0.085;
+    elements.push(`<circle cx="${fmt(astroX)}" cy="${fmt(astroY)}" r="${fmt(astroR)}" fill="#fff" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
+    for (let i = 1; i <= 2; i++) {
+      elements.push(`<circle cx="${fmt(astroX)}" cy="${fmt(astroY)}" r="${fmt(astroR + i * 6)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.75)}" stroke-dasharray="3, 4"/>`);
+    }
+  }
+
+  return elements.join("");
+}
+
+// Genera una escena completa con 2-3 figuras interactuando en su hábitat.
+export async function generateZenScene(doc, opts) {
+  const seed = opts.seed >>> 0;
+  const rng = createRNG(hash(seed, 0x5c3e));
+  for (let w = 0; w < 10; w++) rng();
+  const a = opts.areaMm;
+  const stroke = clampN(opts.patternStrokeMm, 0.15, 1.5, 0.35);
+  const outStroke = clampN(opts.cellBorderWidthMm, 0.3, 3, 1.0);
+  const theme = opts.sceneTheme || (opts.presetName && opts.presetName.includes("dino") ? "dino" : opts.presetName && opts.presetName.includes("ocean") ? "ocean" : "nature");
+
+  const pool = theme === "dino"
+    ? [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix]
+    : theme === "ocean"
+    ? ["whale", "fish", "turtle", "koi", "seahorse", "octopus", "plesiosaur", "mosasaurus", "ammonite", "jellyfish"]
+    : ["owl", "bird", "hummingbird", "peacock", "wolf", "fox", "bear", "rabbit", "cat", "tree", "mushroom"];
+
+  const validPool = pool.filter((f) => FIGURES[f]);
+  const count = opts.figuresCount || (rng() < 0.65 ? 2 : 3);
+
+  // Sorteo de figuras sin repetir
+  const shuffled = [...validPool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const picked = shuffled.slice(0, count);
+
+  const frame = { x0: a.x, y0: a.y, x1: a.x + a.w, y1: a.y + a.h };
+  const frameD = polyD([{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]);
+
+  const envSvg = generateSceneEnvironment(rng, frame, theme, { stroke, outStroke });
+
+  const subAreas = count === 2
+    ? [
+        { x: a.x + a.w * 0.04, y: a.y + a.h * 0.30, w: a.w * 0.58, h: a.h * 0.60 },
+        { x: a.x + a.w * 0.44, y: a.y + a.h * 0.18, w: a.w * 0.50, h: a.h * 0.52 },
+      ]
+    : [
+        { x: a.x + a.w * 0.28, y: a.y + a.h * 0.08, w: a.w * 0.42, h: a.h * 0.38 },
+        { x: a.x + a.w * 0.46, y: a.y + a.h * 0.32, w: a.w * 0.48, h: a.h * 0.52 },
+        { x: a.x + a.w * 0.04, y: a.y + a.h * 0.36, w: a.w * 0.52, h: a.h * 0.56 },
+      ];
+
+  const subDefs = [];
+  const subBodies = [];
+
+  for (let k = 0; k < count; k++) {
+    const figName = picked[k];
+    const subDoc = { wMm: doc.wMm, hMm: doc.hMm, defs: [], body: [], meta: {} };
+    await generateZenFigure(subDoc, {
+      ...opts,
+      seed: hash(seed, 1000 + k * 37),
+      figureName: figName,
+      figureBackground: "none",
+      drawFrame: false,
+      figureLayout: "center",
+      areaMm: subAreas[k],
+    });
+    subDefs.push(...subDoc.defs);
+    subBodies.push(subDoc.body.join(""));
+  }
+
+  if (Array.isArray(doc.defs)) doc.defs.push(...subDefs);
+  else doc.body.unshift(`<defs>${subDefs.join("")}</defs>`);
+
+  const fmt = (n) => (Math.round(Number(n) * 1000) / 1000).toString();
+  doc.body.push(`<g data-scene="${theme}" data-figures="${picked.join(",")}">`);
+  doc.body.push(`<g data-scene-env="1">${envSvg}</g>`);
+  for (const b of subBodies) {
+    doc.body.push(b);
+  }
+  doc.body.push(`<path d="${frameD}" fill="none" stroke="#000" stroke-width="${fmt(outStroke * 1.1)}" stroke-linejoin="round"/>`);
+  doc.body.push(`</g>`);
+
+  return { scene: theme, figures: picked, count, presetName: "zen_scene" };
 }
