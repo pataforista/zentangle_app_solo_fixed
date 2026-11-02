@@ -1,3 +1,4 @@
+import { SimpleZip } from "./zip.js";
 // batchGenerator.js
 // Generador de lotes de libros para producción en serie.
 // Genera N libros con diferentes semillas y los empaqueta en un ZIP.
@@ -107,6 +108,10 @@ export function generateBookListing(bookData) {
  */
 export function generateBookRecipe(bookData) {
   return {
+    app: "generador-libros-colorear",
+    recipeVersion: 1,
+    engineVersion: "2.1.0",
+    seedScheme: 2,
     version: "1.0",
     generatedAt: new Date().toISOString(),
     seed: bookData.seed,
@@ -169,6 +174,23 @@ export function downloadJsonFile(filename, data) {
  * Genera y descarga todos los archivos de un lote (sin ZIP).
  * Útil cuando JSZip no está disponible.
  */
+/**
+ * Empaqueta todos los libros del lote en un único archivo ZIP descargable.
+ */
+export async function downloadBatchZip(books, zipFilename = "lote_libros.zip") {
+  const zip = new SimpleZip();
+  for (let i = 0; i < books.length; i++) {
+    const book = books[i];
+    const prefix = book.name || `libro_${i + 1}`;
+    if (book.listingText) zip.addFile(`${prefix}/ficha_kdp.txt`, book.listingText);
+    if (book.recipe) zip.addFile(`${prefix}/receta.json`, book.recipe);
+    if (book.interiorPdf) zip.addFile(`${prefix}/interior.pdf`, book.interiorPdf);
+    if (book.coverPdf) zip.addFile(`${prefix}/portada.pdf`, book.coverPdf);
+  }
+  zip.download(zipFilename);
+  return zip;
+}
+
 export async function downloadBatchFiles(books, baseName = "lote") {
   for (let i = 0; i < books.length; i++) {
     const book = books[i];

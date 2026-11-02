@@ -86,19 +86,54 @@ export const qualityScore = (q, maxBad) => q.bad / Math.max(1, maxBad) + Math.ma
 
 // Umbrales de cobertura mínima por encuadre. «center» exige más porque la
 // figura es el protagonista; «offset» y «zoom» permiten menos (se compensa
-// con la posición o el recorte).
-export const COVERAGE_LIMITS = { center: 0.35, offset: 0.30, zoom: 0.30 };
+// con la posición o el recorte); «scene» evalúa la cobertura combinada de
+// figuras en escenas multifigura con paisaje.
+export const COVERAGE_LIMITS = { center: 0.35, offset: 0.30, zoom: 0.30, scene: 0.08 };
 
 // Extrae la cobertura y el path de la silueta del SVG (atributos data-coverage
-// y data-sil-d del grupo data-figure). Devuelve null si no hay figura.
+// y data-sil-d del grupo data-figure). Admite figuras individuales y escenas
+// multifigura con siluetas compuestas. Devuelve null si no hay figura.
 export function extractFigureMetrics(svg) {
-  const mCov = svg.match(/data-figure="[^"]+"\s+data-layout="([^"]+)"[^>]*data-coverage="([^"]+)"/);
-  if (!mCov) return null;
-  const layout = mCov[1];
-  const coverage = parseFloat(mCov[2]) / 100; // estaba en %
-  const mSil = svg.match(/data-sil-d="([^"]+)"/);
-  const silD = mSil ? mSil[1] : null;
-  return { layout, coverage, silD };
+  if (!svg || !svg.includes('data-figure="')) return null;
+
+  // Extraer todos los grupos con data-figure
+  const regex = /<g\b[^>]*\bdata-figure="([^"]+)"[^>]*>/g;
+  const matches = [...svg.matchAll(regex)];
+  if (!matches.length) return null;
+
+  const figures = [];
+  for (const m of matches) {
+    const tag = m[0];
+    const figName = (tag.match(/data-figure="([^"]+)"/) || [])[1];
+    const layout = (tag.match(/data-layout="([^"]+)"/) || [])[1] || "center";
+    const covRaw = (tag.match(/data-coverage="([^"]+)"/) || [])[1];
+    const silD = (tag.match(/data-sil-d="([^"]+)"/) || [])[1] || null;
+    const coverage = covRaw ? parseFloat(covRaw) / 100 : null;
+    figures.push({ figName, layout, coverage, silD });
+  }
+
+  const isScene = svg.includes('data-scene="') || figures.length > 1;
+  if (!isScene && figures.length === 1) {
+    return {
+      layout: figures[0].layout,
+      coverage: figures[0].coverage,
+      silD: figures[0].silD,
+      count: 1,
+      figures: [figures[0].figName],
+    };
+  }
+
+  // Múltiples figuras (escena compuesta):
+  const validSil = figures.map((f) => f.silD).filter(Boolean);
+  const silD = validSil.length ? validSil.join(" ") : null;
+  const totalCov = figures.reduce((acc, f) => acc + (f.coverage != null ? f.coverage : 0.15), 0);
+  return {
+    layout: isScene ? "scene" : figures[0].layout,
+    coverage: Math.min(0.95, Math.round(totalCov * 100) / 100),
+    silD,
+    count: figures.length,
+    figures: figures.map((f) => f.figName),
+  };
 }
 
 // Contraste figura/fondo: densidad de tinta dentro vs fuera de la silueta.
@@ -169,7 +204,7 @@ function _rasterizeSilhouetteMask(silD, wPx, hPx, wMm, hMm) {
 }
 
 // Veredicto de cobertura: la figura debe cubrir al menos el umbral del marco.
-// coverage: fracción (0–1), layout: "center"|"offset"|"zoom".
+// coverage: fracción (0–1), layout: "center"|"offset"|"zoom"|"scene".
 export function coverageVerdict(coverage, layout) {
   if (coverage == null || isNaN(coverage)) return { ok: true, reason: null };
   const threshold = COVERAGE_LIMITS[layout] ?? COVERAGE_LIMITS.offset;

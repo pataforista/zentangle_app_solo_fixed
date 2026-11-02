@@ -7,8 +7,9 @@ import { readFile } from "node:fs/promises";
 import { readFileSync, mkdtempSync } from "node:fs";
 import { join, extname, normalize } from "node:path";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 let chromium;
 try { ({ chromium } = await import("playwright")); } catch {
   console.log("⚠ playwright no está instalado: ejecuta «npm install» para la prueba en navegador.");
@@ -106,6 +107,7 @@ try {
   const rec = JSON.parse(readFileSync(recPath, "utf8"));
   if (rec.pages?.length !== N || rec.totalPages !== expected) fail("la receta no recoge todas las páginas del libro.");
   if (rec.opts?.showSafeZone !== false) fail("la receta (y el libro) llevan las guías de zona segura.");
+  if (rec.engineVersion !== "2.1.0" || rec.seedScheme !== 2) fail("la receta no incluye engineVersion o seedScheme.");
   const pdfDl = page.waitForEvent("download", { timeout: 1800000 });
   await page.click("#btnBook");
   const pdfPath = join(dir, "libro.pdf");

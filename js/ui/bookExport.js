@@ -11,7 +11,7 @@ import { ZENTANGLE_PRESETS } from "../generators/zentangle.presets.js";
 import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isColoringSafe } from "../generators/randomStyle.js";
 import { STYLE_THEME } from "../core/bookRecipes.js";
 import { generateFullListingText } from "../generators/bookListing.js";
-import { generateBookRecipe, downloadBatchFiles, validateBatchConfig, calculateBatchStats } from "../core/batchGenerator.js";
+import { generateBookRecipe, downloadBatchFiles, downloadBatchZip, validateBatchConfig, calculateBatchStats } from "../core/batchGenerator.js";
 import { exportPageAsImage, getBestPagesForMockup, downloadImage, getCanvaInstructions, EXPORT_PRESETS } from "../core/mockupExport.js";
 import { buildBookExtras, bookSequence, makeBookPage, reviewIsFresh, updateNextSteps, updateBookButton, updateQualitySummary, downloadBookRecipe } from "./review.js";
 
@@ -324,12 +324,12 @@ export function bindSalesListeners() {
         await new Promise((r) => setTimeout(r, 10));
       }
 
-      await downloadBatchFiles(books, baseName);
+      await downloadBatchZip(books, `${baseName}_${count}libros.zip`);
 
       const stats = calculateBatchStats(books);
       if (batchBar) batchBar.hidden = true;
-      if (batchStatus) batchStatus.textContent = `✓ Lote completado: ${stats.totalBooks} libros, ${stats.totalPages} páginas totales`;
-      ui.status.textContent = `✓ Lote de ${count} libros generado y descargado (listing + recipe de cada uno)`;
+      if (batchStatus) batchStatus.textContent = `✓ Lote completado: ${stats.totalBooks} libros, ${stats.totalPages} páginas totales (en ${baseName}_${count}libros.zip)`;
+      ui.status.textContent = `✓ Lote de ${count} libros empaquetado y descargado en ZIP`;
     } catch (err) {
       ui.status.textContent = `✗ Error generando lote: ${err.message}`;
       console.error("Error generando lote:", err);

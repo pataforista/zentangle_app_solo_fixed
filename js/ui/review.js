@@ -519,11 +519,15 @@ export async function fixFlaggedPages() {
   }
 }
 
+export const ENGINE_VERSION = "2.1.0";
+
 export function bookRecipe(review) {
   const { g, n, blank, flags, baseSeed, pages, total } = review;
   return {
     app: "generador-libros-colorear",
     recipeVersion: 1,
+    engineVersion: ENGINE_VERSION,
+    seedScheme: g?.opts?.seedScheme ?? 2,
     createdAt: new Date().toISOString(),
     paper: { key: g.paperKey, wMm: g.paper.w, hMm: g.paper.h },
     marginMm: g.marginMm,
@@ -667,6 +671,11 @@ export async function restoreBookFromRecipe(recipe) {
 
   const plan = bookPlan();
   const g = pageGeometry();
+  if (recipe.seedScheme != null) g.opts.seedScheme = recipe.seedScheme;
+  else if (recipe.opts?.seedScheme != null) g.opts.seedScheme = recipe.opts.seedScheme;
+  if (recipe.engineVersion && recipe.engineVersion !== ENGINE_VERSION) {
+    console.info(`Restaurando receta (motor ${recipe.engineVersion}, actual ${ENGINE_VERSION})`);
+  }
   const baseSeed = recipe.baseSeed >>> 0;
 
   freeBookReview();

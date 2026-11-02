@@ -31,6 +31,7 @@ import {
   appState,
   DEFAULT_STATE,
   num,
+  int,
   rasterizeSvg,
   debounce,
   buildOptsFromUI,

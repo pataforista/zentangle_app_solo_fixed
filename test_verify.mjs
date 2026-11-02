@@ -11,6 +11,7 @@ import { LAYOUT_TEMPLATES, getTemplateCells } from "./js/generators/layoutTempla
 import { TILINGS, TILING_NAMES, tileArea, insetConvex, polyArea, pointInPoly, distToEdges } from "./js/generators/samplerTilings.js";
 import { compileFigureDefinition, registerImportedFigure } from "./js/core/svgImporter.js";
 import { FIGURES, FIGURE_IDS, FIGURE_SETS } from "./js/generators/figure.js";
+import { extractFigureMetrics } from "./js/core/pageQuality.js";
 
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
@@ -715,6 +716,21 @@ async function runTests() {
       assert.ok(/Dinosaurios/.test(kdpListing({ designs: 30, pages: 64, theme: "dino" }).titles[0]));
       for (const r of BOOK_RECIPES) assert.ok(PR[r.style] || r.style === "best_sellers", `ERROR: la receta ${r.id} usa un estilo inexistente.`);
       for (const k of Object.keys(STYLE_THEME)) assert.ok(PR[k] && THEME_LISTING[STYLE_THEME[k]], `ERROR: tema de ${k}.`);
+      const { generateBookRecipe } = await import("./js/core/batchGenerator.js");
+      const bRec = generateBookRecipe({ seed: 123, theme: "dino", pages: 30, paperKey: "LETTER" });
+      assert.strictEqual(bRec.engineVersion, "2.1.0", "ERROR: engineVersion en batchGenerator.");
+      assert.strictEqual(bRec.recipeVersion, 1, "ERROR: recipeVersion en batchGenerator.");
+      assert.strictEqual(bRec.seedScheme, 2, "ERROR: seedScheme en batchGenerator.");
+      const { downloadBatchZip } = await import("./js/core/batchGenerator.js");
+      const { SimpleZip, crc32 } = await import("./js/core/zip.js");
+      assert.strictEqual(crc32(new TextEncoder().encode("123456789")), 0xCBF43926, "ERROR: Vector CRC32.");
+      const zipTest = new SimpleZip();
+      zipTest.addFile("test/doc.txt", "Hola mundo");
+      const zipBytes = zipTest.toUint8Array();
+      assert.ok(zipBytes[0] === 0x50 && zipBytes[1] === 0x4b && zipBytes[2] === 0x03 && zipBytes[3] === 0x04, "ERROR: Magic number ZIP.");
+      const bZip = await downloadBatchZip([{ name: "b1", listingText: "T1", recipe: { seed: 1 } }], "lote.zip");
+      assert.ok(bZip.entries.some(e => e.name === "b1/ficha_kdp.txt"), "ERROR: Ficha en ZIP de lote.");
+      assert.ok(bZip.entries.some(e => e.name === "b1/receta.json"), "ERROR: Receta en ZIP de lote.");
       // Portada: 8.5×11 in, 120 págs en papel blanco → lomo 0.270 in; ancho 0.125+8.5+0.270+8.5+0.125.
       const { coverSpec } = await import("./js/core/kdpListing.js");
       const cv = coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4 });
@@ -1118,6 +1134,14 @@ async function runTests() {
       const figsList = figsMatch[1].split(",");
       assert.ok(figsList.length >= 2 && figsList.length <= 3, "ERROR: Escena debe componer entre 2 y 3 figuras.");
       assert.ok(!/fill="#000"/.test(sceneHtml), "ERROR: Rellenos negros detectados en escena.");
+
+      // Verificación de métricas compuestas para escenas multifigura (M2/M10)
+      const sceneMetrics = extractFigureMetrics(sceneHtml);
+      assert.ok(sceneMetrics, "ERROR: extractFigureMetrics devolvió null para la escena.");
+      assert.ok(sceneMetrics.count >= 2, "ERROR: extractFigureMetrics debe reportar al menos 2 figuras.");
+      assert.strictEqual(sceneMetrics.layout, "center");
+      assert.ok(sceneMetrics.coverage > 0.25, "ERROR: Cobertura compuesta debe ser > 25%.");
+      assert.ok(sceneMetrics.silD && sceneMetrics.silD.length > 50, "ERROR: silD compuesto no generado.");
 
       // Escena marina
       const dOcean = { body: [], defs: [] };
