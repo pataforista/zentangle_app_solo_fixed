@@ -731,6 +731,14 @@ async function runTests() {
       const bZip = await downloadBatchZip([{ name: "b1", listingText: "T1", recipe: { seed: 1 } }], "lote.zip");
       assert.ok(bZip.entries.some(e => e.name === "b1/ficha_kdp.txt"), "ERROR: Ficha en ZIP de lote.");
       assert.ok(bZip.entries.some(e => e.name === "b1/receta.json"), "ERROR: Receta en ZIP de lote.");
+      const { generate3DOpenBookSvg, generateAplusHeaderSvg, generateAplusGridSvg, generateAplusFeatureSvg, exportAplusPackageZip } = await import("./js/core/mockupExport.js");
+      assert.ok(generate3DOpenBookSvg().includes("id="bookShadow""), "ERROR: SVG 3D Mockup.");
+      assert.ok(generateAplusHeaderSvg("Test").includes("970 600"), "ERROR: SVG A+ Header.");
+      assert.ok(generateAplusGridSvg().includes("970 300"), "ERROR: SVG A+ Grid.");
+      assert.ok(generateAplusFeatureSvg("Test").includes("¿POR QUÉ ELEGIR NUESTROS LIBROS?"), "ERROR: SVG A+ Features.");
+      const aplusZip = await exportAplusPackageZip({ g: { zPresetKey: "zen_figure_dino" }, pages: [{ pageIndex: 0, quality: { coverage: 0.4 }, svg: "<svg></svg>" }] }, "test_aplus.zip");
+      assert.ok(aplusZip.entries.some(e => e.name === "mockup_3d_libro_abierto.svg"), "ERROR: Mockup 3D en ZIP A+.");
+      assert.ok(aplusZip.entries.some(e => e.name === "aplus_modulo_1_hero.svg"), "ERROR: Módulo A+ 1 en ZIP.");
       // Portada: 8.5×11 in, 120 págs en papel blanco → lomo 0.270 in; ancho 0.125+8.5+0.270+8.5+0.125.
       const { coverSpec } = await import("./js/core/kdpListing.js");
       const cv = coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4 });

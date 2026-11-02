@@ -12,7 +12,7 @@ import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isColoringSafe } from "../generators/
 import { STYLE_THEME } from "../core/bookRecipes.js";
 import { generateFullListingText } from "../generators/bookListing.js";
 import { generateBookRecipe, downloadBatchFiles, downloadBatchZip, validateBatchConfig, calculateBatchStats } from "../core/batchGenerator.js";
-import { exportPageAsImage, getBestPagesForMockup, downloadImage, getCanvaInstructions, EXPORT_PRESETS } from "../core/mockupExport.js";
+import { exportPageAsImage, getBestPagesForMockup, downloadImage, getCanvaInstructions, EXPORT_PRESETS, exportAplusPackageZip } from "../core/mockupExport.js";
 import { buildBookExtras, bookSequence, makeBookPage, reviewIsFresh, updateNextSteps, updateBookButton, updateQualitySummary, downloadBookRecipe } from "./review.js";
 
 // Genera y descarga el PDF final del interior del libro.
@@ -344,28 +344,9 @@ export function bindSalesListeners() {
     }
 
     try {
-      ui.status.textContent = "Exportando mejores páginas para mockups...";
-      const bestPages = getBestPagesForMockup(appState.bookReview, 6);
-
-      if (bestPages.length === 0) {
-        ui.status.textContent = "⚠ No hay páginas con métricas de calidad disponibles";
-        return;
-      }
-
-      for (let i = 0; i < bestPages.length; i++) {
-        const bp = bestPages[i];
-        const svg = bp.page.svg;
-        if (!svg) continue;
-
-        const blob = await exportPageAsImage(svg, EXPORT_PRESETS.quickPreview);
-        downloadImage(blob, `mockup_pagina_${bp.pageIndex + 1}.png`);
-        await new Promise((r) => setTimeout(r, 500));
-      }
-
-      const instructions = getCanvaInstructions();
-      console.log(instructions);
-
-      ui.status.textContent = `✓ ${bestPages.length} páginas exportadas para mockups. Revisa la consola (F12) para ver las instrucciones de Canva.`;
+      ui.status.textContent = "Empaquetando mockups 3D y módulos A+...";
+      await exportAplusPackageZip(appState.bookReview, "mockups_y_aplus.zip");
+      ui.status.textContent = "✓ Mockup 3D de libro abierto y 3 módulos A+ descargados en mockups_y_aplus.zip";
     } catch (err) {
       ui.status.textContent = `✗ Error exportando mockups: ${err.message}`;
       console.error("Error exportando mockups:", err);

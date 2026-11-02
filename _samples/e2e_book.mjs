@@ -19,7 +19,7 @@ const JSPDF = join(ROOT, "node_modules/jspdf/dist/jspdf.umd.min.js");
 
 const N = Number(process.env.DESIGNS || 12);
 const BLANK = process.env.BLANK === "0" ? "0" : "1";
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json", ".woff2": "font/woff2" };
 
 // Servidor estático mínimo (los módulos ES no cargan desde file://).
 const server = createServer(async (req, res) => {

@@ -2191,6 +2191,73 @@ export const FIGURES = {
     silhouette: [OWLMAN_WING, OWLMAN_BODY, xform(OWLMAN_WING, 0, 0, 0, -1, 1), xform(OWLMAN_BODY, 0, 0, 0, -1, 1)], branch: 0.98,
     cryptid: true, hide: true,
   },
+  snowflake: {
+    parts: [{
+      cmds: (() => {
+        const pts = [];
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3;
+          pts.push([Math.cos(a) * 0.85, Math.sin(a) * 0.85]);
+          pts.push([Math.cos(a + Math.PI / 12) * 0.45, Math.sin(a + Math.PI / 12) * 0.45]);
+          pts.push([Math.cos(a + Math.PI / 6) * 0.35, Math.sin(a + Math.PI / 6) * 0.35]);
+        }
+        return pts.map(([x, y], k) => [k === 0 ? "M" : "L", Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000]).concat([["Z"]]);
+      })(),
+      strings: { angle: 0.5, a: [3, 4], b: [2, 3] }
+    }],
+    silhouette: [(() => {
+      const pts = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3;
+        pts.push([Math.cos(a) * 0.85, Math.sin(a) * 0.85]);
+        pts.push([Math.cos(a + Math.PI / 12) * 0.45, Math.sin(a + Math.PI / 12) * 0.45]);
+        pts.push([Math.cos(a + Math.PI / 6) * 0.35, Math.sin(a + Math.PI / 6) * 0.35]);
+      }
+      return pts.map(([x, y], k) => [k === 0 ? "M" : "L", Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000]).concat([["Z"]]);
+    })()],
+    adult: true,
+  },
+  bell: {
+    parts: [{
+      cmds: [[-0.05, -0.75], [0.05, -0.75], [0.15, -0.65], [0.18, -0.3], [0.32, 0.25], [0.45, 0.4], [0.35, 0.55], [-0.35, 0.55], [-0.45, 0.4], [-0.32, 0.25], [-0.18, -0.3], [-0.15, -0.65]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]]),
+      strings: { angle: 0.3, a: [2, 3], b: [2, 3] }
+    }],
+    silhouette: [[[-0.05, -0.75], [0.05, -0.75], [0.15, -0.65], [0.18, -0.3], [0.32, 0.25], [0.45, 0.4], [0.35, 0.55], [-0.35, 0.55], [-0.45, 0.4], [-0.32, 0.25], [-0.18, -0.3], [-0.15, -0.65]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]])],
+    adult: true,
+  },
+  candle: {
+    parts: [{
+      cmds: [[-0.22, -0.2], [0.22, -0.2], [0.25, 0.75], [-0.25, 0.75]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]]),
+      strings: { angle: Math.PI / 2, a: [1, 1], b: [3, 4] }
+    }],
+    front: [{ cmds: [["M", 0, -0.72], ["Q", 0.18, -0.45, 0, -0.25], ["Q", -0.18, -0.45, 0, -0.72], ["Z"]], tangle: null }],
+    silhouette: [[[-0.22, -0.2], [0.22, -0.2], [0.25, 0.75], [-0.25, 0.75]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]]), [["M", 0, -0.72], ["Q", 0.18, -0.45, 0, -0.25], ["Q", -0.18, -0.45, 0, -0.72], ["Z"]]],
+    adult: true,
+  },
+  reindeer: {
+    parts: [{
+      cmds: [[0, -0.15], [0.14, -0.35], [0.22, -0.18], [0.18, 0.15], [0.08, 0.45], [-0.08, 0.45], [-0.18, 0.15], [-0.22, -0.18], [-0.14, -0.35]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]]),
+      strings: { angle: 0.4, a: [2, 3], b: [2, 3] }
+    }],
+    silhouette: [[[0, -0.15], [0.14, -0.35], [0.22, -0.18], [0.18, 0.15], [0.08, 0.45], [-0.08, 0.45], [-0.18, 0.15], [-0.22, -0.18], [-0.14, -0.35]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]])],
+    adult: true,
+  },
+  sleepycat: {
+    parts: [{
+      cmds: [[-0.45, 0], [-0.35, -0.35], [0, -0.45], [0.35, -0.35], [0.45, 0], [0.35, 0.35], [0, 0.45], [-0.35, 0.35]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]]),
+      strings: { angle: 0.6, a: [2, 3], b: [2, 3] }
+    }],
+    silhouette: [[[-0.45, 0], [-0.35, -0.35], [0, -0.45], [0.35, -0.35], [0.45, 0], [0.35, 0.35], [0, 0.45], [-0.35, 0.35]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]])],
+    adult: true,
+  },
+  playfulcat: {
+    parts: [{
+      cmds: [[-0.45, 0.35], [-0.35, -0.05], [-0.1, 0.1], [0.25, 0.25], [0.45, 0.45], [0.35, 0.52], [0.15, 0.38], [-0.1, 0.3], [-0.35, 0.45]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]]),
+      strings: { angle: 0.3, a: [2, 3], b: [2, 3] }
+    }],
+    silhouette: [[[-0.45, 0.35], [-0.35, -0.05], [-0.1, 0.1], [0.25, 0.25], [0.45, 0.45], [0.35, 0.52], [0.15, 0.38], [-0.1, 0.3], [-0.35, 0.45]].map(([x, y], k) => [k === 0 ? "M" : "L", x, y]).concat([["Z"]])],
+    adult: true,
+  },
 };
 export const FIGURE_IDS = Object.keys(FIGURES);
 // Grupos: figuras para adultos (elegantes, sin caritas), composiciones
@@ -2207,6 +2274,10 @@ const BIPEDS = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurol
 // Estilo normal: solo los que se ven bien con contorno suave (estegosaurio y
 // triceratops tienen patas en bloque: van en origami).
 FIGURE_SETS.dino = ["brachiosaurus", "diplodocus", "ankylosaurus", "dimetrodon", "pterosaur", "plesiosaur", "mosasaurus", "ammonite"];
+FIGURE_SETS.ocean = ["whale", "turtle", "seahorse", "octopus", "jellyfish", "koi", "fish", "nautilus", "ammonite", "plesiosaur"];
+FIGURE_SETS.birds = ["hummingbird", "owl", "peacock", "bird", "penguin", "feather"];
+FIGURE_SETS.cats = ["sittingcat", "cat", "playfulcat", "sleepycat"];
+FIGURE_SETS.christmas = ["tree", "snowflake", "bell", "candle", "reindeer"];
 // Mitad origami del libro de dinosaurios.
 FIGURE_SETS.dinoOrigamiMix = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurolophus", "stegosaurus", "triceratops"];
 // Origami: todos los que se leen bien simplificados (paquicefalosaurio e

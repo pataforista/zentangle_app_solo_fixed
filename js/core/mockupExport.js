@@ -1,3 +1,4 @@
+import { SimpleZip } from "./zip.js";
 // mockupExport.js
 // Helper para exportar páginas como imágenes de alta resolución para mockups.
 // Útil para crear contenido A+ de Amazon y mockups en Canva.
@@ -298,3 +299,182 @@ export const EXPORT_PRESETS = {
     label: "Vista previa rápida",
   },
 };
+
+// ===================== MOCKUPS 3D Y MÓDULOS A+ (FASE 4.3) =====================
+
+/**
+ * Genera mockup en perspectiva 3D de libro abierto.
+ */
+export function generate3DOpenBookSvg(leftSvg, rightSvg, { width = 1200, height = 800, title = "Libro de Arte Zen" } = {}) {
+  const cleanLeft = (leftSvg || "").replace(/<svg[^>]*>/, "").replace(/<\/svg>/, "");
+  const cleanRight = (rightSvg || "").replace(/<svg[^>]*>/, "").replace(/<\/svg>/, "");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+  <defs>
+    <filter id="bookShadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="15" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="spineShadow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="#000" stop-opacity="0.0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="pageCurl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="90%" stop-color="#fdfdfd"/>
+      <stop offset="100%" stop-color="#ececec"/>
+    </linearGradient>
+  </defs>
+  <rect width="${width}" height="${height}" fill="#f8fafc"/>
+  <g transform="translate(${width / 2}, ${height / 2})" filter="url(#bookShadow)">
+    <path d="M -430 -290 L 430 -290 L 435 295 L -435 295 Z" fill="#1e293b"/>
+    <g transform="translate(-10, 0)">
+      <path d="M -410 -280 Q -210 -285 0 -275 L 0 275 Q -210 285 -410 280 Z" fill="url(#pageCurl)"/>
+      <g transform="translate(-390, -260) scale(1.75)">
+        ${cleanLeft}
+      </g>
+    </g>
+    <g transform="translate(10, 0)">
+      <path d="M 0 -275 Q 210 -285 410 -280 L 410 280 Q 210 285 0 275 Z" fill="url(#pageCurl)"/>
+      <g transform="translate(30, -260) scale(1.75)">
+        ${cleanRight}
+      </g>
+    </g>
+    <rect x="-25" y="-280" width="50" height="560" fill="url(#spineShadow)" pointer-events="none"/>
+  </g>
+</svg>`;
+}
+
+/**
+ * Módulo 1 A+ Content: Cabecera Hero (970 × 600 px).
+ */
+export function generateAplusHeaderSvg(bookTitle = "Libro de Arte y Relajación", sampleSvg = "") {
+  const cleanSample = (sampleSvg || "").replace(/<svg[^>]*>/, "").replace(/<\/svg>/, "");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 600" width="970" height="600">
+  <defs>
+    <linearGradient id="heroBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <filter id="cardShadow">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="970" height="600" fill="url(#heroBg)"/>
+  <circle cx="900" cy="100" r="250" fill="#6366f1" opacity="0.15"/>
+  <circle cx="100" cy="500" r="180" fill="#a855f7" opacity="0.1"/>
+  
+  <text x="70" y="160" font-family="'Space Grotesk', sans-serif" font-size="44" font-weight="700" fill="#ffffff">${bookTitle}</text>
+  <text x="70" y="220" font-family="'Outfit', sans-serif" font-size="22" font-weight="400" fill="#cbd5e1">Arte meditativo de alta precisión con tecnología anti-traspaso</text>
+  
+  <g transform="translate(70, 290)">
+    <rect width="210" height="42" rx="21" fill="#6366f1"/>
+    <text x="105" y="27" font-family="'Outfit', sans-serif" font-size="16" font-weight="600" fill="#ffffff" text-anchor="middle">✓ KDP READY</text>
+  </g>
+
+  <g transform="translate(560, 80)" filter="url(#cardShadow)">
+    <rect width="340" height="440" rx="12" fill="#ffffff"/>
+    <g transform="translate(20, 20) scale(1.4)">
+      ${cleanSample}
+    </g>
+  </g>
+</svg>`;
+}
+
+/**
+ * Módulo 2 A+ Content: Muestrario de 3 páginas (970 × 300 px).
+ */
+export function generateAplusGridSvg(svgList = []) {
+  const s1 = (svgList[0] || "").replace(/<svg[^>]*>/, "").replace(/<\/svg>/, "");
+  const s2 = (svgList[1] || "").replace(/<svg[^>]*>/, "").replace(/<\/svg>/, "");
+  const s3 = (svgList[2] || "").replace(/<svg[^>]*>/, "").replace(/<\/svg>/, "");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 300" width="970" height="300">
+  <defs>
+    <filter id="tileShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect width="970" height="300" fill="#f8fafc"/>
+  
+  <g transform="translate(45, 25)" filter="url(#tileShadow)">
+    <rect width="260" height="250" rx="8" fill="#ffffff"/>
+    <g transform="translate(15, 15) scale(1.05)">${s1}</g>
+  </g>
+
+  <g transform="translate(355, 25)" filter="url(#tileShadow)">
+    <rect width="260" height="250" rx="8" fill="#ffffff"/>
+    <g transform="translate(15, 15) scale(1.05)">${s2}</g>
+  </g>
+
+  <g transform="translate(665, 25)" filter="url(#tileShadow)">
+    <rect width="260" height="250" rx="8" fill="#ffffff"/>
+    <g transform="translate(15, 15) scale(1.05)">${s3}</g>
+  </g>
+</svg>`;
+}
+
+/**
+ * Módulo 3 A+ Content: Beneficios clave (970 × 600 px).
+ */
+export function generateAplusFeatureSvg(bookTitle = "Libro de Arte Zen") {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 600" width="970" height="600">
+  <rect width="970" height="600" fill="#ffffff"/>
+  <rect x="0" y="0" width="970" height="100" fill="#f1f5f9"/>
+  <text x="485" y="60" font-family="'Space Grotesk', sans-serif" font-size="28" font-weight="700" fill="#0f172a" text-anchor="middle">¿POR QUÉ ELEGIR NUESTROS LIBROS?</text>
+
+  <g transform="translate(80, 160)">
+    <rect width="370" height="170" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="30" y="50" font-family="'Space Grotesk', sans-serif" font-size="20" font-weight="700" fill="#6366f1">📄 Dorso en Blanco</text>
+    <text x="30" y="90" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">Cada diseño cuenta con su reverso en</text>
+    <text x="30" y="115" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">blanco para evitar traspasos de tinta.</text>
+  </g>
+
+  <g transform="translate(520, 160)">
+    <rect width="370" height="170" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="30" y="50" font-family="'Space Grotesk', sans-serif" font-size="20" font-weight="700" fill="#6366f1">🎯 Calidad Algorítmica</text>
+    <text x="30" y="90" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">Superficies calculadas para que quepa</text>
+    <text x="30" y="115" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">la punta de rotuladores y lápices.</text>
+  </g>
+
+  <g transform="translate(80, 370)">
+    <rect width="370" height="170" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="30" y="50" font-family="'Space Grotesk', sans-serif" font-size="20" font-weight="700" fill="#6366f1">📐 Medidas KDP Exactas</text>
+    <text x="30" y="90" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">Márgenes interiores dinámicos para</text>
+    <text x="30" y="115" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">colorear cómodamente cerca del lomo.</text>
+  </g>
+
+  <g transform="translate(520, 370)">
+    <rect width="370" height="170" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="30" y="50" font-family="'Space Grotesk', sans-serif" font-size="20" font-weight="700" fill="#6366f1">🧘 Relajación Progresiva</text>
+    <text x="30" y="90" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">Dificultad de trazos ordenada para</text>
+    <text x="30" y="115" font-family="'Outfit', sans-serif" font-size="15" fill="#475569">una experiencia meditativa fluida.</text>
+  </g>
+</svg>`;
+}
+
+/**
+ * Empaqueta todos los mockups 3D y módulos A+ en un ZIP con un solo clic.
+ */
+export async function exportAplusPackageZip(review, zipFilename = "mockups_y_aplus.zip") {
+  const best = getBestPagesForMockup(review, 6);
+  const svgs = best.map((b) => b.page.svg).filter(Boolean);
+  const title = review?.g?.zPresetKey || "Libro Zentangle";
+
+  const zip = new SimpleZip();
+  const mockup3d = generate3DOpenBookSvg(svgs[0], svgs[1], { title });
+  zip.addFile("mockup_3d_libro_abierto.svg", mockup3d);
+
+  zip.addFile("aplus_modulo_1_hero.svg", generateAplusHeaderSvg(title, svgs[0]));
+  zip.addFile("aplus_modulo_2_grid.svg", generateAplusGridSvg([svgs[0], svgs[1], svgs[2]]));
+  zip.addFile("aplus_modulo_3_caracteristicas.svg", generateAplusFeatureSvg(title));
+
+  for (let i = 0; i < svgs.length; i++) {
+    zip.addFile(`paginas_destacadas/pagina_${best[i].pageIndex + 1}.svg`, svgs[i]);
+  }
+
+  zip.addFile("INSTRUCCIONES_A_PLUS_AMAZON.txt", getCanvaInstructions());
+
+  zip.download(zipFilename);
+  return zip;
+}

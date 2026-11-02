@@ -1061,7 +1061,7 @@ export const ZENTANGLE_PRESETS = {
   // Placeholder: usa figuras de adultos con fondo temático oceánico.
   zen_figure_ocean: {
     cellLayout: "zen_figure",
-    figures: ADULT_FIGURES, // TODO: añadir FIGURE_SETS.ocean cuando existan las figuras
+    figures: FIGURE_SETS.ocean,
     themedBackground: "ocean", // olas, burbujas, corales
     cellCount: 1,
     cellBorderWidthMm: 1.2,
@@ -1078,7 +1078,7 @@ export const ZENTANGLE_PRESETS = {
   // Placeholder: usa figuras de kids (animales tiernos) como base.
   zen_figure_cats: {
     cellLayout: "zen_figure",
-    figures: FIGURE_SETS.kids, // TODO: añadir FIGURE_SETS.cats cuando existan las figuras
+    figures: FIGURE_SETS.cats,
     themedBackground: "cats", // ovillos, huellas, ratones
     cellCount: 1,
     cellBorderWidthMm: 1.2,
@@ -1095,7 +1095,7 @@ export const ZENTANGLE_PRESETS = {
   // Placeholder: usa figuras de adultos (incluye colibrí).
   zen_figure_birds: {
     cellLayout: "zen_figure",
-    figures: ADULT_FIGURES, // TODO: añadir FIGURE_SETS.birds cuando existan las figuras
+    figures: FIGURE_SETS.birds,
     themedBackground: "birds", // ramas, hojas, flores
     cellCount: 1,
     cellBorderWidthMm: 1.2,
@@ -1149,7 +1149,7 @@ export const ZENTANGLE_PRESETS = {
 
   zen_figure_christmas: {
     cellLayout: "zen_figure",
-    figures: FIGURE_SETS.kids, // TODO: añadir FIGURE_SETS.christmas cuando existan las figuras
+    figures: FIGURE_SETS.christmas,
     themedBackground: "christmas", // estrellas, nieve, copos
     cellCount: 1,
     cellBorderWidthMm: 1.2,
