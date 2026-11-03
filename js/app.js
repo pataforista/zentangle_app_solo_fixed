@@ -18,7 +18,8 @@ import { ZENTANGLE_PRESETS } from "./generators/zentangle.presets.js";
 import { generateZentangle } from "./generators/zentangle.generator.js";
 import { createStylePicker } from "./ui/stylePicker.js";
 import { printSafeOpts } from "./core/bookPlan.js";
-import { BOOK_RECIPES } from "./core/bookRecipes.js";
+import { BOOK_RECIPES, STYLE_THEME } from "./core/bookRecipes.js";
+import { THEME_LISTING } from "./core/kdpListing.js";
 import { compileFigureDefinition, registerImportedFigure } from "./core/svgImporter.js";
 import { FIGURES, FIGURE_IDS, FIGURE_SETS } from "./generators/figure.js";
 import { getThicknessProfile } from "./core/thicknessProfiles.js";
@@ -554,6 +555,14 @@ function bind() {
       ui.bookGuide.checked = r.guide;
       ui.bookSpreads.checked = r.spreads;
       ui.bookTurn.checked = r.turn;
+      // Título del tema si el campo está vacío o lo puso la app: sin título el
+      // libro se imprimiría con «Libro para colorear».
+      const t = ui.bookTitle;
+      const suggested = THEME_LISTING[STYLE_THEME[r.style]]?.titles?.[0];
+      if (t && suggested && (!t.value.trim() || t.dataset.auto === t.value)) {
+        t.value = suggested;
+        t.dataset.auto = suggested;
+      }
       ui.zPreset.dispatchEvent(new Event("change"));
       appState.stylePicker?.sync();
       updateBookSummary();

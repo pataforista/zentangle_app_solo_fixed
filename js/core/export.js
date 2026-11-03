@@ -66,7 +66,7 @@ export async function downloadPdf(filename, svgString, widthMm, heightMm) {
   }
   const { jsPDF } = window.jspdf;
   const orientation = widthMm > heightMm ? "l" : "p";
-  const doc = new jsPDF(orientation, "mm", [widthMm, heightMm]);
+  const doc = new jsPDF({ orientation, unit: "mm", format: [widthMm, heightMm], putOnlyUsedFonts: true });
 
   const dataUrl = await generatePngDataUrl(svgString, widthMm, heightMm);
   
@@ -96,7 +96,9 @@ export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = tr
   const pdfWidth = widthMm + 2 * bleedMm;
   const pdfHeight = heightMm + 2 * bleedMm;
   
-  const doc = new jsPDF(pdfWidth > pdfHeight ? "l" : "p", "mm", [pdfWidth, pdfHeight]);
+  // putOnlyUsedFonts: sin él jsPDF declara 14 fuentes sin incrustar, y el
+  // control de KDP puede rechazar el interior por «fuentes no incrustadas».
+  const doc = new jsPDF({ orientation: pdfWidth > pdfHeight ? "l" : "p", unit: "mm", format: [pdfWidth, pdfHeight], putOnlyUsedFonts: true });
   doc.setProperties({ title });
 
   const orient = pdfWidth > pdfHeight ? "l" : "p";

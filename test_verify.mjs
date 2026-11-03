@@ -748,6 +748,44 @@ async function runTests() {
       assert.ok(cv.spineText && !coverSpec({ pages: 60, trimWmm: 215.9, trimHmm: 279.4 }).spineText, "ERROR: KDP solo admite texto en el lomo con más de 79 páginas.");
       assert.ok(coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4, paper: "premium" }).spineIn > cv.spineIn);
       assert.ok(kdpListingText({ designs: 50, pages: 120, trimWmm: 215.9, trimHmm: 279.4 }).includes("Lomo: 0.27 in"));
+      // KDP completa con una página en blanco los interiores impares: 65 págs se cobran como 66.
+      assert.strictEqual(coverSpec({ pages: 65, trimWmm: 215.9, trimHmm: 279.4, paper: "premium" }).spineIn, coverSpec({ pages: 66, trimWmm: 215.9, trimHmm: 279.4, paper: "premium" }).spineIn, "ERROR: el lomo de un interior impar no cuenta la página que añade KDP.");
+      // Páginas de cortesía: nada que parezca marca de corte y etiquetas sin pisar las formas.
+      {
+        const { belongsToPage, colorTestPage } = await import("./js/generators/frontMatter.js");
+        for (const geo of [{ w: 215.9, h: 279.4, m: 12.7 }, { w: 152.4, h: 228.6, m: 12.7 }, { w: 215.9, h: 215.9, m: 12.7 }]) {
+          const own = belongsToPage(geo);
+          assert.ok(!/<path d="M [\d.]+ [\d.]+ L [\d.]+ [\d.]+ L/.test(own), "ERROR: «Este libro pertenece a» lleva esquinas en L (parecen marcas de corte y KDP las rechaza).");
+          const test = colorTestPage(geo);
+          const labelEnds = [...test.matchAll(/<text x="([\d.]+)"[^>]*font-size="2.5">[\d.]+ mm</g)].map((x) => Number(x[1]) + 10);
+          const shapesX = Number(test.match(/<circle cx="([\d.]+)"[^>]*r="([\d.]+)"/).slice(1).reduce((c, r) => Number(c) - Number(r)));
+          assert.ok(labelEnds.length === 5 && labelEnds.every((x) => x < shapesX), `ERROR: las etiquetas de grosor pisan el círculo de la página de prueba (${geo.w}×${geo.h}).`);
+        }
+        // Portadilla y copyright renderizados: ningún título (corto, largo, 80 caracteres)
+        // se sale del marco. DejaVu Sans es más ancha que Helvetica: caso pesimista.
+        const { titlePage, copyrightPage } = await import("./js/generators/frontMatter.js");
+        const { Resvg } = await import("@resvg/resvg-js");
+        const PX = 3; // px por mm
+        const inkCols = (svg, w, h) => {
+          const r = new Resvg(svg, { fitTo: { mode: "width", value: Math.round(w * PX) }, font: { loadSystemFonts: true, defaultFontFamily: "DejaVu Sans", sansSerifFamily: "DejaVu Sans" } }).render();
+          const px = r.pixels, W = r.width, H = r.height; let minX = W, maxX = -1;
+          for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (px[(y * W + x) * 4] < 128) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
+          return { minMm: minX / PX, maxMm: maxX / PX, any: maxX >= 0 };
+        };
+        const titles = ["Zen", "Dinosaurios para colorear: patrones prehistóricos", "Koi, colibríes y nautilus: patrones intrincados para colorear", "MANDALAS GIGANTES PARA ADULTOS QUE QUIEREN RELAJARSE CADA NOCHE ANTES DE DORMIR"];
+        for (const geo of [{ w: 215.9, h: 279.4, m: 12.7 }, { w: 152.4, h: 228.6, m: 12.7 }]) {
+          for (const title of titles) {
+            const frame = Math.max(geo.m, 15);
+            // Sin el marco: solo el texto.
+            const bare = titlePage(geo, { title, author: "Ana Autora" }).replace(/<rect x="[^"]+"[^>]*fill="none"[^>]*\/>/g, "");
+            const ink = inkCols(bare, geo.w, geo.h);
+            if (!ink.any) continue; // sin fuentes del sistema no se puede medir
+            assert.ok(ink.minMm > frame + 1 && ink.maxMm < geo.w - frame - 1, `ERROR: el título «${title}» se sale del marco de la portadilla (${geo.w}×${geo.h}: ${ink.minMm.toFixed(1)}–${ink.maxMm.toFixed(1)} mm).`);
+            const c = inkCols(copyrightPage(geo, { title, author: "Ana Autora" }), geo.w, geo.h);
+            assert.ok(!c.any || (c.minMm > geo.m && c.maxMm < geo.w - geo.m), `ERROR: el título «${title}» se sale de los márgenes en la página de créditos.`);
+          }
+        }
+      }
       // La ficha no promete lo que el libro no trae.
       const figOnly = kdpListing({ designs: 30, pages: 60, content: "figures" }).description;
       assert.ok(!/mandalas/.test(figOnly), "ERROR: la ficha promete mandalas en un libro solo de figuras.");

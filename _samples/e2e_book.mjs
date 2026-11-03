@@ -4,7 +4,7 @@
 // Requiere las dependencias de desarrollo playwright y jspdf (npm install).
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { readFileSync, mkdtempSync } from "node:fs";
+import { readFileSync, mkdtempSync, existsSync } from "node:fs";
 import { join, extname, normalize } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -34,7 +34,16 @@ await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}`;
 
 const fail = (msg) => { console.error(`❌ ${msg}`); process.exitCode = 1; };
-const browser = await chromium.launch(process.env.PW_EXEC ? { executablePath: process.env.PW_EXEC } : {});
+// Si el Chromium de esta versión de playwright no está descargado, usa el del
+// sistema (PW_EXEC o /opt/pw-browsers/chromium) en vez de fallar.
+const launchBrowser = async () => {
+  const exec = process.env.PW_EXEC || (existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : null);
+  try { return await chromium.launch(process.env.PW_EXEC ? { executablePath: exec } : {}); } catch (e) {
+    if (!exec) throw e;
+    return chromium.launch({ executablePath: exec });
+  }
+};
+const browser = await launchBrowser();
 try {
   const ctx = await browser.newContext({ acceptDownloads: true });
   const page = await ctx.newPage();
@@ -55,6 +64,8 @@ try {
   await page.click(".recipe[data-id=dino]");
   if ((await seedNow()) === s1 || s1 === "42") fail(`elegir un tipo de libro no cambia la semilla (${s1}).`);
   const quick = await page.evaluate(() => ({ style: document.getElementById("zPreset").value, n: document.getElementById("bookPages").value, prog: document.getElementById("bookProgressive").checked }));
+  const autoTitle = await page.inputValue("#bookTitle");
+  if (!/Dinosaurios/.test(autoTitle)) fail(`el tipo de libro no propone título y el libro saldría como «Libro para colorear» (${autoTitle}).`);
   if (quick.style !== "zen_figure_dino" || quick.n !== "34" || !quick.prog) fail(`el atajo «Dinosaurios» no configuró el libro (${JSON.stringify(quick)}).`);
   await page.evaluate(({ n, blank }) => {
     const set = (id, v) => { const e = document.getElementById(id); if (e.type === "checkbox") e.checked = v; else e.value = v; e.dispatchEvent(new Event("change", { bubbles: true })); };
@@ -115,6 +126,10 @@ try {
   const pdf = readFileSync(pdfPath, "latin1");
   const pages = (pdf.match(/\/Type \/Page\b(?!s)/g) || []).length;
   if (pages !== expected) fail(`el PDF tiene ${pages} páginas y el botón anunciaba ${expected}.`);
+  // Las páginas son imágenes: el PDF no debe declarar fuentes (KDP exige incrustarlas).
+  if (/\/Type \/Font\b/.test(pdf)) fail("el PDF declara fuentes sin incrustar (KDP puede rechazarlo).");
+  const boxes = new Set(pdf.match(/\/MediaBox \[[^\]]+\]/g) || []);
+  if (boxes.size !== 1) fail(`el PDF mezcla tamaños de página (${[...boxes].join(" · ")}).`);
 
   const txtDl = page.waitForEvent("download");
   await page.click("#btnKdpListing");

@@ -310,11 +310,12 @@ export function applyPresetToUI(presetKey, { force = false } = {}) {
   }
 }
 
-export function kdpWarning(marginMm, bleedMm = 0) {
+export function kdpWarning(marginMm, bleedMm = 0, pages = KDP_MIN_PAGES) {
   const artEdgeMm = marginMm - (bleedMm || 0);
   if (artEdgeMm < 6.35) return " | ⚠ Arte a menos de 6.35 mm del borde: KDP lo rechazaría (sube el margen o quita el sangrado)";
-  const minIn = kdpInsideMarginMm(KDP_MIN_PAGES);
-  if (marginMm < minIn) return ` | ⚠ Margen menor a ${minIn} mm: por debajo del margen interior (lomo) mínimo de KDP`;
+  // El margen interior mínimo de KDP crece con el nº de páginas.
+  const minIn = kdpInsideMarginMm(pages);
+  if (marginMm < minIn) return ` | ⚠ Margen menor a ${minIn} mm: por debajo del margen interior (lomo) mínimo de KDP para ${pages} páginas`;
   return "";
 }
 

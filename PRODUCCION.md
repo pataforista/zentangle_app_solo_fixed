@@ -52,12 +52,17 @@ Después puedes ajustar cualquier cosa a mano.
 
 ## Antes de subir
 
+Si cambiaste código de la app, primero `npm run check` (pruebas + libro de
+punta a punta en el navegador). Si falla, no publiques con esa versión.
+
 - [ ] Resumen sin ⚠ y con «✓ Cumple los límites de KDP».
 - [ ] Control de calidad sin páginas marcadas (o las que quedan, vistas en el
       visor y aceptadas).
 - [ ] Receta guardada junto al PDF (es la única forma de saber después qué
       se imprimió).
 - [ ] PDF hojeado: páginas en orden, sin líneas rojas, grises ni pies cortados.
+- [ ] **Título escrito** (o propuesto por el tipo de libro): sin él la
+      portadilla dice «Libro para colorear». El estado avisa con ⚠ al descargar.
 - [ ] Ficha sin «Zentangle», «Zendala» ni «Zendoodle» en título, subtítulo,
       portada o palabras clave.
 - [ ] Portada con las medidas de la ficha.
@@ -82,9 +87,7 @@ Después puedes ajustar cualquier cosa a mano.
 
 | Prioridad | Qué | Cómo |
 |---|---|---|
-| Media | Portada, página de créditos/copyright y «Este libro pertenece a» | KDP Cover Creator y un editor de PDF |
-| Media | Cargar una receta para rehacer un libro | Hoy solo se guarda: anota la semilla, el estilo y el commit de la app |
+| Media | Portada definitiva | La app genera portadilla, créditos, «Este libro pertenece a», página de prueba y un borrador de portada (🎨). Para la portada de venta usa KDP Cover Creator o un diseñador |
 | Media | Subir el PDF a KDP | A mano; la ficha trae el texto y las medidas |
 | Baja | Palabras clave de la ficha | Son una propuesta; compruébalas en la búsqueda de Amazon |
-| Baja | PDF sin conexión | jsPDF se carga de internet |
 | Baja | Siluetas hechas a mano | Las figuras salen de código; con SVG de un ilustrador la calidad subiría (ver `MOTOR.md`) |
