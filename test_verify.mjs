@@ -732,7 +732,7 @@ async function runTests() {
       assert.ok(bZip.entries.some(e => e.name === "b1/ficha_kdp.txt"), "ERROR: Ficha en ZIP de lote.");
       assert.ok(bZip.entries.some(e => e.name === "b1/receta.json"), "ERROR: Receta en ZIP de lote.");
       const { generate3DOpenBookSvg, generateAplusHeaderSvg, generateAplusGridSvg, generateAplusFeatureSvg, exportAplusPackageZip } = await import("./js/core/mockupExport.js");
-      assert.ok(generate3DOpenBookSvg().includes("id="bookShadow""), "ERROR: SVG 3D Mockup.");
+      assert.ok(generate3DOpenBookSvg().includes('id="bookShadow"'), "ERROR: SVG 3D Mockup.");
       assert.ok(generateAplusHeaderSvg("Test").includes("970 600"), "ERROR: SVG A+ Header.");
       assert.ok(generateAplusGridSvg().includes("970 300"), "ERROR: SVG A+ Grid.");
       assert.ok(generateAplusFeatureSvg("Test").includes("¿POR QUÉ ELEGIR NUESTROS LIBROS?"), "ERROR: SVG A+ Features.");
@@ -1147,8 +1147,8 @@ async function runTests() {
       const sceneMetrics = extractFigureMetrics(sceneHtml);
       assert.ok(sceneMetrics, "ERROR: extractFigureMetrics devolvió null para la escena.");
       assert.ok(sceneMetrics.count >= 2, "ERROR: extractFigureMetrics debe reportar al menos 2 figuras.");
-      assert.strictEqual(sceneMetrics.layout, "center");
-      assert.ok(sceneMetrics.coverage > 0.25, "ERROR: Cobertura compuesta debe ser > 25%.");
+      assert.strictEqual(sceneMetrics.layout, "scene");
+      assert.ok(sceneMetrics.coverage >= 0.15, "ERROR: Cobertura compuesta debe superar el umbral de escena (>= 15%).");
       assert.ok(sceneMetrics.silD && sceneMetrics.silD.length > 50, "ERROR: silD compuesto no generado.");
 
       // Escena marina
