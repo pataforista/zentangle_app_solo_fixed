@@ -340,7 +340,7 @@ export function updateBookButton() {
   if (openBook) openBook.hidden = !fresh;
   ui.btnBook.textContent = fresh
     ? `⬇ Descargar libro (PDF · ${appState.bookReview.total} págs)`
-    : (appState.bookReview ? "📖 Preparar libro de nuevo (cambiaste ajustes)" : "📖 Preparar libro (revisar páginas)");
+    : (appState.bookReview ? "📖 Preparar libro de nuevo (cambiaste ajustes)" : "▶ Preparar libro y revisar páginas");
   ui.btnBook.dataset.mode = fresh ? "download" : "prepare";
 }
 
