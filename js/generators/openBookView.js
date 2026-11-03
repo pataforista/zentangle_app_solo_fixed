@@ -70,7 +70,7 @@ export async function downloadOpenBookPdf(sequence, { w, h, m }, getEntrySvg, ti
   const { jsPDF } = window.jspdf;
   
   const spreadW = w * 2;
-  const doc = new jsPDF(spreadW > h ? "l" : "p", "mm", [spreadW, h]);
+  const doc = new jsPDF({ orientation: spreadW > h ? "l" : "p", unit: "mm", format: [spreadW, h], putOnlyUsedFonts: true });
   doc.setProperties({ title: `${title} - Vista de libro abierto` });
   
   const pixelRatio = 300 / 25.4;

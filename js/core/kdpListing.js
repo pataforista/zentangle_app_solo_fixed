@@ -103,6 +103,9 @@ export function kdpListing({ designs, pages, paperLabel = "8.5×11 in", flags = 
 export const SPINE_IN_PER_PAGE = { white: 0.002252, premium: 0.002347 };
 export function coverSpec({ pages, trimWmm, trimHmm, paper = "white" }) {
   const IN = 25.4, bleed = 0.125;
+  // KDP completa con una página en blanco los interiores impares: el lomo
+  // se calcula con ese total par.
+  pages += pages % 2;
   const spineIn = pages * (SPINE_IN_PER_PAGE[paper] ?? SPINE_IN_PER_PAGE.white);
   const wIn = bleed + trimWmm / IN + spineIn + trimWmm / IN + bleed;
   const hIn = bleed + trimHmm / IN + bleed;
@@ -137,7 +140,7 @@ export function kdpListingText(opts) {
     "",
     ...(cover ? [
       `PORTADA (tapa blanda, ${opts.pages} páginas, papel ${cover.paper === "premium" ? "color prémium" : "blanco, tinta B/N"}):`,
-      `  - Lomo: ${cover.spineIn} in (${cover.spineMm} mm)${cover.spineText ? "" : " · sin texto en el lomo: KDP lo exige con más de 79 páginas"}`,
+      `  - Lomo: ${cover.spineIn} in (${cover.spineMm} mm)${cover.spineText ? "" : " · sin texto en el lomo (KDP solo lo admite con más de 79 páginas)"}`,
       `  - Portada completa con sangrado: ${cover.widthIn} × ${cover.heightIn} in (${cover.widthMm} × ${cover.heightMm} mm) · ${cover.widthPx} × ${cover.heightPx} px a 300 ppp`,
       "  - Confirma las medidas con la plantilla oficial de KDP (Cover Calculator) antes de subirla: el lomo cambia si añades o quitas páginas.",
       "",

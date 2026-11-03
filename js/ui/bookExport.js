@@ -28,7 +28,7 @@ export async function createBook() {
   ui.bookBar.hidden = false;
   ui.bookBar.value = 0;
   try {
-    const title = `Libro para colorear (${n} diseños)`;
+    const title = ui.bookTitle?.value?.trim() || `Libro para colorear (${n} diseños)`;
     // Guía con los tangles de las páginas finales (tras los ↻) y orden de páginas.
     const extras = await buildBookExtras(bookReview);
     const sequence = bookSequence(bookReview, extras);
@@ -77,7 +77,8 @@ export async function createBook() {
     updateNextSteps();
     const changed = pages.filter((p) => p.tries).length;
     const bleedNotice = g.opts.kdpBleedMm ? " · ⚠ Al subir a KDP, selecciona «Con sangrado»" : "";
-    ui.status.textContent = `✓ PDF listo (${total} páginas). Siguiente: 📝 ficha KDP y 🧾 receta, arriba en la revisión. · ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}${bleedNotice}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm);
+    ui.status.textContent = `✓ PDF listo (${total} páginas). Siguiente: 📝 ficha KDP y 🧾 receta, arriba en la revisión. · ${total} páginas${changed ? ` (${changed} ${changed === 1 ? "diseño cambiado" : "diseños cambiados"})` : ""} · ${name}${bleedNotice}` + kdpWarning(g.marginMm, g.opts.kdpBleedMm, total) +
+      (ui.bookTitle?.value?.trim() ? "" : " | ⚠ Sin título: la portadilla dice «Libro para colorear». Escribe el título y vuelve a descargar");
   } catch (err) {
     ui.status.textContent = `✗ No se pudo crear el libro: ${err.message}`;
     console.error("Error al crear libro:", err);

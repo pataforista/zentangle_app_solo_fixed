@@ -2,6 +2,7 @@
 // Generador de portada PDF para KDP. Incluye portada, lomo y contraportada
 // en un solo PDF con las dimensiones exactas que pide KDP.
 import { coverSpec, BLOCKED_TERMS, containsBlocked } from "../core/kdpListing.js";
+import { textWidthMm } from "./frontMatter.js";
 
 const fmt = (n) => (Math.round(Number(n) * 100) / 100).toString();
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -84,7 +85,7 @@ export function generateCoverSvg({ pages, trimWmm, trimHmm, paper = "white", tit
   if (spec.spineText && cleanTitle) {
     // Rotar texto 90 grados para que se lea de arriba a abajo
     const spineTextY = heightMm / 2;
-    const fontSize = Math.min(6, spineMm * 0.7);
+    const fontSize = Math.min(6, spineMm * 0.7, (heightMm - 40) / Math.max(1, textWidthMm(cleanTitle, 1)));
     out.push(`<text x="${fmt(spineCenterX)}" y="${fmt(spineTextY)}" ${FONT} font-size="${fmt(fontSize)}" text-anchor="middle" transform="rotate(-90 ${fmt(spineCenterX)} ${fmt(spineTextY)})">${esc(cleanTitle)}</text>`);
   }
   
@@ -93,7 +94,8 @@ export function generateCoverSvg({ pages, trimWmm, trimHmm, paper = "white", tit
   
   // Título principal
   const titleY = heightMm / 3;
-  const titleFontSize = Math.min(12, frontWidth / (cleanTitle.length * 0.4));
+  // Letra que deja el título con 15 mm libres por lado (ancho medido por letra).
+  const titleFontSize = Math.min(12, (frontWidth - 30) / Math.max(1, textWidthMm(cleanTitle, 1)));
   out.push(`<text x="${fmt(frontCenterX)}" y="${fmt(titleY)}" ${FONT} font-size="${fmt(titleFontSize)}" text-anchor="middle" font-weight="bold">${esc(cleanTitle || "Libro para colorear")}</text>`);
   
   // Autor

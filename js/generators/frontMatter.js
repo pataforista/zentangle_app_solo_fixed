@@ -20,23 +20,33 @@ export function titlePage({ w, h, m }, { title = "Libro para colorear", author =
   out.push(`<rect x="${fmt(margin)}" y="${fmt(margin)}" width="${fmt(w - 2 * margin)}" height="${fmt(h - 2 * margin)}" fill="none" stroke="#000" stroke-width="${sw}"/>`);
   out.push(`<rect x="${fmt(margin + 2)}" y="${fmt(margin + 2)}" width="${fmt(w - 2 * margin - 4)}" height="${fmt(h - 2 * margin - 4)}" fill="none" stroke="#000" stroke-width="${scaleStrokeForProfile(0.25, lineThicknessProfile)}"/>`);
   
-  // Título centrado vertical y horizontalmente
-  const centerY = h / 2;
-  const titleY = author ? centerY - 8 : centerY;
-  
-  // Dividir título en líneas si es muy largo
-  const maxCharsPerLine = Math.floor((w - 2 * margin) / 3.5);
-  const titleLines = wrapText(title, maxCharsPerLine);
-  const lineHeight = 12;
-  const startY = titleY - ((titleLines.length - 1) * lineHeight) / 2;
-  
-  titleLines.forEach((line, i) => {
-    out.push(`<text x="${fmt(w / 2)}" y="${fmt(startY + i * lineHeight)}" ${FONT} font-size="10" font-weight="bold" text-anchor="middle">${esc(line)}</text>`);
+  // Título: la parte antes de «:» grande y el resto como subtítulo. Las líneas
+  // se parten midiendo el ancho en mm (textWidthMm), no contando caracteres:
+  // así ningún título se sale de la hoja.
+  const availW = w - 2 * margin - 12;
+  const [main, ...rest] = String(title).split(/:\s+/);
+  const subtitle = rest.join(": ");
+  let size = 10, mainLines = wrapText(main, availW, size);
+  while ((mainLines.length > 3 || !fits(mainLines, availW, size)) && size > 5) { size -= 0.5; mainLines = wrapText(main, availW, size); }
+  let subSize = Math.min(6, size * 0.6);
+  let subLines = subtitle ? wrapText(subtitle, availW, subSize) : [];
+  while (!fits(subLines, availW, subSize) && subSize > 3) { subSize -= 0.25; subLines = wrapText(subtitle, availW, subSize); }
+  const lh = size * 1.25, slh = subSize * 1.35;
+  const blockH = mainLines.length * lh + (subLines.length ? 4 + subLines.length * slh : 0) + (author ? 12 : 0);
+  let y = h / 2 - blockH / 2 + size;
+  mainLines.forEach((line) => {
+    out.push(`<text x="${fmt(w / 2)}" y="${fmt(y)}" ${FONT} font-size="${size}" font-weight="bold" text-anchor="middle">${esc(line)}</text>`);
+    y += lh;
   });
-  
-  // Autor debajo del título
+  if (subLines.length) {
+    y += 4 - lh + slh;
+    subLines.forEach((line) => {
+      out.push(`<text x="${fmt(w / 2)}" y="${fmt(y)}" ${FONT} font-size="${fmt(subSize)}" text-anchor="middle">${esc(line)}</text>`);
+      y += slh;
+    });
+  }
   if (author) {
-    out.push(`<text x="${fmt(w / 2)}" y="${fmt(titleY + 15)}" ${FONT} font-size="5" text-anchor="middle">${esc(author)}</text>`);
+    out.push(`<text x="${fmt(w / 2)}" y="${fmt(y + 8)}" ${FONT} font-size="5" text-anchor="middle">${esc(author)}</text>`);
   }
   
   out.push("</svg>");
@@ -55,8 +65,10 @@ export function copyrightPage({ w, h, m }, { title = "Libro para colorear", auth
   let y = bottomY;
   
   // Título y autor
-  out.push(`<text x="${fmt(w / 2)}" y="${fmt(y)}" ${FONT} font-size="4" text-anchor="middle">${esc(title)}</text>`);
-  y += lineHeight;
+  for (const line of wrapText(String(title), w - 2 * m - 6, 4)) {
+    out.push(`<text x="${fmt(w / 2)}" y="${fmt(y)}" ${FONT} font-size="4" text-anchor="middle">${esc(line)}</text>`);
+    y += lineHeight;
+  }
   
   if (author) {
     out.push(`<text x="${fmt(w / 2)}" y="${fmt(y)}" ${FONT} font-size="3.5" text-anchor="middle">${esc(`© ${year} ${author}`)}</text>`);
@@ -107,20 +119,6 @@ export function belongsToPage({ w, h, m }, { lineThicknessProfile = "standard" }
   out.push(`<line x1="${fmt(lineX1)}" y1="${fmt(lineY)}" x2="${fmt(lineX2)}" y2="${fmt(lineY)}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`);
   out.push(`<circle cx="${fmt(lineX2)}" cy="${fmt(lineY)}" r="${dotR}" fill="#000"/>`);
   
-  // Decoración sutil: pequeños patrones en las esquinas (opcional, muy sutil)
-  const cornerSize = 8;
-  const cornerOffset = m + 5;
-  const cornerSw = scaleStrokeForProfile(0.3, lineThicknessProfile);
-  
-  // Esquina superior izquierda
-  out.push(`<path d="M ${cornerOffset} ${cornerOffset + cornerSize} L ${cornerOffset} ${cornerOffset} L ${cornerOffset + cornerSize} ${cornerOffset}" fill="none" stroke="#000" stroke-width="${cornerSw}" stroke-linecap="round"/>`);
-  // Esquina superior derecha
-  out.push(`<path d="M ${w - cornerOffset - cornerSize} ${cornerOffset} L ${w - cornerOffset} ${cornerOffset} L ${w - cornerOffset} ${cornerOffset + cornerSize}" fill="none" stroke="#000" stroke-width="${cornerSw}" stroke-linecap="round"/>`);
-  // Esquina inferior izquierda
-  out.push(`<path d="M ${cornerOffset} ${h - cornerOffset - cornerSize} L ${cornerOffset} ${h - cornerOffset} L ${cornerOffset + cornerSize} ${h - cornerOffset}" fill="none" stroke="#000" stroke-width="${cornerSw}" stroke-linecap="round"/>`);
-  // Esquina inferior derecha
-  out.push(`<path d="M ${w - cornerOffset - cornerSize} ${h - cornerOffset} L ${w - cornerOffset} ${h - cornerOffset} L ${w - cornerOffset} ${h - cornerOffset - cornerSize}" fill="none" stroke="#000" stroke-width="${cornerSw}" stroke-linecap="round"/>`);
-  
   out.push("</svg>");
   return out.join("");
 }
@@ -143,7 +141,8 @@ export function colorTestPage({ w, h, m }, { lineThicknessProfile = "standard" }
   out.push(`<text x="${fmt(m)}" y="${fmt(section1Y + 5)}" ${FONT} font-size="3.5" font-weight="bold">Líneas de grosor variable:</text>`);
   
   const lineStartX = m + 5;
-  const lineEndX = m + testAreaWidth / 2 - 5;
+  // Hueco de 18 mm para la etiqueta («0.8 mm») antes de la columna de formas.
+  const lineEndX = m + testAreaWidth / 2 - 18;
   const lineSpacing = 8;
   let y = section1Y + 12;
   
@@ -208,22 +207,32 @@ export function generateFrontMatter(geo, opts = {}) {
   ];
 }
 
-// Utilidad: dividir texto en líneas de máximo maxChars caracteres, cortando por palabras.
-function wrapText(text, maxChars) {
-  if (!text || text.length <= maxChars) return [text || ""];
-  const words = text.split(/\s+/);
-  const lines = [];
-  let currentLine = "";
-  
-  for (const word of words) {
-    if ((currentLine + " " + word).trim().length > maxChars && currentLine) {
-      lines.push(currentLine.trim());
-      currentLine = word;
-    } else {
-      currentLine = (currentLine + " " + word).trim();
-    }
+// Ancho aproximado de un texto en mm con letra de `size` mm (negrita, prudente:
+// mayúsculas y «m/w» anchas, «i/l/.» estrechas). Sirve para partir líneas sin
+// que ningún título se salga de la hoja.
+export function textWidthMm(text, size) {
+  let em = 0;
+  for (const ch of String(text)) {
+    if (/[mwMW@]/.test(ch)) em += 0.95;
+    else if (/[A-ZÁÉÍÓÚÑÜ0-9]/.test(ch)) em += 0.78;
+    else if (/[ijlI.,:;'!|]/.test(ch)) em += 0.34;
+    else if (ch === " ") em += 0.32;
+    else em += 0.64;
   }
-  if (currentLine) lines.push(currentLine.trim());
-  
-  return lines;
+  return em * size;
 }
+
+// Parte `text` en líneas de como mucho `maxWidthMm` (una palabra más larga que
+// la línea queda sola; quien llama reduce la letra si hace falta).
+function wrapText(text, maxWidthMm, size) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && textWidthMm(next, size) > maxWidthMm) { lines.push(line); line = word; } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+const fits = (lines, maxWidthMm, size) => lines.every((l) => textWidthMm(l, size) <= maxWidthMm);
