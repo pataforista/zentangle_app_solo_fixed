@@ -88,17 +88,41 @@ const BG_GAP = 1.7;
 // (rng, frame, opts) y devuelve un string de elementos SVG dentro del frame.
 // Son formas simples para no interferir con la figura principal.
 
+// Escala de los motivos temáticos: sizeMul agranda cada motivo y countMul
+// cambia cuántos hay (como capa sobre el fondo de tangles: menos y mayores).
+function bgScale(rng, opts) {
+  const sm = Number(opts.sizeMul) > 0 ? Number(opts.sizeMul) : 1;
+  const cm = Number(opts.countMul) > 0 ? Number(opts.countMul) : 1;
+  return { sm, cnt: (lo, hi) => Math.max(1, Math.round(rInt(rng, lo, hi) * cm)) };
+}
+
+// Motivos temáticos «recortados» sobre un fondo de tangles: cada motivo lleva
+// debajo un halo blanco (aparta el tangle) y, si es cerrado, relleno blanco.
+// Así la estrella o la burbuja se lee como una pieza propia para colorear.
+function knockoutThemed(svg, pad) {
+  const els = svg.match(/<(path|circle|line)\b[^>]*\/>/g) || [];
+  const closed = (e) => e.startsWith("<circle") || /\bd="[^"]*Z"/.test(e);
+  const halo = els.map((e) => e
+    .replace(/ stroke-line(cap|join)="[^"]*"/g, "")
+    .replace(/stroke="#000"/, 'stroke="#fff"')
+    .replace(/stroke-width="([\d.]+)"/, (m, w) => `stroke-width="${fmt(Number(w) + pad)}" stroke-linecap="round" stroke-linejoin="round"`)
+    .replace(/fill="none"/, closed(e) ? 'fill="#fff"' : 'fill="none"'));
+  const ink = els.map((e) => (closed(e) ? e.replace(/fill="none"/, 'fill="#fff"') : e));
+  return halo.join("") + ink.join("");
+}
+
 // Helechos: tallo central curvo con hojas laterales (dinosaurios, prehistoria).
 function bgFerns(rng, frame, opts) {
   const { x0, y0, x1, y1 } = frame;
   const w = x1 - x0, h = y1 - y0;
   const stroke = opts._stroke || 0.35;
-  const n = rInt(rng, 4, 7);
+  const { sm, cnt } = bgScale(rng, opts);
+  const n = cnt(4, 7);
   const parts = [];
   for (let i = 0; i < n; i++) {
     const bx = x0 + rng() * w, by = y0 + rng() * h;
     const ang = rFloat(rng, -0.8, 0.8);
-    const len = rFloat(rng, h * 0.12, h * 0.25);
+    const len = rFloat(rng, h * 0.12, h * 0.25) * Math.min(sm, 1.3);
     const side = rng() < 0.5 ? -1 : 1;
     // Tallo central (curva suave).
     const cx1 = bx + side * len * 0.15, cy1 = by - len * 0.4;
@@ -127,11 +151,12 @@ function bgBubbles(rng, frame, opts) {
   const { x0, y0, x1, y1 } = frame;
   const w = x1 - x0, h = y1 - y0;
   const stroke = opts._stroke || 0.35;
-  const n = rInt(rng, 12, 22);
+  const { sm, cnt } = bgScale(rng, opts);
+  const n = cnt(12, 22);
   const parts = [];
   for (let i = 0; i < n; i++) {
     const cx = x0 + rng() * w, cy = y0 + rng() * h;
-    const r = rFloat(rng, Math.min(w, h) * 0.01, Math.min(w, h) * 0.045);
+    const r = rFloat(rng, Math.min(w, h) * 0.01, Math.min(w, h) * 0.045) * sm;
     parts.push(`<circle cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(r)}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
     // Algunas burbujas llevan un brillo (arco interior).
     if (rng() < 0.4) {
@@ -141,7 +166,7 @@ function bgBubbles(rng, frame, opts) {
     }
   }
   // Algas onduladas en la parte inferior (2-4).
-  const algae = rInt(rng, 2, 4);
+  const algae = cnt(2, 4);
   for (let i = 0; i < algae; i++) {
     const ax = x0 + w * (0.1 + rng() * 0.8);
     const aH = h * rFloat(rng, 0.15, 0.3);
@@ -165,11 +190,12 @@ function bgStars(rng, frame, opts) {
   const w = x1 - x0, h = y1 - y0;
   const stroke = opts._stroke || 0.35;
   const parts = [];
+  const { sm, cnt } = bgScale(rng, opts);
   // Estrellas de 4 puntas (15-25).
-  const n = rInt(rng, 15, 25);
+  const n = cnt(15, 25);
   for (let i = 0; i < n; i++) {
     const cx = x0 + rng() * w, cy = y0 + rng() * h;
-    const r = rFloat(rng, Math.min(w, h) * 0.008, Math.min(w, h) * 0.025);
+    const r = rFloat(rng, Math.min(w, h) * 0.008, Math.min(w, h) * 0.025) * sm;
     // Estrella de 4 puntas: dos líneas cruzadas con rombo central.
     const ri = r * 0.35; // radio interior
     let d = "";
@@ -186,17 +212,17 @@ function bgStars(rng, frame, opts) {
   if (rng() < 0.7) {
     const mx = x0 + w * rFloat(rng, 0.1, 0.9);
     const my = y0 + h * rFloat(rng, 0.05, 0.25);
-    const mr = Math.min(w, h) * rFloat(rng, 0.04, 0.07);
+    const mr = Math.min(w, h) * rFloat(rng, 0.04, 0.07) * Math.min(sm, 1.4);
     const offset = mr * 0.35;
     // Luna = círculo exterior - círculo interior desplazado (dos arcos).
     parts.push(`<path d="M${fmt(mx)} ${fmt(my - mr)} A${fmt(mr)} ${fmt(mr)} 0 1 1 ${fmt(mx)} ${fmt(my + mr)} A${fmt(mr * 0.85)} ${fmt(mr * 0.85)} 0 1 0 ${fmt(mx)} ${fmt(my - mr)}Z" fill="none" stroke="#000" stroke-width="${fmt(stroke)}"/>`);
   }
   // Puntos pequeños (estrellas lejanas, 8-15): círculos diminutos de contorno
   // (sin relleno negro, apto para colorear).
-  const dots = rInt(rng, 8, 15);
+  const dots = cnt(8, 15);
   for (let i = 0; i < dots; i++) {
     const dx = x0 + rng() * w, dy = y0 + rng() * h;
-    const dr = rFloat(rng, 0.4, 1.2);
+    const dr = rFloat(rng, 0.4, 1.2) * sm;
     parts.push(`<circle cx="${fmt(dx)}" cy="${fmt(dy)}" r="${fmt(dr)}" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.6)}"/>`);
   }
   return parts.join("");
@@ -209,10 +235,11 @@ function bgMolecules(rng, frame, opts) {
   const stroke = opts._stroke || 0.35;
   const parts = [];
   // Generar átomos en una cuadrícula irregular (8-14 átomos).
-  const n = rInt(rng, 8, 14);
+  const { sm, cnt } = bgScale(rng, opts);
+  const n = cnt(8, 14);
   const atoms = [];
   for (let i = 0; i < n; i++) {
-    atoms.push({ x: x0 + rng() * w, y: y0 + rng() * h, r: rFloat(rng, Math.min(w, h) * 0.012, Math.min(w, h) * 0.025) });
+    atoms.push({ x: x0 + rng() * w, y: y0 + rng() * h, r: rFloat(rng, Math.min(w, h) * 0.012, Math.min(w, h) * 0.025) * sm });
   }
   // Dibujar átomos.
   for (const at of atoms) {
@@ -235,7 +262,7 @@ function bgMolecules(rng, frame, opts) {
     }
   }
   // Algunas formas de ADN helicoidal (1-2 hélices).
-  const helices = rInt(rng, 1, 2);
+  const helices = cnt(1, 2);
   for (let hi = 0; hi < helices; hi++) {
     const hx = x0 + w * rFloat(rng, 0.15, 0.85);
     const hy = y0 + h * rFloat(rng, 0.1, 0.4);
@@ -268,11 +295,12 @@ function bgClouds(rng, frame, opts) {
   const stroke = opts._stroke || 0.35;
   const parts = [];
   // Nubes (3-5): grupos de 3-4 arcos.
-  const nClouds = rInt(rng, 3, 5);
+  const { sm, cnt } = bgScale(rng, opts);
+  const nClouds = cnt(3, 5);
   for (let i = 0; i < nClouds; i++) {
     const cx = x0 + w * rFloat(rng, 0.1, 0.9);
     const cy = y0 + h * rFloat(rng, 0.05, 0.35);
-    const cw = Math.min(w, h) * rFloat(rng, 0.06, 0.12);
+    const cw = Math.min(w, h) * rFloat(rng, 0.06, 0.12) * sm;
     // Base de la nube (línea horizontal) con 3-4 arcos por encima.
     const bumps = rInt(rng, 3, 5);
     let d = `M${fmt(cx - cw)} ${fmt(cy)}`;
@@ -285,18 +313,18 @@ function bgClouds(rng, frame, opts) {
     parts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="${fmt(stroke)}" stroke-linecap="round"/>`);
   }
   // Corazones pequeños (3-6).
-  const nHearts = rInt(rng, 3, 6);
+  const nHearts = cnt(3, 6);
   for (let i = 0; i < nHearts; i++) {
     const hx = x0 + w * rng(), hy = y0 + h * rng();
-    const hs = Math.min(w, h) * rFloat(rng, 0.015, 0.03);
+    const hs = Math.min(w, h) * rFloat(rng, 0.015, 0.03) * sm;
     // Corazón simple con dos arcos y una V.
     parts.push(`<path d="M${fmt(hx)} ${fmt(hy + hs * 0.6)} C${fmt(hx - hs)} ${fmt(hy - hs * 0.2)} ${fmt(hx - hs * 0.6)} ${fmt(hy - hs)} ${fmt(hx)} ${fmt(hy - hs * 0.4)} C${fmt(hx + hs * 0.6)} ${fmt(hy - hs)} ${fmt(hx + hs)} ${fmt(hy - hs * 0.2)} ${fmt(hx)} ${fmt(hy + hs * 0.6)}Z" fill="none" stroke="#000" stroke-width="${fmt(stroke * 0.8)}" stroke-linejoin="round"/>`);
   }
   // Estrellitas simples (5-8): cruces de líneas.
-  const nStars = rInt(rng, 5, 8);
+  const nStars = cnt(5, 8);
   for (let i = 0; i < nStars; i++) {
     const sx = x0 + w * rng(), sy = y0 + h * rng();
-    const sr = Math.min(w, h) * rFloat(rng, 0.008, 0.018);
+    const sr = Math.min(w, h) * rFloat(rng, 0.008, 0.018) * sm;
     // 4 líneas desde el centro (cruz).
     for (let a = 0; a < 4; a++) {
       const ang = (a / 4) * TAU;
@@ -2756,7 +2784,12 @@ export async function generateZenFigure(doc, opts) {
   // específico del tema (dino → helechos, ocean → burbujas, etc.).
   const bgPick = (dflt) => (variant ? (Math.floor(variant.rng() * 2) + variant.cycle) % 2 === 0 ? "rays" : "strings" : dflt);
   const themedBgFn = opts.themedBackground && THEME_BG_GENERATORS[opts.themedBackground] ? THEME_BG_GENERATORS[opts.themedBackground] : null;
-  const bgKind = themedBgFn ? "themed" : fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : bgPick(rng() < 0.5 ? "rays" : "strings"));
+  // El tema va como capa sobre el fondo de tangles (por defecto): solo, el
+  // fondo quedaba casi en blanco (un puñado de estrellas). «only» lo deja solo
+  // (infantil, «Tu turno»).
+  const themedOnly = !!themedBgFn && (empty || opts.themedBackgroundMode === "only");
+  const themedOverlay = !!themedBgFn && !themedOnly;
+  const bgKind = themedOnly ? "themed" : fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : bgPick(rng() < 0.5 ? "rays" : "strings"));
   const frameRings = [[{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]];
   const frameClip = clipOf(frameD);
   const bg = [], bgLines = [];
@@ -2841,6 +2874,12 @@ export async function generateZenFigure(doc, opts) {
   // recortada al marco (resvg pierde contenido con recortes anidados grandes).
   body.push(bg.join(""));
   if (bgLines.length) body.push(`<g clip-path="url(#${frameClip})">${bgLines.join("")}</g>`);
+  if (themedOverlay) {
+    // Semilla propia: la capa temática no mueve el sorteo de la figura.
+    const trng = createRNG(hash(seed, 0x7e3d));
+    const motifs = themedBgFn(trng, frame, { _stroke: strStroke, sizeMul: 1.9, countMul: 0.45 });
+    if (motifs) body.push(`<g clip-path="url(#${frameClip})" data-themed="${opts.themedBackground}">${knockoutThemed(motifs, gap * 2.2)}</g>`);
+  }
   const minisAt = body.length; // las figuritas escondidas van aquí (ver más abajo)
 
   /* ---- 2) Auras (eco del contorno) mediante trazos anchos negro/blanco ---- */
@@ -3136,8 +3175,8 @@ export async function generateZenFigure(doc, opts) {
   const covPct = Math.round(coverage * 1000) / 10; // 1 decimal
   // En «zoom» la figura sale del marco: se recorta a él.
   body.push(layout === "zoom"
-    ? `<g data-figure="${figName}" data-layout="zoom" data-bg="${bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
-    : `<g data-figure="${figName}" data-layout="${layout}" data-bg="${bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}">${figure.join("")}</g>`);
+    ? `<g data-figure="${figName}" data-layout="zoom" data-bg="${themedOverlay ? `${bgKind}+themed` : bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
+    : `<g data-figure="${figName}" data-layout="${layout}" data-bg="${themedOverlay ? `${bgKind}+themed` : bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}">${figure.join("")}</g>`);
 
   // Marco.
   if (opts.drawFrame !== false) {

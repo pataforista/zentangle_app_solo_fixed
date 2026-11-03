@@ -906,6 +906,7 @@ export const ZENTANGLE_PRESETS = {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.kids,
     themedBackground: "kids", // nubes, corazones, estrellitas
+    themedBackgroundMode: "only", // infantil: fondo ligero, sin tangles detrás
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,
