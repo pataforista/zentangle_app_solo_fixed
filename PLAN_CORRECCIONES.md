@@ -116,14 +116,17 @@ quedaba en la hoja. La regla nueva:
 
 ## 4. Seguimiento en Beads
 
-`bd` no está instalado en el entorno donde se hizo esta revisión, así que las
-tareas no se crearon. Para darlas de alta (tras `bd search` para no duplicar):
+Las correcciones ya integradas y las mejoras pendientes de la sección 2 están registradas en Beads (`bd`):
 
-```bash
-bd create "Arreglar: escalar hasta 0 páginas marcadas y bloquear PDF" -p 1
-bd create "Compuerta de parecido entre páginas (origami)" -p 1
-bd create "PDF en escala de grises para libros grandes" -p 2
-bd create "Aclarar métrica de hueco vacío en origami" -p 2
-bd create "Portada: título en varias líneas" -p 3
-bd create "Revisar fillPrintemps/fillParadox en libros infantiles" -p 3
-```
+### Cerradas (entregadas en `main`)
+- `zentangle_app_solo_fixed-b5i` (P1, bug) — Portadilla sin títulos cortados, PDF sin fuentes declaradas y páginas de cortesía aptas para KDP (`e83aa6e`)
+- `zentangle_app_solo_fixed-67v` (P1, bug) — Fondo temático como capa sobre el fondo de tangles (`443b397`)
+- `zentangle_app_solo_fixed-6oo` (P2, feature) — UI/UX: barra lateral con navegación de pasos en scroll, interruptores descriptivos y herramientas agrupadas (`2f985e0`)
+
+### Abiertas (plan de mejoras §2)
+- `zentangle_app_solo_fixed-mx0` (P1, task) — Arreglar: escalar hasta 0 páginas marcadas y bloquear PDF
+- `zentangle_app_solo_fixed-hom` (P1, task) — Compuerta de parecido entre páginas (origami)
+- `zentangle_app_solo_fixed-o7q` (P2, task) — PDF en escala de grises para libros grandes
+- `zentangle_app_solo_fixed-khc` (P2, task) — Aclarar métrica de hueco vacío en origami
+- `zentangle_app_solo_fixed-edh` (P3, task) — Portada: título en varias líneas
+- `zentangle_app_solo_fixed-2nc` (P3, task) — Revisar fillPrintemps/fillParadox en libros infantiles
