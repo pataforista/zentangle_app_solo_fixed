@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Zentangle Creator</title>
 
@@ -437,6 +438,10 @@
         box-shadow: 0 2px 8px rgb(0 0 0 / .12);
       }
       #previewInner svg { max-height: calc(38vh - 20px); }
+      /* Revisión del libro: más alto para ver las miniaturas, y el aviso de
+         estado no bloquea los toques sobre ellas. */
+      .preview-panel.gallery-active { height: 64vh; }
+      .preview-panel.gallery-active .status-bar { pointer-events: none; opacity: .92; }
       .status-bar { bottom: 6px; right: 6px; font-size: 11px; padding: 4px 10px; max-width: calc(100% - 12px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .panel-scroll { overflow: visible; padding: 16px; }
       .actions-bar {
@@ -557,6 +562,7 @@
     .tile-btns { display: flex; gap: 4px; flex-wrap: wrap; }
     .tile-btns .btn { padding: 4px 8px; font-size: 12px; min-width: 28px; }
     .tile-pin.active { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+    .book-tile .tile-accept { flex: none; white-space: nowrap; padding: 4px 8px; font-size: 12px; background: #ecfdf5; border-color: #10b981; color: #065f46; }
     .book-tile.pinned { outline: 2px solid #f59e0b; outline-offset: -2px; border-radius: 8px; }
 
     /* Selector de figuras */
@@ -801,13 +807,13 @@
           </div>
           <div class="seed-row">
             <div>
-              <label for="seed">Nº de diseño</label>
+              <label for="seed">Código del dibujo</label>
               <input id="seed" type="number" min="0" step="1" value="1" />
             </div>
             <button id="btnRandomSeed" class="btn btn-secondary" type="button" title="Nuevo diseño con otra semilla">🎲 Otro diseño</button>
             <button id="btnGallery" class="btn btn-secondary" type="button" title="Genera 8 variaciones para elegir">🖼️ 8 variaciones</button>
           </div>
-          <p class="hint">Mismo estilo + mismo número = mismo dibujo. 🎲 prueba otro al azar.</p>
+          <p class="hint">Mismo estilo + mismo código = mismo dibujo (en un libro, cada página parte de este código). 🎲 prueba otro al azar.</p>
           <label class="toggle"><input type="checkbox" id="fillDeadSpace" checked /><span class="toggle-ui" aria-hidden="true"></span><span class="toggle-text"><b>Rellenar huecos vacíos</b><small>Con burbujas para colorear</small></span></label>
         </section>
 

@@ -46,6 +46,69 @@ export async function generatePngDataUrl(svgString, widthMm, heightMm) {
   });
 }
 
+// ---- PNG en escala de grises para el PDF ----
+// Las páginas son línea negra sobre blanco: un PNG de 1 canal pesa ~1/3 del
+// RGB que da canvas.toDataURL. Un libro de 828 páginas en RGB rondaba los
+// 540 MB (límite de KDP: 650 MB). Filtro «Up» por fila (va bien con líneas)
+// y compresión zlib nativa (CompressionStream). Sin ella, null.
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+const crc32 = (bytes) => { let c = 0xffffffff; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+function pngChunk(type, data) {
+  const out = new Uint8Array(12 + data.length), dv = new DataView(out.buffer);
+  dv.setUint32(0, data.length);
+  for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+  out.set(data, 8);
+  dv.setUint32(8 + data.length, crc32(out.subarray(4, 8 + data.length)));
+  return out;
+}
+// rgba: { data, width, height } (blanco de fondo, sin transparencia).
+export async function encodeGrayPng({ data, width: w, height: h }) {
+  if (typeof CompressionStream === "undefined") return null;
+  const raw = new Uint8Array((w + 1) * h);
+  let prev = new Uint8Array(w), cur = new Uint8Array(w);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0, k = y * w * 4; x < w; x++, k += 4) cur[x] = (data[k] * 77 + data[k + 1] * 150 + data[k + 2] * 29) >> 8;
+    const o = y * (w + 1);
+    raw[o] = 2; // filtro Up
+    for (let x = 0; x < w; x++) raw[o + 1 + x] = (cur[x] - prev[x]) & 0xff;
+    [prev, cur] = [cur, prev];
+  }
+  const z = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer());
+  const ihdr = new Uint8Array(13), dv = new DataView(ihdr.buffer);
+  dv.setUint32(0, w); dv.setUint32(4, h); ihdr[8] = 8; ihdr[9] = 0; // 8 bits, gris
+  const parts = [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk("IHDR", ihdr), pngChunk("IDAT", z), pngChunk("IEND", new Uint8Array(0))];
+  const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
+  let off = 0; for (const p of parts) { out.set(p, off); off += p.length; }
+  return out;
+}
+
+// Página para el PDF: PNG gris si el navegador puede; si no, el PNG RGB.
+export async function pageImageForPdf(svgString, widthMm, heightMm) {
+  const pixelRatio = 300 / 25.4;
+  const width = Math.round(widthMm * pixelRatio), height = Math.round(heightMm * pixelRatio);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const url = URL.createObjectURL(new Blob([svgString], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    const gray = await encodeGrayPng(ctx.getImageData(0, 0, width, height)).catch(() => null);
+    return gray || canvas.toDataURL("image/png");
+  } finally {
+    URL.revokeObjectURL(url);
+    canvas.width = 0; canvas.height = 0;
+  }
+}
+
 /**
  * Descarga el contenido SVG como PNG de alta resolución.
  */
@@ -68,7 +131,7 @@ export async function downloadPdf(filename, svgString, widthMm, heightMm) {
   const orientation = widthMm > heightMm ? "l" : "p";
   const doc = new jsPDF({ orientation, unit: "mm", format: [widthMm, heightMm], putOnlyUsedFonts: true });
 
-  const dataUrl = await generatePngDataUrl(svgString, widthMm, heightMm);
+  const dataUrl = await pageImageForPdf(svgString, widthMm, heightMm);
   
   // Añadimos la imagen al PDF ocupando toda la página (con compresión rápida para reducir peso sin perder calidad)
   doc.addImage(dataUrl, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
@@ -109,7 +172,7 @@ export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = tr
       const e = sequence[i];
       if (e) {
         // Renderizar el SVG al tamaño original y colocarlo centrado con sangrado
-        const png = await generatePngDataUrl(await getEntrySvg(e), widthMm, heightMm);
+        const png = await pageImageForPdf(await getEntrySvg(e), widthMm, heightMm);
         doc.addImage(png, "PNG", bleedMm, bleedMm, widthMm, heightMm, undefined, "FAST");
       }
       if (onProgress) onProgress(i + 1, sequence.length);
@@ -121,7 +184,7 @@ export async function buildBookPdf({ widthMm, heightMm, count, blankBetween = tr
   for (let i = 0; i < count; i++) {
     if (isCancelled && isCancelled()) return null;
     const svg = await getSvg(i);
-    const png = await generatePngDataUrl(svg, widthMm, heightMm);
+    const png = await pageImageForPdf(svg, widthMm, heightMm);
     if (!first) doc.addPage([pdfWidth, pdfHeight], pdfWidth > pdfHeight ? "l" : "p");
     first = false;
     doc.addImage(png, "PNG", bleedMm, bleedMm, widthMm, heightMm, undefined, "FAST");

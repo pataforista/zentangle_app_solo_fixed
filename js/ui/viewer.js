@@ -4,7 +4,7 @@
 
 import { appState, rasterizeSvg, QPX, styleLabel, isRandomKey } from "./state.js";
 import { analyzeColorability } from "../core/pageQuality.js";
-import { stripFooter, replaceBookPage, makeBookPage } from "./review.js";
+import { stripFooter, replaceBookPage, makeBookPage, acceptBookPage, isFlagged } from "./review.js";
 
 let viewer = null;
 
@@ -64,8 +64,12 @@ export function openViewer(i) {
       redo.disabled = false;
       if (viewer) showViewerPage();
     });
+    const accept = viewerButton("✓ Aceptar así", "La miré a tamaño real y está bien: incluirla en el libro", () => {
+      acceptBookPage(viewer.i);
+      if (viewer) showViewerPage();
+    });
     const close = viewerButton("✕ Cerrar", "Cerrar (Esc)", closeViewer);
-    bar.append(prev, next, label, ...zooms, marks, redo, close);
+    bar.append(prev, next, label, ...zooms, marks, accept, redo, close);
     const scroll = document.createElement("div");
     scroll.className = "viewer-scroll";
     const pageEl = document.createElement("div");
@@ -85,7 +89,7 @@ export function openViewer(i) {
       else if (e.key === "ArrowRight") moveViewer(1);
     };
     document.addEventListener("keydown", onKey);
-    viewer = { el, label, zooms, scroll, pageEl, img, canvas, note, onKey, zoom: "fit", marks: true, i, url: null, svg: null, token: 0 };
+    viewer = { el, label, accept, zooms, scroll, pageEl, img, canvas, note, onKey, zoom: "fit", marks: true, i, url: null, svg: null, token: 0 };
   }
   viewer.i = i;
   showViewerPage();
@@ -126,7 +130,8 @@ export async function showViewerPage() {
   const q = page.quality;
   const style = isRandomKey(review.g.zPresetKey) ? ` · ${styleLabel(page.presetName)}` : "";
   viewer.label.textContent = `Diseño ${i + 1} de ${review.pages.length}${page.kind === "spread" ? " · doble página" : ""}${style}` +
-    (q ? (q.ok ? ` · ✓ calidad (${q.bad} zonas${q.coverage != null ? ` · cobertura ${Math.round(q.coverage * 100)}%` : ""}${q.contrast != null ? ` · contraste ${q.contrast >= 0 ? "+" : ""}${q.contrast}` : ""})` : ` · ⚠ ${q.reasons.join(" · ")}`) : "");
+    (q ? (q.ok ? ` · ✓ calidad (${q.bad} zonas${q.coverage != null ? ` · cobertura ${Math.round(q.coverage * 100)}%` : ""}${q.contrast != null ? ` · contraste ${q.contrast >= 0 ? "+" : ""}${q.contrast}` : ""})` : `${page.accepted ? " · ✓ aceptada" : " · ⚠"} ${q.reasons.join(" · ")}`) : "");
+  viewer.accept.hidden = !isFlagged(page);
   layoutViewer();
   viewer.canvas.width = viewer.canvas.height = 0;
   viewer.note.textContent = "Cargando…";

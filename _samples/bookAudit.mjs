@@ -1,7 +1,7 @@
 // Auditoría de libros completos: genera cada tipo de libro (BOOK_RECIPES) como
 // la app (semilla por página, dificultad, dobles páginas, arreglo automático) y
 // mide calidad y variedad.
-//   calidad:  páginas marcadas antes y después del arreglo (3 intentos), zonas
+//   calidad:  páginas marcadas antes y después del arreglo (6 intentos), zonas
 //             difíciles, tinta y mayor hueco vacío
 //   variedad: figuras distintas, repeticiones seguidas, encuadres, fondos,
 //             tangles por página y parecido visual entre páginas (huella 24×24)
@@ -78,12 +78,22 @@ async function auditBook(recipe, baseSeed) {
   const units = designUnits(recipe.designs, { spreads: recipe.spreads });
   const pages = [];
   let flagged0 = 0;
+  const NEAR = 0.8, simMax = (fp) => Math.max(0, ...pages.filter((p) => p.single).map((p) => corr(fp, p.fp)));
   for (let i = 0; i < recipe.designs; i++) {
-    let best = measure(await makePage(recipe, baseSeed, i, units, 0));
+    // Como la app (distinctBookPage): si se parece ≥ 0.8 a otra página, hasta
+    // 3 semillas más y se queda con la menos parecida.
+    let t = 0, best = measure(await makePage(recipe, baseSeed, i, units, 0));
+    best.single = units[i].kind !== "spread";
+    let bs = best.single && pages.length ? simMax(best.fp) : 0;
+    for (let k = 1; k <= 3 && bs >= NEAR; k++) {
+      const c = measure(await makePage(recipe, baseSeed, i, units, ++t)); c.single = true;
+      const s = simMax(c.fp);
+      if (s < NEAR ? bs >= NEAR || (c.ok && !best.ok) : s < bs) { best = c; bs = s; }
+    }
     if (!best.ok) flagged0++;
-    // Arreglo automático de la app: hasta 3 intentos, se queda con el mejor.
-    for (let t = 1; t <= 3 && !best.ok; t++) {
-      const c = measure(await makePage(recipe, baseSeed, i, units, t));
+    // Arreglo automático de la app: hasta 6 intentos, se queda con el mejor.
+    for (let k = 1; k <= 6 && !best.ok; k++) {
+      const c = measure(await makePage(recipe, baseSeed, i, units, ++t)); c.single = best.single;
       if (c.score < best.score) best = c;
     }
     pages.push(best);
@@ -134,3 +144,19 @@ for (const recipe of BOOK_RECIPES.filter((r) => !only || only.includes(r.id))) {
   }
 }
 if (process.env.JSON) console.log(JSON.stringify(out, null, 1));
+
+// Promesas de la guía que la auditoría hace cumplir (código de salida 1):
+//  - ningún par de páginas casi iguales (parecido ≥ 0.8);
+//  - hueco vacío = RADIO del mayor círculo blanco dentro del dibujo: media
+//    < 15 mm y máximo < 20 mm. Infantil y vitral quedan fuera a propósito:
+//    el infantil tiene fondo ligero (nubes, corazones) y el vitral piezas
+//    grandes y lisas; son sus zonas para colorear, no huecos sin dibujo.
+const fails = [];
+for (const r of out) {
+  if (r.nearDupPairs) fails.push(`${r.recipe}: ${r.nearDupPairs} pares casi iguales`);
+  const wide = r.recipe === "kids" || r.recipe === "glass";
+  if (!wide && r.blankMm >= 15) fails.push(`${r.recipe}: hueco vacío medio ${r.blankMm} mm (≥ 15)`);
+  if (!wide && r.maxBlankMm >= 20) fails.push(`${r.recipe}: hueco vacío máx ${r.maxBlankMm} mm (≥ 20)`);
+}
+if (fails.length) { console.error(`\n❌ Promesas incumplidas:\n  ${fails.join("\n  ")}`); process.exitCode = 1; }
+else if (!process.env.JSON) console.log("\n✓ Sin pares casi iguales y huecos vacíos dentro de lo prometido.");

@@ -907,6 +907,9 @@ export const ZENTANGLE_PRESETS = {
     figures: FIGURE_SETS.kids,
     themedBackground: "kids", // nubes, corazones, estrellitas
     themedBackgroundMode: "only", // infantil: fondo ligero, sin tangles detrás
+    // Sin tangles de nivel 3 ni Printemps: líneas muy juntas y manchitas
+    // pequeñas que un niño no puede colorear (pendiente P6).
+    excludeTangles: ["paradox", "hollibaugh", "bales", "cadent", "nido", "printemps"],
     cellCount: 1,
     cellBorderWidthMm: 1.2,
     patternStrokeMm: 0.35,

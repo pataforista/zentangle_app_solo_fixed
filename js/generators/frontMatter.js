@@ -224,7 +224,7 @@ export function textWidthMm(text, size) {
 
 // Parte `text` en líneas de como mucho `maxWidthMm` (una palabra más larga que
 // la línea queda sola; quien llama reduce la letra si hace falta).
-function wrapText(text, maxWidthMm, size) {
+export function wrapText(text, maxWidthMm, size) {
   const words = String(text || "").split(/\s+/).filter(Boolean);
   const lines = [];
   let line = "";
@@ -235,4 +235,4 @@ function wrapText(text, maxWidthMm, size) {
   if (line) lines.push(line);
   return lines.length ? lines : [""];
 }
-const fits = (lines, maxWidthMm, size) => lines.every((l) => textWidthMm(l, size) <= maxWidthMm);
+export const fits = (lines, maxWidthMm, size) => lines.every((l) => textWidthMm(l, size) <= maxWidthMm);
