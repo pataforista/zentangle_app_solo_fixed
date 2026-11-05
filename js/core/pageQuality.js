@@ -84,11 +84,15 @@ export const qualityScore = (q, maxBad) => q.bad / Math.max(1, maxBad) + Math.ma
 // Auditoría de composición: la figura debe ocupar un mínimo del marco y tener
 // más tinta que el fondo para que se lea bien.
 
-// Umbrales de cobertura mínima por encuadre. «center» exige más porque la
-// figura es el protagonista; «offset» y «zoom» permiten menos (se compensa
-// con la posición o el recorte); «scene» evalúa la cobertura combinada de
-// figuras en escenas multifigura con paisaje.
-export const COVERAGE_LIMITS = { center: 0.35, offset: 0.30, zoom: 0.30, scene: 0.08 };
+// Umbrales de cobertura mínima por encuadre. La cobertura es el área de la
+// silueta sobre el marco, y el motor ya encaja cada figura al marco: lo que
+// queda depende de la forma (un diplodoco o una neurona a página completa
+// cubren ~9 %, un oso ~40 %). Con 35/30 % se marcaban 88 de 90 páginas de
+// dinosaurios y más de la mitad del resto, y «Arreglar» no podía corregirlas.
+// Medido en 650 páginas de los 8 tipos de libro: mínimo 6.4 % (offset),
+// 8.1 % (center), 9.5 % (zoom). Los umbrales solo atrapan figuras diminutas
+// por un fallo, no formas delgadas. «scene» es la cobertura combinada.
+export const COVERAGE_LIMITS = { center: 0.06, offset: 0.05, zoom: 0.06, scene: 0.08 };
 
 // Extrae la cobertura y el path de la silueta del SVG (atributos data-coverage
 // y data-sil-d del grupo data-figure). Admite figuras individuales y escenas

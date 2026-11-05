@@ -1202,6 +1202,42 @@ async function runTests() {
       console.log("✓ Cuerdas curvilíneas por esqueleto y composición de escenas temáticas con 2-3 figuras verificadas.");
     }
 
+    // Prueba 23: Revisión final (cobertura, portada, soluciones)
+    {
+      console.log("\nPrueba 23: Cobertura sin falsas alarmas, portada con sangrado y soluciones en español...");
+      const { coverageVerdict, extractFigureMetrics: metrics } = await import("./js/core/pageQuality.js");
+      const { generateCoverSvg } = await import("./js/generators/cover.js");
+      const { coverSpec } = await import("./js/core/kdpListing.js");
+      const { FIGURE_NAMES_ES, figureNameEs } = await import("./js/core/figureNames.js");
+      const { FIGURE_IDS: ids } = await import("./js/generators/figure.js");
+
+      // Figuras delgadas (diplodoco, neurona) encajadas al marco no se marcan.
+      let flagged = 0, total = 0;
+      for (const fig of ["diplodocus", "neuron", "pterosaur", "brachiosaurus", "trex"]) for (const layout of ["center", "offset"]) for (const seed of [1, 2, 3]) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { seed, figureName: fig, figureLayout: layout }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+        const m = metrics(d.body.join(""));
+        if (!m) continue;
+        total++;
+        if (!coverageVerdict(m.coverage, m.layout).ok) flagged++;
+      }
+      assert.ok(total >= 20 && flagged === 0, `ERROR: la cobertura marca ${flagged}/${total} figuras delgadas bien encajadas.`);
+      assert.ok(!coverageVerdict(0.02, "center").ok, "ERROR: una figura diminuta debe marcarse.");
+
+      // Portada: el lomo empieza tras el sangrado y la contraportada.
+      const spec = coverSpec({ pages: 120, trimWmm: 215.9, trimHmm: 279.4 });
+      const cov = generateCoverSvg({ pages: 120, trimWmm: 215.9, trimHmm: 279.4, title: "Dinosaurios para colorear" });
+      const spineX = 3.175 + 215.9 + spec.spineMm / 2;
+      const rot = cov.match(/rotate\(-90 ([\d.]+) /);
+      assert.ok(rot && Math.abs(Number(rot[1]) - spineX) < 0.05, `ERROR: el texto del lomo no está centrado en el lomo (${rot?.[1]} vs ${spineX.toFixed(2)}).`);
+
+      // Todas las figuras tienen nombre en español para la página de soluciones.
+      const missing = ids.filter((f) => !FIGURE_NAMES_ES[f] && !/test/.test(f)); // las de prueba las registran otras pruebas
+      assert.deepStrictEqual(missing, [], `ERROR: figuras sin nombre en español: ${missing.join(", ")}`);
+      assert.strictEqual(figureNameEs("barn_owl"), "barn owl");
+      console.log(`✓ ${total} figuras delgadas sin falsas alarmas de cobertura, lomo centrado con sangrado y ${ids.length} figuras con nombre en español.`);
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

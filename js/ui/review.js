@@ -61,6 +61,7 @@ import {
   appendToSvg
 } from "../generators/bookExtras.js";
 import { getQualityLimitsForProfile } from "../core/thicknessProfiles.js";
+import { figureNameEs } from "../core/figureNames.js";
 import { generateFrontMatter } from "../generators/frontMatter.js";
 import {
   saveCurrentBook,
@@ -201,7 +202,7 @@ export async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb =
     const right = appendToSvg(sp.right, footer);
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
     const q = quality ? await measurePage(sp.wide, g.paper.w * 2, g.paper.h, artArea(g, true), g.opts.lineThicknessProfile) : null;
-    return { kind, seed, svg: sp.wide, left: sp.left, right, url, quality: q, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure };
+    return { kind, seed, svg: sp.wide, left: sp.left, right, url, quality: q, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure, hidden: hiddenIn(sp.wide) };
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
   const overrides = { ...printSafeOpts(g.opts), seed, ...(difficulty === null ? {} : { difficulty }) };
@@ -221,7 +222,7 @@ export async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb =
   const svg = appendToSvg(bare, pageFooter);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
   const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g), g.opts.lineThicknessProfile) : null;
-  return { kind, seed, svg, url, quality: q, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null };
+  return { kind, seed, svg, url, quality: q, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null, hidden: hiddenIn(bare) };
 }
 
 export async function buildBookExtras(review) {
@@ -240,7 +241,11 @@ export async function buildBookExtras(review) {
     out.passport = tanglePassportPage(ids, geo, { lineThicknessProfile: g.opts.lineThicknessProfile });
   }
 
-  out.hiddenSolutions = collectHiddenSolutions(review, geo);
+  // Número de página real de cada diseño (portadilla y guía van antes; la
+  // página de soluciones va después de los diseños y no los mueve).
+  const seq = planSequence(review.units, { blank: review.blank, guidePages: out.guide.length, frontMatterPages: out.frontMatter.length });
+  const pageNo = (i) => seq.findIndex((e) => e && (e.type === "design" || e.type === "spreadL") && e.i === i) + 1;
+  out.hiddenSolutions = collectHiddenSolutions(review, geo, pageNo);
 
   const usedFigs = new Set(review.pages.map((p) => p.figure).filter(Boolean));
   const turnSet = ZENTANGLE_PRESETS[g.zPresetKey]?.figures || ZENTANGLE_PRESETS.zen_figure.figures;
@@ -255,15 +260,21 @@ export async function buildBookExtras(review) {
   return out;
 }
 
-export function collectHiddenSolutions(review, geo) {
+// Figuras escondidas de una página (ids internos), leídas de su SVG.
+export const hiddenIn = (svg) => [...String(svg || "").matchAll(/data-hidden="([^"]+)"/g)].map((m) => m[1]);
+
+// pageNo(i): número de página impreso del diseño i (por defecto, i + 1).
+// Se usa la lista guardada en la página: en libros grandes el SVG se libera.
+export function collectHiddenSolutions(review, geo, pageNo = (i) => i + 1) {
   const solutions = [];
   review.pages.forEach((page, pageIndex) => {
-    const svg = page.svg || "";
-    const hiddenMatches = [...svg.matchAll(/data-hidden="([^"]+)"/g)];
-    hiddenMatches.forEach((match) => {
+    const hidden = page.hidden || hiddenIn(page.svg);
+    hidden.forEach((id) => {
       solutions.push({
         pageIndex,
-        figureName: match[1],
+        pageNumber: pageNo(pageIndex) || pageIndex + 1,
+        figureName: figureNameEs(id),
+        mainFigure: page.figure ? figureNameEs(page.figure) : null,
       });
     });
   });
@@ -286,8 +297,9 @@ export function generateSolutionsPage(solutions, geo) {
 
   solutions.slice(0, maxSolutions).forEach((sol, i) => {
     const y = startY + i * lineHeight;
-    const pageNum = sol.pageIndex + 1;
-    out.push(`<text x="${fmt(m)}" y="${fmt(y)}" ${FONT} font-size="4">Página ${pageNum}: <tspan font-weight="bold">${esc(sol.figureName)}</tspan></text>`);
+    const pageNum = sol.pageNumber ?? sol.pageIndex + 1;
+    const where = sol.mainFigure ? ` (${esc(sol.mainFigure)})` : "";
+    out.push(`<text x="${fmt(m)}" y="${fmt(y)}" ${FONT} font-size="4">Página ${pageNum}${where}: <tspan font-weight="bold">${esc(sol.figureName)}</tspan></text>`);
   });
 
   if (solutions.length > maxSolutions) {
@@ -671,6 +683,11 @@ export async function restoreBookFromRecipe(recipe) {
 
   const plan = bookPlan();
   const g = pageGeometry();
+  // La huella se toma antes de fijar seedScheme: la interfaz no lo lleva y,
+  // si entra en la huella, el libro restaurado nunca cuenta como «listo» (el
+  // botón pedía prepararlo de nuevo y se perdían los diseños cambiados con ↻).
+  const key = bookKey(g, plan);
+  g.opts = { ...g.opts };
   if (recipe.seedScheme != null) g.opts.seedScheme = recipe.seedScheme;
   else if (recipe.opts?.seedScheme != null) g.opts.seedScheme = recipe.opts.seedScheme;
   if (recipe.engineVersion && recipe.engineVersion !== ENGINE_VERSION) {
@@ -681,7 +698,7 @@ export async function restoreBookFromRecipe(recipe) {
   freeBookReview();
   const job = (appState.bookJob = { cancelled: false });
   const review = {
-    key: bookKey(g, plan),
+    key,
     g,
     n: recipe.designs,
     blank: recipe.blankBacks,

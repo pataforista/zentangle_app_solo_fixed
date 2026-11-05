@@ -130,3 +130,26 @@ Las correcciones ya integradas y las mejoras pendientes de la sección 2 están 
 - `zentangle_app_solo_fixed-khc` (P2, task) — Aclarar métrica de hueco vacío en origami
 - `zentangle_app_solo_fixed-edh` (P3, task) — Portada: título en varias líneas
 - `zentangle_app_solo_fixed-2nc` (P3, task) — Revisar fillPrintemps/fillParadox en libros infantiles
+
+---
+
+## 5. Revisión final antes de uso (5 nov 2026)
+
+Recorrido completo en Chromium: 59 estilos, los 8 tipos de libro, todas las
+descargas (SVG, PNG, PDF, JSON, libro, ficha, portada, libro abierto, mockups,
+receta, «Descargar todo», ficha bilingüe, lote ZIP), biblioteca, receta,
+importación de siluetas, modo imagen y recarga. Después, `pdfinfo`/`pdffonts`
+y renderizado de portada y páginas finales.
+
+| # | Error | Efecto | Corrección | Prueba |
+|---|---|---|---|---|
+| R1 | **La regla de cobertura marcaba casi todo** (35/30 % del marco). Mide el área de la silueta, y una figura delgada encajada a página completa cubre ~9 % | 88/90 páginas de dinosaurios y 89/90 de origami salían «⚠ revisar»; «Arreglar» no podía corregirlas | Umbrales 6/5/6 % (center/offset/zoom): solo atrapan figuras diminutas. Mínimo medido en 650 páginas: 6.4 % | Prueba 23: 30 figuras delgadas sin marca; una de 2 % sí se marca |
+| R2 | **Portada sin sangrado en las posiciones**: lomo y portada desplazados 3.2 mm | Texto del lomo fuera del lomo en libros finos (KDP lo rechaza) | Secciones desde el sangrado; hueco del código de barras a la medida de KDP (2 × 1.2 in, a 0.25 in) | Prueba 23: texto del lomo centrado |
+| R3 | **Portada con 14 fuentes sin incrustar** (igual que E3) | KDP puede rechazar la portada | `putOnlyUsedFonts` | `pdffonts` vacío |
+| R4 | **Receta cargada nunca quedaba «lista»**: `seedScheme` entraba en la huella del libro | El botón pedía preparar de nuevo y se perdían los diseños cambiados con ↻ | Huella tomada antes de fijar `seedScheme` | Recorrido: tras cargar la receta el botón dice «Descargar libro» |
+| R5 | **Soluciones con ids en inglés** («barn_owl») y número de diseño en vez de página; en libros grandes faltaban páginas | Página impresa poco profesional y confusa | Nombres en español (`js/core/figureNames.js`), página real y figura principal; lista guardada por página | Prueba 23: todas las figuras tienen nombre |
+| R6 | PDF de libro abierto bajaba como «download» (título con «:» y acentos) | Archivo sin nombre ni extensión | Nombre de archivo saneado | Recorrido |
+| R7 | 404 de `favicon.ico` en consola | Ruido en consola | Favicon vacío en línea | Recorrido sin errores |
+
+Pendientes de §2 sin cambios (P2–P6). P1 cambia de escala: tras R1 las páginas
+marcadas son pocas y «Arreglar» resuelve la mayoría.

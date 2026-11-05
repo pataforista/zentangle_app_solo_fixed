@@ -120,7 +120,10 @@ export async function downloadOpenBookPdf(sequence, { w, h, m }, getEntrySvg, ti
     await new Promise((r) => setTimeout(r, 0));
   }
   
-  const filename = `libro_abierto_${title.replace(/\s+/g, "_")}.pdf`;
+  // Solo letras ASCII, cifras, «_» y «-»: con «:» o acentos del título el
+  // navegador descartaba el nombre y bajaba un archivo llamado «download».
+  const safe = String(title).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "libro";
+  const filename = `libro_abierto_${safe}.pdf`;
   doc.save(filename);
   return filename;
 }
