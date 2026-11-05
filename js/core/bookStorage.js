@@ -84,6 +84,7 @@ export async function saveCurrentBook(review) {
         history: p.history || [],
         // Página fijada: sobrevive a «Preparar libro».
         pinned: !!p.pinned,
+        accepted: !!p.accepted,
       })),
     };
     const tx = db.transaction(STORE_CURRENT, "readwrite");

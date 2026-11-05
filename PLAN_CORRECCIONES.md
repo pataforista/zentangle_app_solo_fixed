@@ -151,5 +151,35 @@ y renderizado de portada y páginas finales.
 | R6 | PDF de libro abierto bajaba como «download» (título con «:» y acentos) | Archivo sin nombre ni extensión | Nombre de archivo saneado | Recorrido |
 | R7 | 404 de `favicon.ico` en consola | Ruido en consola | Favicon vacío en línea | Recorrido sin errores |
 
-Pendientes de §2 sin cambios (P2–P6). P1 cambia de escala: tras R1 las páginas
-marcadas son pocas y «Arreglar» resuelve la mayoría.
+Los pendientes P1–P6 de §2 se cierran en §6.
+
+---
+
+## 6. Cierre de pendientes P1–P6 y revisión de interfaz (5 nov 2026)
+
+Medido con `audit:books` (semilla 20261031, libros completos de los 8 tipos)
+tras los cambios.
+
+| # | Pendiente | Qué se hizo | Resultado medido | Prueba |
+|---|---|---|---|---|
+| P1 | Páginas que «Arreglar» no sanea | «Arreglar» prueba hasta 6 semillas (antes 3). La página que siga marcada se puede **aceptar** en el visor o en su miniatura («✓ Aceptar»); queda en la receta y en la biblioteca. **El PDF no se descarga** con marcadas sin aceptar | Marcadas tras arreglar: adultos 1/40, mezcla 1/50, dinos 0/34, origami 0/34, bio 2/26, críptidos 0/28, infantil 1/28, vitral 0/30 | e2e: el PDF se bloquea con marcadas y baja tras aceptarlas |
+| P2 | Páginas casi iguales (origami) | Huella 24×24 de cada página (del raster del control de calidad). Al preparar, si una página se parece ≥ 0.8 a otra, prueba hasta 3 semillas y se queda con la menos parecida (`js/core/pageSimilarity.js`) | 0 pares casi iguales en los 8 tipos; parecido máx. origami 0.57 (antes 0.90) | Prueba 23; `audit:books` falla con algún par ≥ 0.8 |
+| P3 | Peso del PDF | Páginas incrustadas como PNG gris de 8 bits (1 canal) con filtro «Up»; si el navegador no tiene `CompressionStream`, vuelve al PNG RGB | Libro de 43 páginas: 23.2 → 13.4 MB (−42 %), 300 ppp. Proyección a 828 págs: ≈ 310 MB (límite KDP 650 MB) | Prueba 23 (decodifica el PNG); `pdfimages` muestra `gray` |
+| P4 | Métrica de hueco vacío | Es el **radio** del mayor círculo blanco del dibujo. Guía corregida: < 15 mm en la figura para adultos; en libros, media < 15 y máx. < 20 mm. Infantil y vitral, fuera a propósito (zonas amplias por diseño) | Origami máx. 14.2 mm (antes 63.5); adultos 12.8; dinos 16.8; bio 18.3 | `audit:books` falla si se incumple |
+| P5 | Título de la portada | Título en hasta 3 líneas (hasta 14 mm de letra) y subtítulo tras «:», como en la portadilla | Renderizado revisado | — |
+| P6 | Printemps/Paradox en infantil | Salían (Paradox 40, Printemps 31 veces en 60 páginas). El infantil excluye los tangles de nivel 3 y Printemps (`excludeTangles`) | 0 apariciones; golden del infantil actualizado a propósito | Prueba 23 |
+
+### Revisión de interfaz (Nielsen, Gestalt, WCAG; un solo evaluador)
+
+Capas: contexto ✓ · flujo ✓ · composición y lenguaje ✓ · accesibilidad
+parcial (sin lector de pantalla) · pase visual ✓ · huellas de IA ✓ ·
+pruebas con usuarios: no hechas.
+
+| Hallazgo | Principio | Severidad | Estado |
+|---|---|---|---|
+| «Nº de diseño» (semilla) junto a «Nº de diseños» | Nielsen 2 y 4 (vocabulario, consistencia) | 2 | Corregido: «Código del dibujo» |
+| Barra de estado con «Seed», «LETTER», «300 DPI ready» | Nielsen 2 | 1 | Corregido: «código · 8.5×11 in · listo a 300 ppp» |
+| No había forma de dar por buena una página marcada | Nielsen 3 (control y libertad) | 3 | Corregido: «✓ Aceptar» |
+| En móvil el aviso de estado tapa miniaturas y la vista previa es baja | Adaptación a pantallas | 2 | Pendiente (la producción se hace en escritorio) |
+| Emojis como iconos en casi todos los rótulos | Huella de IA / consistencia | 1 | Se mantiene: ayudan a reconocer las acciones |
+| Nombre «Zentangle Creator» usa una marca registrada | Riesgo legal (no llega al libro) | 1 | Pendiente de decisión del dueño |

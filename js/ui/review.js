@@ -62,6 +62,7 @@ import {
 } from "../generators/bookExtras.js";
 import { getQualityLimitsForProfile } from "../core/thicknessProfiles.js";
 import { figureNameEs } from "../core/figureNames.js";
+import { pageFingerprint, maxSimilarity, NEAR_DUP } from "../core/pageSimilarity.js";
 import { generateFrontMatter } from "../generators/frontMatter.js";
 import {
   saveCurrentBook,
@@ -163,12 +164,14 @@ export function keepOrDropSvg(review, page, freed = 0) {
 
 export const stripFooter = (svg) => svg.replace(/<g data-footer="1">[\s\S]*?<\/g>/, "");
 
-export async function measurePage(svg, wMm, hMm, artAreaMm2, thicknessProfile = "standard") {
+export async function measurePage(svg, wMm, hMm, artAreaMm2, thicknessProfile = "standard", marginMm = null) {
   const r = await rasterizeSvg(svg, Math.round(wMm * QPX), Math.round(hMm * QPX));
   const q = analyzeColorability(r, QPX);
+  // Huella para el control de parecido entre páginas (solo páginas sueltas).
+  const fp = marginMm == null ? null : pageFingerprint(r, QPX, marginMm);
   const profileLimits = getQualityLimitsForProfile(thicknessProfile);
   const v = qualityVerdict(q, artAreaMm2, { ...profileLimits, badPerDm2: Number(globalThis.ZT_QUALITY_BAD_DM2) || profileLimits.badPerDm2 });
-  const result = { bad: q.bad, ink: Math.round(q.ink * 10) / 10, ok: v.ok, reasons: [...v.reasons], maxBad: v.maxBad };
+  const result = { bad: q.bad, ink: Math.round(q.ink * 10) / 10, ok: v.ok, reasons: [...v.reasons], maxBad: v.maxBad, ...(fp ? { fp } : {}) };
   const figMetrics = extractFigureMetrics(svg);
   if (figMetrics) {
     result.coverage = figMetrics.coverage;
@@ -221,7 +224,7 @@ export async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb =
     : seek ? footerSvg(geo, { text: `${seek[0].toUpperCase()}${seek.slice(1)}`, lineThicknessProfile: g.opts.lineThicknessProfile }) : "";
   const svg = appendToSvg(bare, pageFooter);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
-  const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g), g.opts.lineThicknessProfile) : null;
+  const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g), g.opts.lineThicknessProfile, g.marginMm) : null;
   return { kind, seed, svg, url, quality: q, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null, hidden: hiddenIn(bare) };
 }
 
@@ -450,7 +453,22 @@ export function updateNextSteps() {
   });
 }
 
-export const flaggedPages = (review) => review.pages.map((p, i) => (p.quality && !p.quality.ok ? i : -1)).filter((i) => i >= 0);
+// Marcada = no pasa el control y nadie la aceptó a mano en el visor.
+export const isFlagged = (p) => !!(p && p.quality && !p.quality.ok && !p.accepted);
+export const flaggedPages = (review) => review.pages.map((p, i) => (isFlagged(p) ? i : -1)).filter((i) => i >= 0);
+
+// Acepta una página marcada tal como está (queda anotado en la receta).
+export function acceptBookPage(i) {
+  const review = appState.bookReview;
+  const page = review?.pages[i];
+  if (!page || appState.bookJob) return;
+  page.accepted = true;
+  document.querySelector(`.book-tile[data-index="${i}"]`)?.replaceWith(bookTile(i));
+  updateQualitySummary();
+  saveCurrentBook(review);
+  const left = flaggedPages(review).length;
+  ui.status.textContent = `✓ Diseño ${i + 1} aceptado tal como está` + (left ? ` · quedan ${left} marcada${left > 1 ? "s" : ""}` : " · ya puedes descargar el PDF");
+}
 
 export function updateQualitySummary() {
   const el = $("qSummary"), fix = $("btnFixFlagged");
@@ -490,7 +508,10 @@ export async function fixFlaggedPages() {
       const old = review.pages[i];
       let best = old, tries = old.tries || 0;
       const score = (p) => qualityScore(p.quality, p.quality.maxBad);
-      for (let a = 0; a < 3 && !best.quality.ok && !job.cancelled; a++) {
+      // Hasta 6 semillas nuevas: con 3 quedaban páginas marcadas que una
+      // cuarta o quinta semilla resolvía. Solo cambia la semilla, así la
+      // receta reproduce el libro exacto.
+      for (let a = 0; a < 6 && !best.quality.ok && !job.cancelled; a++) {
         tries++;
         const cand = await makeBookPage(review.g, pageSeed(review.baseSeed, i, tries), i, review.baseSeed, review);
         cand.tries = tries;
@@ -518,7 +539,7 @@ export async function fixFlaggedPages() {
       fresh.querySelector(".tile-redo").disabled = true;
     }
     const left = flaggedPages(review).length;
-    ui.status.textContent = `✓ ${fixed} de ${flagged.length} páginas arregladas` + (left ? ` · ${left} siguen marcadas: ábrelas para ver las zonas en rojo y decide si las dejas o las cambias con ↻` : "");
+    ui.status.textContent = `✓ ${fixed} de ${flagged.length} páginas arregladas` + (left ? ` · ${left} siguen marcadas: ábrelas para ver las zonas en rojo y cámbialas con ↻ o pulsa «✓ Aceptar»` : "");
   } catch (err) {
     ui.status.textContent = `✗ No se pudieron arreglar las páginas: ${err.message}`;
     console.error("Error al arreglar páginas:", err);
@@ -555,6 +576,7 @@ export function bookRecipe(review) {
       kind: p.kind,
       seed: p.seed,
       tries: p.tries || 0,
+      ...(p.accepted && p.quality && !p.quality.ok ? { accepted: true } : {}),
       style: p.presetName,
       figure: p.figure || null,
       tangles: p.tangles || [],
@@ -727,6 +749,7 @@ export async function restoreBookFromRecipe(recipe) {
       const rp = recipe.pages[i];
       const page = await makeBookPage(g, rp.seed, i, baseSeed, review);
       page.tries = rp.tries || 0;
+      page.accepted = !!rp.accepted;
       keepOrDropSvg(review, page);
       review.pages.push(page);
       ui.bookBar.value = (i + 1) / recipe.pages.length;
@@ -740,7 +763,7 @@ export async function restoreBookFromRecipe(recipe) {
     appState.bookReview = review;
     showBookReview();
     const nFlag = flaggedPages(review).length;
-    ui.status.textContent = `✓ Receta cargada: ${review.n} diseños (${review.total} páginas) restaurados` + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad` : "") + " · puedes descargar el PDF directamente";
+    ui.status.textContent = `✓ Receta cargada: ${review.n} diseños (${review.total} páginas) restaurados` + (nFlag ? ` · ${nFlag} marcada${nFlag > 1 ? "s" : ""} por calidad: arréglalas, cámbialas o acéptalas antes del PDF` : " · puedes descargar el PDF directamente");
   } catch (err) {
     review.pages.forEach((p) => URL.revokeObjectURL(p.url));
     ui.status.textContent = `✗ Error al restaurar la receta: ${err.message}`;
@@ -757,7 +780,7 @@ export function bookTile(i) {
   const bookReview = appState.bookReview;
   const page = bookReview.pages[i];
   const tile = document.createElement("figure");
-  const flagged = page.quality && !page.quality.ok;
+  const flagged = isFlagged(page);
   tile.className = `gallery-item book-tile${page.kind === "spread" ? " spread" : ""}${flagged ? " flagged" : ""}${page.pinned ? " pinned" : ""}`;
   tile.dataset.index = String(i);
   const img = document.createElement("img");
@@ -791,6 +814,16 @@ export function bookTile(i) {
     btns.append(undo);
   }
 
+  if (flagged) {
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "btn btn-secondary tile-accept";
+    ok.textContent = "✓ Aceptar";
+    ok.title = "Mirada a tamaño real y está bien: incluirla así en el libro";
+    ok.addEventListener("click", () => acceptBookPage(i));
+    btns.append(ok);
+  }
+
   const pin = document.createElement("button");
   pin.type = "button";
   pin.className = `btn btn-secondary tile-pin${page.pinned ? " active" : ""}`;
@@ -802,10 +835,10 @@ export function bookTile(i) {
   if (page.quality) {
     const badge = document.createElement("span");
     badge.className = `q-badge${flagged ? " bad" : ""}`;
-    badge.textContent = flagged ? "⚠ revisar" : "✓";
+    badge.textContent = flagged ? "⚠ revisar" : page.accepted && !page.quality.ok ? "✓ aceptada" : "✓";
     const covInfo = page.quality.coverage != null ? ` · cobertura ${Math.round(page.quality.coverage * 100)}%` : "";
     const contInfo = page.quality.contrast != null ? ` · contraste ${page.quality.contrast >= 0 ? "+" : ""}${page.quality.contrast}` : "";
-    badge.title = flagged ? page.quality.reasons.join(" · ") : `Calidad correcta (${page.quality.bad} zonas diminutas${covInfo}${contInfo})`;
+    badge.title = flagged || page.accepted ? page.quality.reasons.join(" · ") : `Calidad correcta (${page.quality.bad} zonas diminutas${covInfo}${contInfo})`;
     cap.append(label, badge, btns);
   } else {
     cap.append(label, btns);
@@ -943,6 +976,26 @@ export function applyShowcaseOrder(review) {
   review.pages = ordered.map((entry) => entry.page);
 }
 
+// Diseño i del libro, distinto de los anteriores: si se parece demasiado
+// (≥ NEAR_DUP) a otra página ya hecha, prueba hasta 3 semillas más y se queda
+// con la menos parecida (si empata en parecido, con la de mejor calidad).
+// Solo cambia la semilla (queda en «tries»), así la receta lo reproduce.
+export async function distinctBookPage(g, i, baseSeed, review) {
+  const prev = review.pages.map((p) => p.quality?.fp).filter(Boolean);
+  let best = await makeBookPage(g, pageSeed(baseSeed, i, 0), i, baseSeed, review);
+  best.tries = 0;
+  if (!best.quality?.fp || !prev.length) return best;
+  let bestSim = maxSimilarity(best.quality.fp, prev).sim;
+  for (let t = 1; t <= 3 && bestSim >= NEAR_DUP; t++) {
+    const cand = await makeBookPage(g, pageSeed(baseSeed, i, t), i, baseSeed, review);
+    cand.tries = t;
+    const sim = maxSimilarity(cand.quality.fp, prev).sim;
+    const better = sim < NEAR_DUP ? bestSim >= NEAR_DUP || (cand.quality.ok && !best.quality.ok) : sim < bestSim;
+    if (better) { URL.revokeObjectURL(best.url); best = cand; bestSim = sim; } else URL.revokeObjectURL(cand.url);
+  }
+  return best;
+}
+
 export async function prepareBook() {
   const plan = bookPlan();
   const { n, blank } = plan;
@@ -988,11 +1041,11 @@ export async function prepareBook() {
         restored.tries = pinned.tries;
         restored.history = pinned.history;
         restored.pinned = true;
+        restored.accepted = !!pinned.accepted;
         keepOrDropSvg(review, restored);
         review.pages.push(restored);
       } else {
-        const page = await makeBookPage(g, pageSeed(baseSeed, i, 0), i, baseSeed, review);
-        page.tries = 0;
+        const page = await distinctBookPage(g, i, baseSeed, review);
         keepOrDropSvg(review, page);
         review.pages.push(page);
       }
@@ -1276,6 +1329,7 @@ export async function restoreAutosavedBook(saved) {
       page.tries = sp.tries || 0;
       page.history = sp.history || [];
       page.pinned = !!sp.pinned;
+      page.accepted = !!sp.accepted;
       keepOrDropSvg(review, page);
       review.pages.push(page);
       ui.bookBar.value = (i + 1) / saved.pages.length;

@@ -47,6 +47,7 @@ import {
   busyButtons,
   withBusy,
   PAPER_SIZES_MM,
+  PAPER_LABELS,
   isRandomKey
 } from "./ui/state.js";
 
@@ -112,10 +113,10 @@ async function renderGallery(count = 8) {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "gallery-item";
-    item.title = `Usar semilla ${seed}`;
+    item.title = `Usar el código ${seed}`;
     item.innerHTML =
       `<div class="gallery-thumb"><div style="background:#fff">${innerSvg}</div></div>` +
-      `<span class="gallery-label">seed ${seed}${styleTag}</span>`;
+      `<span class="gallery-label">código ${seed}${styleTag}</span>`;
     item.addEventListener("click", () => {
       ui.seed.value = String(seed);
       render();
@@ -209,7 +210,7 @@ async function render({ forPrint = false } = {}) {
 
   const kdpWarn = kdpWarning(marginMm, opts.kdpBleedMm);
   const dice = isRandomKey(zPresetKey) ? "🎲 " : "";
-  ui.status.textContent = `✓ ${dice}${presetLabel} | Seed: ${opts.seed} | ${paperKey} | 300 DPI ready${kdpWarn}`;
+  ui.status.textContent = `✓ ${dice}${presetLabel} · código ${opts.seed} · ${PAPER_LABELS[paperKey] || paperKey} · listo a 300 ppp${kdpWarn}`;
   return { svg, opts, paperKey, zPresetKey: shownKey };
 }
 
@@ -281,7 +282,7 @@ async function renderImageMode(presetPaper, marginMm, inner, paperKey) {
     cellShadowEnabled: ui.cellShadowEnabled.value,
   });
 
-  ui.status.textContent = `✓ Imagen + Zentangle | Seed: ${opts.seed} | ${slices} simetrías | ${paperKey}`;
+  ui.status.textContent = `✓ Imagen + patrones · código ${opts.seed} · ${slices} simetrías · ${PAPER_LABELS[paperKey] || paperKey}`;
   return { svg, opts, paperKey, zPresetKey };
 }
 
@@ -570,7 +571,7 @@ function bind() {
       markRecipe();
       const h = $("recipeHint");
       if (h) h.textContent = `${r.label}: ${r.hint} Ahora pulsa «📖 Preparar libro».`;
-      ui.status.textContent = `✓ Libro «${r.label.replace(/^\S+\s/, "")}» configurado: ${r.designs} diseños · semilla ${ui.seed.value} · pulsa «Preparar libro»`;
+      ui.status.textContent = `✓ Libro «${r.label.replace(/^\S+\s/, "")}» configurado: ${r.designs} diseños · código ${ui.seed.value} · pulsa «Preparar libro»`;
     });
     recipeBox?.append(b);
   });

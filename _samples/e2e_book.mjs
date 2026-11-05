@@ -119,6 +119,15 @@ try {
   if (rec.pages?.length !== N || rec.totalPages !== expected) fail("la receta no recoge todas las páginas del libro.");
   if (rec.opts?.showSafeZone !== false) fail("la receta (y el libro) llevan las guías de zona segura.");
   if (rec.engineVersion !== "2.1.0" || rec.seedScheme !== 2) fail("la receta no incluye engineVersion o seedScheme.");
+  // Con páginas marcadas el PDF no se descarga: hay que arreglarlas o aceptarlas.
+  const stillFlagged = await page.$$eval(".book-tile .q-badge.bad", (els) => els.length);
+  if (stillFlagged) {
+    await page.click("#btnBook");
+    await page.waitForTimeout(500);
+    if (!/Quedan \d+ página/.test(await page.textContent("#status"))) fail("el PDF no se bloquea con páginas marcadas.");
+    while (await page.$(".tile-accept")) { await page.click(".tile-accept >> nth=0"); await page.waitForTimeout(100); }
+    if (await page.$$eval(".book-tile .q-badge.bad", (els) => els.length)) fail("«✓ Aceptar» no quita la marca.");
+  }
   const pdfDl = page.waitForEvent("download", { timeout: 1800000 });
   await page.click("#btnBook");
   const pdfPath = join(dir, "libro.pdf");

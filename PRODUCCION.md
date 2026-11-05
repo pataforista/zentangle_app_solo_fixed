@@ -41,7 +41,9 @@ Después puedes ajustar cualquier cosa a mano.
    marcado (por defecto), las marcadas se rehacen solas.
 2. **Revisa**: toca una página para verla a tamaño real, con las zonas
    difíciles en rojo (← → para pasar de página). **↻ Cambiar** la sustituye
-   por otra al instante.
+   por otra al instante. Si una página marcada (⚠) te parece bien a tamaño
+   real, pulsa **✓ Aceptar así** (queda anotado en la receta). El PDF no se
+   descarga mientras quede alguna marcada sin arreglar, cambiar o aceptar.
 3. **📦 Descargar todo**: baja el PDF del interior, la ficha de KDP y la
    receta del libro. (Si prefieres, cada una tiene su botón en
    «Para terminar: Revisar → PDF → Ficha KDP → Receta», con ✓ al hacerla.)
@@ -53,7 +55,9 @@ Después puedes ajustar cualquier cosa a mano.
 ## Antes de subir
 
 Si cambiaste código de la app, primero `npm run check` (pruebas + libro de
-punta a punta en el navegador). Si falla, no publiques con esa versión.
+punta a punta en el navegador) y `npm run audit:books` (≈ 8 min: parecido
+entre páginas y huecos vacíos de los 8 tipos). Si falla, no publiques con
+esa versión.
 
 - [ ] Resumen sin ⚠ y con «✓ Cumple los límites de KDP».
 - [ ] Control de calidad sin páginas marcadas (o las que quedan, vistas en el
@@ -77,7 +81,7 @@ punta a punta en el navegador). Si falla, no publiques con esa versión.
 | Margen insuficiente | Aviso según el nº de páginas |
 | Guías, textura o sombreado impresos | Se quitan del libro |
 | Zonas imposibles de colorear | Control por página, «Arreglar», visor con zonas en rojo, márgenes blancos junto a cuerdas y contornos |
-| Huecos vacíos | Solo quedan lisas secciones pequeñas; una prueba exige que el mayor hueco mida < 15 mm de radio |
+| Huecos vacíos | Solo quedan lisas secciones pequeñas. Radio del mayor hueco: < 15 mm en la figura para adultos (`npm test`); en libros completos media < 15 mm y máximo < 20 mm (`audit:books`). Infantil y vitral dejan zonas amplias a propósito |
 | Páginas casi negras | Se marcan las de más del 25 % de tinta |
 | Estilos o figuras repetidas | Sin vecinas repetidas; cada figura sale una vez por vuelta (la repetida va en espejo y con otra paleta de tangles) |
 | Marcas registradas | La ficha usa «Zentangle®» solo como atribución |

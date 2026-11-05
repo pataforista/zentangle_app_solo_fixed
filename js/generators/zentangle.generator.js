@@ -101,7 +101,7 @@ export async function generateZentangle(doc, {
     const salted = figureBookSeed(bookSeed ?? seed, bookMode);
     const ownFigure = !finalOpts.figureName;
     if (ownFigure) finalOpts.figureName = figureForPage(salted, n, ids);
-    if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(salted, nPal);
+    if (finalOpts.tanglePalette === undefined) finalOpts.tanglePalette = figurePalette(salted, nPal, finalOpts.excludeTangles);
     const cycle = Math.floor(n / ids.length);
     mirror = cycle % 2 === 1;
     // Cada vuelta del repertorio cambia también encuadre y fondo (figure.js).

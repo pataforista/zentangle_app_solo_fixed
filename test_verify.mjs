@@ -1235,7 +1235,42 @@ async function runTests() {
       const missing = ids.filter((f) => !FIGURE_NAMES_ES[f] && !/test/.test(f)); // las de prueba las registran otras pruebas
       assert.deepStrictEqual(missing, [], `ERROR: figuras sin nombre en español: ${missing.join(", ")}`);
       assert.strictEqual(figureNameEs("barn_owl"), "barn owl");
-      console.log(`✓ ${total} figuras delgadas sin falsas alarmas de cobertura, lomo centrado con sangrado y ${ids.length} figuras con nombre en español.`);
+      // P3: PNG gris para el PDF (1 canal, filtro Up, zlib) se decodifica igual.
+      const { encodeGrayPng } = await import("./js/core/export.js");
+      const zlib = await import("node:zlib");
+      const W = 40, H = 30, rgba = new Uint8Array(W * H * 4).fill(255);
+      for (let x = 5; x < 35; x++) { const k = (10 * W + x) * 4; rgba[k] = rgba[k + 1] = rgba[k + 2] = 0; }
+      const png = await encodeGrayPng({ data: rgba, width: W, height: H });
+      assert.ok(png && png[25] === 0 && png[24] === 8, "ERROR: el PNG del PDF no es gris de 8 bits.");
+      const idatLen = new DataView(png.buffer).getUint32(33);
+      const rows = zlib.inflateSync(png.subarray(41, 41 + idatLen));
+      const gray = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) gray[y * W + x] = (rows[y * (W + 1) + 1 + x] + (y ? gray[(y - 1) * W + x] : 0)) & 0xff;
+      assert.ok(gray[10 * W + 20] === 0 && gray[11 * W + 20] === 255 && gray[0] === 255, "ERROR: el PNG gris no reproduce la línea.");
+
+      // P2: huellas de parecido (misma página = 1; distinta composición < 0.8).
+      const { pageFingerprint, fingerprintCorr, maxSimilarity, NEAR_DUP } = await import("./js/core/pageSimilarity.js");
+      const ras = async (fig, seed) => {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed, presetName: "zen_figure", overrides: { seed, figureName: fig }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.9 279.4"><defs>${d.defs.join("")}</defs><rect width="216" height="280" fill="#fff"/>${d.body.join("")}</svg>`;
+        const im = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 2 } }).render();
+        return pageFingerprint({ data: im.pixels, width: im.width, height: im.height }, 2, 12.7);
+      };
+      const fa = await ras("owl", 5), fb = await ras("owl", 5), fc = await ras("whale", 77);
+      assert.ok(fingerprintCorr(fa, fb) > 0.999 && fingerprintCorr(fa, fc) < NEAR_DUP, "ERROR: la huella de parecido no distingue páginas.");
+      assert.strictEqual(maxSimilarity(fc, [fa, fb]).at >= 0, true);
+
+      // P6: el libro infantil no usa tangles avanzados ni Printemps.
+      const { ZENTANGLE_PRESETS: P } = await import("./js/generators/zentangle.presets.js");
+      const banned = P.zen_figure_kids.excludeTangles;
+      for (let k = 0; k < 12; k++) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: 300 + k, presetName: "zen_figure_kids", overrides: { seed: 300 + k, difficulty: 1 }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex: k, bookSeed: 9 });
+        const t = [...d.body.join("").matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1]).filter((x) => banned.includes(x));
+        assert.deepStrictEqual(t, [], `ERROR: el infantil usa tangles excluidos: ${t.join(", ")}`);
+      }
+      console.log(`✓ ${total} figuras delgadas sin falsas alarmas de cobertura, lomo centrado con sangrado, ${ids.length} figuras con nombre en español, PNG gris para el PDF, huella de parecido y libro infantil sin tangles avanzados.`);
     }
 
     console.log("\n==============================================");

@@ -2,7 +2,7 @@
 // Generador de portada PDF para KDP. Incluye portada, lomo y contraportada
 // en un solo PDF con las dimensiones exactas que pide KDP.
 import { coverSpec, BLOCKED_TERMS, containsBlocked } from "../core/kdpListing.js";
-import { textWidthMm } from "./frontMatter.js";
+import { textWidthMm, wrapText, fits } from "./frontMatter.js";
 
 const fmt = (n) => (Math.round(Number(n) * 100) / 100).toString();
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -95,15 +95,31 @@ export function generateCoverSvg({ pages, trimWmm, trimHmm, paper = "white", tit
   // === PORTADA (derecha) ===
   const frontCenterX = frontStart + frontWidth / 2;
   
-  // Título principal
-  const titleY = heightMm / 3;
-  // Letra que deja el título con 15 mm libres por lado (ancho medido por letra).
-  const titleFontSize = Math.min(12, (frontWidth - 30) / Math.max(1, textWidthMm(cleanTitle, 1)));
-  out.push(`<text x="${fmt(frontCenterX)}" y="${fmt(titleY)}" ${FONT} font-size="${fmt(titleFontSize)}" text-anchor="middle" font-weight="bold">${esc(cleanTitle || "Libro para colorear")}</text>`);
+  // Título principal: la parte antes de «:» en hasta 3 líneas grandes y el
+  // resto como subtítulo (como en la portadilla). Antes iba en una sola línea
+  // y un título largo quedaba diminuto. 15 mm libres por lado.
+  const availW = frontWidth - 30;
+  const [main, ...rest] = String(cleanTitle || "Libro para colorear").split(/:\s+/);
+  const subtitle = rest.join(": ");
+  let size = 14, lines = wrapText(main, availW, size);
+  while ((lines.length > 3 || !fits(lines, availW, size)) && size > 6) { size -= 0.5; lines = wrapText(main, availW, size); }
+  let subSize = Math.min(7, size * 0.55);
+  let subLines = subtitle ? wrapText(subtitle, availW, subSize) : [];
+  while ((subLines.length > 3 || !fits(subLines, availW, subSize)) && subSize > 3.5) { subSize -= 0.25; subLines = wrapText(subtitle, availW, subSize); }
+  let ty = heightMm / 3 - ((lines.length - 1) * size * 1.2) / 2;
+  lines.forEach((line) => {
+    out.push(`<text x="${fmt(frontCenterX)}" y="${fmt(ty)}" ${FONT} font-size="${fmt(size)}" text-anchor="middle" font-weight="bold">${esc(line)}</text>`);
+    ty += size * 1.2;
+  });
+  ty += subSize * 0.6;
+  subLines.forEach((line) => {
+    out.push(`<text x="${fmt(frontCenterX)}" y="${fmt(ty)}" ${FONT} font-size="${fmt(subSize)}" text-anchor="middle">${esc(line)}</text>`);
+    ty += subSize * 1.35;
+  });
   
   // Autor
   if (cleanAuthor) {
-    out.push(`<text x="${fmt(frontCenterX)}" y="${fmt(titleY + 15)}" ${FONT} font-size="5" text-anchor="middle">${esc(cleanAuthor)}</text>`);
+    out.push(`<text x="${fmt(frontCenterX)}" y="${fmt(ty + 10)}" ${FONT} font-size="5" text-anchor="middle">${esc(cleanAuthor)}</text>`);
   }
   
   // Serie (si aplica)

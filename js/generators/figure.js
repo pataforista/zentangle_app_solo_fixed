@@ -2372,8 +2372,9 @@ export function figureForPage(bookSeed, n, ids = FIGURE_IDS) {
 // exactamente los mismos 8 tangles.
 export const FIGURE_PALETTE_SIZE = 8;
 const PALETTE_STEP = 5;
-export function figurePalette(bookSeed, n) {
-  const ids = POOL.map((t) => t.id);
+// exclude: tangles que el libro no usa (p. ej. los avanzados en el infantil).
+export function figurePalette(bookSeed, n, exclude = null) {
+  const ids = POOL.map((t) => t.id).filter((id) => !exclude || !exclude.includes(id));
   const perLap = Math.ceil(ids.length / PALETTE_STEP), lap = Math.floor(n / perLap);
   const rng = createRNG(hash(bookSeed >>> 0, lap ? 0x9a1e + lap * 0x101 : 0x9a1e));
   for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
@@ -2742,8 +2743,13 @@ export async function generateZenFigure(doc, opts) {
   // tanglePalette: tangles permitidos en esta página (libro). Si deja un
   // grupo con menos de 3, ese grupo usa su lista completa.
   const palette = Array.isArray(opts.tanglePalette) && opts.tanglePalette.length ? new Set(opts.tanglePalette) : null;
+  // excludeTangles: nunca en este estilo (infantil: sin tangles avanzados ni
+  // los de muchas manchitas). Si un grupo se queda vacío, se ignora.
+  const banned = Array.isArray(opts.excludeTangles) ? new Set(opts.excludeTangles) : null;
   const pickTangle = (pool) => {
-    const full = pool.map((t) => (typeof t === "string" ? byId.get(t) : t)).filter(Boolean);
+    const all = pool.map((t) => (typeof t === "string" ? byId.get(t) : t)).filter(Boolean);
+    const allowed = banned ? all.filter((t) => !banned.has(t.id)) : all;
+    const full = allowed.length ? allowed : all;
     // Si hay paleta definida, usar solo tangles de la paleta (sin fallback al pool completo).
     // Esto garantiza que las figuras respeten la paleta del libro.
     const inPal = palette ? full.filter((t) => palette.has(t.id)) : full;

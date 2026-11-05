@@ -13,12 +13,18 @@ import { STYLE_THEME } from "../core/bookRecipes.js";
 import { generateFullListingText } from "../generators/bookListing.js";
 import { generateBookRecipe, downloadBatchFiles, downloadBatchZip, validateBatchConfig, calculateBatchStats } from "../core/batchGenerator.js";
 import { exportPageAsImage, getBestPagesForMockup, downloadImage, getCanvaInstructions, EXPORT_PRESETS, exportAplusPackageZip } from "../core/mockupExport.js";
-import { buildBookExtras, bookSequence, makeBookPage, reviewIsFresh, updateNextSteps, updateBookButton, updateQualitySummary, downloadBookRecipe } from "./review.js";
+import { buildBookExtras, bookSequence, makeBookPage, reviewIsFresh, updateNextSteps, updateBookButton, updateQualitySummary, downloadBookRecipe, flaggedPages } from "./review.js";
 
 // Genera y descarga el PDF final del interior del libro.
 export async function createBook() {
   if (appState.bookJob || !appState.bookReview) return;
   const bookReview = appState.bookReview;
+  // Ninguna página marcada llega al libro sin que alguien la mire.
+  const flagged = flaggedPages(bookReview);
+  if (flagged.length) {
+    ui.status.textContent = `⚠ Quedan ${flagged.length} página${flagged.length > 1 ? "s" : ""} marcada${flagged.length > 1 ? "s" : ""} (${flagged.slice(0, 8).map((i) => i + 1).join(", ")}${flagged.length > 8 ? "…" : ""}): pulsa «🛠 Arreglar», cámbialas con ↻ o ábrelas y pulsa «✓ Aceptar» antes de descargar el PDF.`;
+    return;
+  }
   const { g, n, baseSeed, pages } = bookReview;
   const job = (appState.bookJob = { cancelled: false });
   const others = busyButtons().filter((b) => b && b !== ui.btnBook);
