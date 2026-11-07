@@ -183,3 +183,19 @@ pruebas con usuarios: no hechas.
 | En móvil el aviso de estado tapa miniaturas y la vista previa es baja | Adaptación a pantallas | 2 | Pendiente (la producción se hace en escritorio) |
 | Emojis como iconos en casi todos los rótulos | Huella de IA / consistencia | 1 | Se mantiene: ayudan a reconocer las acciones |
 | Nombre «Zentangle Creator» usa una marca registrada | Riesgo legal (no llega al libro) | 1 | Pendiente de decisión del dueño |
+
+## 7. Revisión final sin hallazgos
+
+Revisión completa del estado actual antes de uso (sin cambios de código).
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run check` (23 pruebas, golden de 168 páginas, e2e en Chromium) | Pasa |
+| Sintaxis de todos los `.js`/`.mjs` y imports internos | Sin errores |
+| Recorrido en navegador: 59 estilos y botones principales | Sin errores de consola ni recursos 404 |
+| `audit:books` y `audit:patterns` | Dentro de los límites |
+
+Sin cubrir: los botones de ficha bilingüe, revisión del libro y maquetas (ocultos en la
+pantalla inicial), y `npm run colorability` (detenido por tiempo; la prueba 18 cubre la
+colorabilidad). Las tareas de `bd` no se consultaron porque la herramienta no está
+instalada en este entorno.
