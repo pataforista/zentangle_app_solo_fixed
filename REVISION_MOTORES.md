@@ -78,6 +78,7 @@ estilos». La prueba 22 comprueba que la escena se compone, no cómo se ve.
 | I2 | **`npm test` tarda más de 7 minutos** | Medido. Insufficient data: no se midió qué pruebas pesan más |
 | I3 | **`figure.js` pesa 221 KB** (figuras, motor, fondos y escenas juntos) | Pendiente M12 de `REVISION_Y_PLAN.md`, sin hacer |
 | I4 | Nombre «Zentangle Creator» en la interfaz (marca registrada) | Pendiente de decisión desde la revisión anterior |
+| I5 | La versión del motor está escrita en dos sitios | `review.js:555` y `batchGenerator.js:113` (`"2.1.0"` a mano) |
 
 ### Sin datos
 
@@ -86,54 +87,449 @@ estilos». La prueba 22 comprueba que la escena se compone, no cómo se ve.
   referencia (paso 0.2 del plan).
 - **Pruebas con personas que colorean**: Insufficient data.
 
-## 4. Plan
+## 4. Plan de reparación
+
+Nada de esto está empezado. Cada reparación dice qué se toca, cómo se arregla,
+qué cambia en los libros y cómo se comprueba que quedó resuelta. Van en el
+orden en que conviene hacerlas; las dependencias están en §5.
 
 Tamaño: **S** ≤ 1 día · **M** 2–4 días · **L** 1–2 semanas.
 
-### Fase 0 — Medir antes de tocar (S)
+### Reglas para todas las reparaciones
 
-| Tarea | Cómo se verifica |
-|---|---|
-| 0.1 Pasar la medición de contraste y cobertura a Node (`_samples/contrastAudit.mjs`, máscara con resvg) y añadirla a `audit:books` | `npm run audit:books` imprime la tabla de §2 y falla si un libro baja de sus umbrales |
-| 0.2 Patrón de referencia: medir las mismas dos cifras en 20 páginas escaneadas de 3–5 libros líderes del nicho (compradas, solo para medir) | Tabla con cobertura y razón de cada libro; los umbrales de las fases 1–2 se ajustan a esas cifras |
-| 0.3 Instalar `bd` en el entorno y crear una tarea por fila de este plan | `bd list --status=open` las muestra |
+1. **Una reparación, una rama, un PR.** Así cada cambio de dibujo se revisa
+   con su propia hoja de contacto.
+2. **Antes y después.** Guardar la hoja de contacto (`npm run sheet -- <tipo> 24`)
+   y la tabla de contraste (R0) antes de tocar; repetirlas al terminar y
+   adjuntar ambas al PR.
+3. **Golden.** Si la reparación cambia el dibujo, `npm run golden -- --update`
+   va en un commit aparte, después de revisar la hoja a ojo. Si no debía
+   cambiar el dibujo y el golden cambia, es un fallo.
+4. **Versión del motor.** Toda reparación que cambie el dibujo sube
+   `ENGINE_VERSION` (una vez unificada, R1). Las recetas antiguas siguen
+   abriendo, con el aviso de versión que ya existe.
+5. **Compuerta.** `npm run check` en verde y `npm run audit:books` sin
+   promesas incumplidas antes de fusionar.
 
-### Fase 1 — Defectos (M)
+---
 
-| Tarea | Archivos | Cómo se verifica |
+### R0 — Medir contraste y cobertura en la auditoría (S) · resuelve I1
+
+**Problema.** Ninguna prueba ve si la figura destaca. `analyzeContrast`
+(`js/core/pageQuality.js:148`) solo funciona en el navegador y da por buena
+cualquier página con contraste ≥ 0.
+
+**Cómo se repara.**
+1. Sacar de `analyzeContrast` el cálculo puro a una función
+   `contrastFromMask(raster, mask, box)` que recibe la máscara ya rasterizada
+   y la caja del dibujo (sin márgenes). Devuelve `densityInside`,
+   `densityOutside`, `ratio` y `coverage`.
+2. En el navegador, `analyzeContrast` sigue creando la máscara con `Path2D` y
+   llama a la función nueva. En Node, `_samples/bookAudit.mjs` crea la máscara
+   con resvg (`<path d="silD" fill="#fff">` sobre negro) y llama a la misma.
+   Leer `pixels` una sola vez por imagen: el acceso copia el búfer entero.
+3. `bookAudit.mjs` añade por libro: cobertura media y mínima, razón media,
+   páginas con razón < 1.25 y páginas con cobertura < 15 %.
+4. Añadir esas cifras a `fails` (línea 154) con umbrales **de partida iguales
+   a lo medido hoy** (§2), para que la auditoría no empeore. Cada reparación
+   posterior aprieta su umbral.
+5. En la app, `review.js:181` marca la página si `ratio < 1.25` (hoy solo si
+   el fondo es más denso que la figura). Vitral queda fuera: su razón baja es
+   del estilo.
+
+**Qué cambia en los libros.** Nada. Solo se mide.
+
+**Cómo se verifica.**
+- `npm run audit:books -- adult,origami` imprime las cifras de §2 (± 0.05 en
+  la razón).
+- Prueba nueva en `test_verify.mjs`: una página sintética con figura rayada y
+  fondo liso da razón > 3; la inversa da razón < 1.
+- Golden sin cambios.
+
+---
+
+### R1 — Una sola versión del motor (S) · resuelve I5
+
+**Cómo se repara.** Mover `ENGINE_VERSION` a `js/core/engineVersion.js` e
+importarla en `review.js` y `batchGenerator.js`.
+
+**Cómo se verifica.** `grep -rn '"2\.1\.0"' js` solo encuentra el archivo
+nuevo. Receta de lote y receta de revisión llevan la misma versión (prueba).
+
+---
+
+### R2 — Retirar las escenas del selector mientras están rotas (S) · contiene D1
+
+**Cómo se repara.** En `js/ui/stylePicker.js`, excluir `zen_scene`,
+`zen_scene_dino` y `zen_scene_ocean` de la lista visible. Los presets siguen
+existiendo: una receta guardada con ese estilo sigue abriendo.
+
+**Cómo se verifica.** e2e: el selector no contiene esos tres valores. Abrir
+una receta con `style: "zen_scene"` no da el error «ya no está disponible».
+Se deshace en R3.
+
+---
+
+### R3 — Escenas: un solo fondo para toda la página (M) · resuelve D1, D2
+
+**Problema.** Fondo en parches rectangulares y media página vacía;
+dinosaurios escondidos en el océano.
+
+**Causa.** `generateZenScene` (`figure.js:3298`) genera cada figura con
+`generateZenFigure` dentro de su `subArea`. Esa llamada dibuja el fondo
+temático, las auras y las figuritas recortados a su propio rectángulo
+(`frameClip`, `figure.js:2800` y `2887`). Los rectángulos se solapan y cada
+uno corta el fondo del otro. Las figuritas salen de `def.science` de cada
+figura (`figure.js:2922`), no del tema de la escena.
+
+**Cómo se repara.**
+1. Nueva opción `figureOnly: true` en `generateZenFigure`: no dibuja fondo,
+   capa temática, figuritas ni suelo; devuelve la figura con sus auras y
+   expone en el resultado la silueta en mm (`silD`) y su caja.
+2. `generateZenScene` llama a las figuras con `figureOnly` y después compone
+   en este orden: fondo de página → suelo/horizonte → figuritas → figuras
+   (la de más abajo, al final) → marco.
+3. El fondo de página usa el mismo código que una figura sola (rayos o
+   strings con `BG_POOL`, más la capa temática), recortado al marco entero.
+   Para no duplicar ese bloque, extraerlo de `generateZenFigure`
+   (`figure.js:2786–2889`) a una función `drawBackground(ctx, frame, opts)`.
+4. Las siluetas de todas las figuras se pasan a `drawBackground` como zonas
+   a respetar: halo blanco de `gap * 2.4` bajo cada una, igual que hace
+   `unionShape` hoy.
+5. Figuritas: una sola tanda de 3–4 para la página, con reserva por tema de
+   la escena (`ocean` → peces, tortuga, caballito; `dino` → dinosaurios;
+   `nature` → hoja, seta, pájaro). Se colocan con la misma prueba de
+   distancia (`near`), contra todas las siluetas.
+6. Reparto: sustituir las `subAreas` fijas por un reparto que use toda la
+   página. Con 2 figuras, diagonal (abajo-izquierda grande, arriba-derecha
+   menor); con 3, triángulo. Cada figura se encaja por área (ver R6) y se
+   comprueba que las siluetas no se pisan más de un 5 %.
+7. Suelo: quitar las barras flotantes (`branch` de cada figura). Un solo
+   horizonte de `generateSceneEnvironment`; las figuras con `branch` se
+   apoyan en él y las que nadan o vuelan van por encima.
+8. Sacar `plesiosaur`, `mosasaurus` y `ammonite` de la reserva `ocean`
+   (`figure.js:3310`): son del tema prehistórico.
+9. Volver a mostrar los tres estilos en el selector (deshace R2).
+
+**Qué cambia en los libros.** Solo las páginas de escena. Ninguna receta de
+un clic las usa.
+
+**Cómo se verifica.**
+- Prueba nueva (sustituye la parte de escenas de la prueba 22), sobre 12
+  semillas por tema:
+  - ningún `clipPath` del SVG es un rectángulo menor que el marco;
+  - hay exactamente un grupo de fondo;
+  - toda figurita (`data-hidden`) pertenece al tema de la escena;
+  - hueco vacío (`blankMm`) < 20 mm;
+  - cobertura combinada ≥ 25 %;
+  - solape entre siluetas ≤ 5 %.
+- Hoja de 12 escenas por tema revisada a ojo: sin cortes rectos, sin barras
+  flotantes, sin mitad vacía.
+- Golden: las figuras solas no cambian (la extracción de `drawBackground` no
+  debe mover el sorteo). Si cambian, la extracción está mal.
+
+**Riesgo.** La extracción del fondo puede alterar el orden de llamadas al
+generador aleatorio y cambiar todos los libros. Hacerla en un commit propio y
+comprobar el golden antes de seguir.
+
+---
+
+### R4 — Origami: que la figura destaque del fondo (M) · resuelve D3
+
+**Problema.** Razón media 1.28; 7 de 20 páginas por debajo de 1.25.
+
+**Causa.** Con `figureStyle: "facet"`, el fondo es `facets` siempre
+(`figure.js:2798`): piezas del mismo tamaño que las de la figura (`target`
+1100 mm², línea 2859), 70 % de ellas con tangle del mismo `BG_POOL`. La
+figura solo se distingue por el grosor del contorno.
+
+**Cómo se repara.** Tres cambios, medidos por separado para quedarse con los
+que hagan falta:
+1. **Fondo más ligero.** En origami, `target` del fondo a ~2600 mm² (piezas
+   2–3 veces mayores que las de la figura) y tangle en 1 de cada 3 piezas,
+   con separación `BG_GAP × 1.4`. Las piezas lisas grandes se parten en dos
+   para no superar 20 mm de hueco vacío.
+2. **Halo.** Una franja blanca de 3 mm alrededor de la silueta, con un eco
+   del contorno a 3 mm (una aura fija en origami). Separa figura y fondo sin
+   añadir tinta.
+3. **Contorno.** Trazo exterior de 1.6–2.0 mm en origami (hoy
+   `cellBorderWidthMm` 1.2), con unión en inglete como ahora.
+4. Parámetros nuevos en los presets `zen_figure_dino_origami` y en
+   `origamiMix`, no constantes sueltas en `figure.js`.
+
+**Qué cambia en los libros.** «Solo origami», la mitad de «Dinosaurios» y 1
+de cada 5 páginas de «Críptidos».
+
+**Cómo se verifica.**
+- `audit:books -- origami,dino,cryptids`: razón ≥ 1.5 en **todas** las
+  páginas de origami y media ≥ 1.8; hueco vacío máx. < 20 mm; zonas
+  difíciles no peores que hoy.
+- Umbral nuevo en `fails`: origami con alguna página < 1.5 falla.
+- Hoja de 24 páginas: la figura se reconoce en la miniatura de 260 px.
+- Golden de los estilos origami actualizado a propósito.
+
+---
+
+### R5 — Bípedos fuera del origami hasta tener silueta nueva (S) · contiene D4
+
+**Problema.** T. rex, alosaurio, espinosaurio, parasaurolofus, velocirráptor,
+diablo de Jersey y chupacabras salen como trazos rotos (cobertura 11–13 %).
+
+**Causa.** Son siluetas por esqueleto con patas y brazos delgados;
+`angularize` (`figure.js:2605`, tolerancia 0.04) las reduce a pocos vértices
+y las extremidades pierden forma.
+
+**Cómo se repara.**
+1. Quitar esas figuras de `FIGURE_SETS.dinoOrigami`, `dinoOrigamiMix` y
+   `cryptidsOrigami`.
+2. Ajustar `designs` de «Solo origami» para que no pase de 2 vueltas del
+   repertorio que queda (cuadrúpedos, marinos, amonites).
+3. Vuelven con R8, con silueta ilustrada.
+
+**Qué cambia en los libros.** «Solo origami» y «Dinosaurios» pierden esas
+figuras por ahora. El T. rex es la figura que más vende del tema: R8 debe
+empezar por él.
+
+**Cómo se verifica.** `audit:books -- origami,dino`: ninguna página de
+origami con cobertura < 12 %; ninguna figura sale más de 2 veces.
+
+---
+
+### R6 — Encaje por área: figuras más grandes (M) · resuelve Q1
+
+**Problema.** En dinosaurios, 18 de 20 páginas tienen la figura por debajo
+del 20 % del marco; en críptidos 12 de 20; en adultos 9 de 20.
+
+**Causa.** `sFit` (`figure.js:2675`) encaja la caja de la silueta en el
+marco. Una figura alargada (diplodoco, neurona) llena el ancho y deja el
+resto vacío. Además, «offset» la encoge al 66–80 % (línea 2708) y el loto de
+la página 5 de adultos acaba en una esquina.
+
+**Cómo se repara.**
+1. Calcular la cobertura que daría `sFit`. Si queda por debajo de 18 %:
+   - aumentar la escala hasta alcanzar 18 %, con tope de 1.35 × `sFit`;
+   - si con eso la figura sale del marco, usar encuadre «zoom» recortando
+     **solo por la cola o las extremidades**: cada figura declara
+     `anchor` (punto que nunca se recorta, por defecto la cabeza o el centro);
+   - girar hasta ±20° las figuras alargadas sin suelo para aprovechar la
+     diagonal de la página.
+2. «offset» solo si la cobertura resultante es ≥ 15 %; si no, pasa a
+   «center». Sustituye el parche actual de `SMALL_FIGURE_COVER`.
+3. Origami sigue sin «zoom» (línea 2703), pero sí usa la escala y el giro.
+4. Añadir `anchor` a las ~25 figuras alargadas (dinosaurios, marinos,
+   neurona, ADN, gusano, Nessie).
+
+**Qué cambia en los libros.** Todos los de figura. Es el cambio de dibujo
+más amplio del plan.
+
+**Cómo se verifica.**
+- `audit:books` (los 8 tipos): cobertura < 15 % en menos del 10 % de las
+  páginas de cada libro; mediana ≥ 20 % en dinosaurios y críptidos.
+- Prueba nueva: en 200 páginas, el punto `anchor` de cada figura queda
+  dentro del marco con 5 mm de margen (ninguna cabeza cortada).
+- La prueba 23 de cobertura sigue pasando.
+- Hoja de 24 páginas por libro, a ojo.
+
+---
+
+### R7 — Infantil con trazo grueso de verdad (S) · resuelve Q5
+
+**Problema.** El libro infantil dibuja los patrones a 0.35 mm, con secciones
+pequeñas dentro de la figura.
+
+**Causa.** `zen_figure_kids` (`zentangle.presets.js:905`) fija
+`patternStrokeMm: 0.35` y `minGapMm: 1.9`. El perfil `bold` solo se aplica
+desde el menú (`lineThicknessProfile`), y la receta `kids` no lo toca.
+
+**Cómo se repara.**
+1. En el preset: `lineThicknessProfile: "bold"`, `patternStrokeMm: 0.6`,
+   `stringStrokeMm: 0.9`, `cellBorderWidthMm: 1.6`, `minGapMm: 3.5`.
+2. Limitar las cuerdas de cada parte a 1–2 por familia en infantil (opción
+   `maxStrings` en el preset, aplicada en `makeSections`).
+3. Al pulsar la receta, la interfaz muestra «Grueso» en el menú de grosor.
+4. La revisión usa los límites del perfil (`badPerDm2: 4`), que ya existen.
+
+**Qué cambia en los libros.** Solo «Infantil».
+
+**Cómo se verifica.**
+- `audit:books -- kids`: 95 % de las páginas con ≤ 4 zonas difíciles por
+  dm²; ninguna región coloreable < 20 mm² dentro de la figura.
+- Prueba: el SVG de una página infantil no contiene `stroke-width` menor
+  de 0.5.
+- La razón de contraste no baja de 2.0 (hoy 2.59).
+
+---
+
+### R8 — Siluetas ilustradas por el importador (L) · resuelve Q2, Q3, D4
+
+**Problema.** Varias figuras no se reconocen (caballo, reno, gato dormido,
+lobo, bípedos). El importador existe y solo tiene una figura.
+
+**Cómo se repara.** No es trabajo de código, salvo el paso 4.
+1. Encargar o dibujar 40 siluetas con los requisitos de
+   `REVISION_Y_PLAN.md` §5.1 (SVG plano, capas `silhouette`, `part-*`,
+   `back-*`, `front-*`, `deco-*`, ficha `.json` con licencia y origen).
+2. Orden: bípedos (T. rex, velocirráptor, alosaurio, espinosaurio,
+   parasaurolofus, diablo de Jersey) → adultos (caballo, lobo, ciervo, búho,
+   zorro, elefante, tigre, colibrí) → gatos (10) → Navidad (10) → aves (6).
+3. Cada una entra con `npm run import:figures` y sustituye a la figura por
+   puntos del mismo id (la antigua se conserva como `<id>_v1` para recetas
+   viejas).
+4. Añadir al importador la capa `anchor` (R6) y las etiquetas de tema (R9).
+
+**Qué cambia en los libros.** Las figuras sustituidas, en todos los libros
+que las usan.
+
+**Cómo se verifica.**
+- Cada figura pasa el validador (trayectos cerrados, grosor mínimo, 3
+  encuadres × 3 semillas con veredicto de calidad correcto).
+- Prueba de reconocimiento: la silueta sola, en negro, a 40 mm; 4 de 5
+  personas la nombran sin ayuda. Se anota en la ficha `.json`.
+- Tras los bípedos: vuelven al origami (deshace R5) solo si cada uno da
+  cobertura ≥ 15 % y razón ≥ 1.5.
+
+**Sin datos.** Insufficient data sobre coste y plazo del encargo.
+
+---
+
+### R9 — Figuritas escondidas con sentido (S) · resuelve Q4
+
+**Problema.** Magdalenas y teteras junto al lobo; una copia del gato dentro
+del gato.
+
+**Causa.** La reserva es temática solo si la figura tiene `science` o
+`cryptid` (`figure.js:2922`); el resto usa una lista fija
+(`HIDEABLE_ADULT`, línea 2323). La copia interior se dibuja siempre
+(`figure.js:~3060`).
+
+**Cómo se repara.**
+1. Añadir `tags` a cada figura (`naturaleza`, `mar`, `cielo`, `casa`,
+   `símbolo`, además de los temas actuales).
+2. La reserva de figuritas es: figuras ocultables que comparten al menos una
+   etiqueta con la principal; si hay menos de 3, se completa con `símbolo`
+   (luna, corazón, gota, hoja).
+3. La copia interior pasa a ser opción del preset (`innerCopy`), activa en
+   infantil («busca a la cría») y apagada en adultos.
+4. El pie de página y la página de soluciones ya leen `data-hidden`: no
+   cambian.
+
+**Qué cambia en los libros.** Adultos y mezcla (otras figuritas, sin copia
+interior).
+
+**Cómo se verifica.** Prueba: en 100 páginas, toda figurita comparte
+etiqueta con la figura principal o es de `símbolo`; en adultos no hay
+`data-hidden` igual al `data-figure` de la página. La página de soluciones
+sigue cuadrando (prueba 23).
+
+---
+
+### R10 — Libros de océano, gatos, aves y Navidad (M) · resuelve Q6
+
+**Problema.** Hay estilos y fichas para esos temas, pero pocas figuras:
+océano 10, aves 6, gatos 4, Navidad 5. Un libro de 28 repetiría cada gato 7
+veces.
+
+**Cómo se repara.**
+1. Depende de R8: cada tema necesita ≥ 14 figuras.
+2. Añadir la receta en `js/core/bookRecipes.js` (estilo, 28 diseños,
+   opciones) y su entrada en `STYLE_THEME`.
+3. Incluir el tema en `audit:books` y en el golden.
+
+**Cómo se verifica.** `audit:books -- ocean,cats,birds,christmas`: ninguna
+figura más de 2 veces; 0 pares casi iguales; contraste y cobertura dentro de
+los umbrales de adultos. e2e con una de las recetas nuevas.
+
+---
+
+### R11 — Menos estilos geométricos (S) · resuelve Q7
+
+**Problema.** 24 estilos de celdas (`kdp_*`, `*_editorial`, `classic_*`…) que
+a la vista son 6 o 7.
+
+**Cómo se repara.**
+1. Medir el parecido entre estilos con `pageSimilarity` (10 semillas por
+   estilo) y agrupar los que superen 0.8.
+2. Dejar visible uno por grupo (el de mejor colorabilidad); los demás quedan
+   en el código, fuera del selector y de «Mezcla más vendida».
+3. No borrar presets: las recetas guardadas deben seguir abriendo.
+
+**Cómo se verifica.** Tabla de parecido en el PR; el selector baja a ~8
+estilos de celdas; una receta con un estilo retirado abre y reproduce su
+golden.
+
+---
+
+### R12 — Pruebas rápidas (S) · resuelve I2
+
+**Cómo se repara.**
+1. Medir cuánto tarda cada prueba de `test_verify.mjs` (hoy no se sabe).
+2. `npm run test:fast`: las pruebas de lógica y un golden reducido (una
+   página por estilo). `npm test` sigue siendo el completo.
+
+**Cómo se verifica.** `test:fast` < 60 s; `npm test` ejecuta las mismas 23
+pruebas y 168 páginas que hoy.
+
+---
+
+### R13 — Partir `figure.js` (M) · resuelve I3
+
+**Cómo se repara.** Sin cambiar el dibujo: `figures/<tema>.js`
+(definiciones), `figureEngine.js` (encaje, secciones, tangles),
+`backgrounds.js` (lo extraído en R3) y `scene.js`. `figure.js` queda como
+reexportador para no romper imports.
+
+**Cómo se verifica.** Golden idéntico **sin** `--update`; `npm run check` en
+verde. Hacerla al final: antes chocaría con todas las reparaciones de dibujo.
+
+---
+
+### R14 — Referencia de la competencia (S, fuera del código)
+
+**Cómo se hace.** Escanear a 300 ppp 20 páginas de 3–5 libros líderes de
+cada nicho (comprados; solo para medir, no se copian). Marcar la silueta a
+mano y pasarles la medición de R0.
+
+**Para qué.** Los umbrales de R4 y R6 (razón 1.5, cobertura 18 %) son
+estimaciones propias. Con esta tabla se sustituyen por los valores de los
+libros que venden.
+
+**Cómo se verifica.** Tabla con cobertura y razón por libro, añadida a este
+documento; umbrales de `audit:books` ajustados a ella.
+
+## 5. Orden y dependencias
+
+| Orden | Reparación | Tamaño | Depende de | Cambia el dibujo |
+|---|---|---|---|---|
+| 1 | R0 Medición en la auditoría | S | — | No |
+| 2 | R1 Versión única del motor | S | — | No |
+| 3 | R2 Ocultar escenas | S | — | No |
+| 4 | R5 Bípedos fuera del origami | S | R0 | Origami, dinosaurios |
+| 5 | R4 Origami con contraste | M | R0 | Origami, dinosaurios, críptidos |
+| 6 | R7 Infantil grueso | S | R0 | Infantil |
+| 7 | R6 Encaje por área | M | R0 | Todos los de figura |
+| 8 | R3 Escenas | M | R6 | Escenas |
+| 9 | R9 Figuritas con sentido | S | — | Adultos, mezcla |
+| 10 | R8 Siluetas ilustradas | L | R6, R9 | Figuras sustituidas |
+| 11 | R10 Libros nuevos | M | R8 | Libros nuevos |
+| 12 | R11 Menos estilos | S | — | Mezcla |
+| 13 | R12 Pruebas rápidas | S | — | No |
+| 14 | R13 Partir `figure.js` | M | R3–R9 | No |
+| — | R14 Referencia de la competencia | S | R0 | No (ajusta umbrales) |
+
+I4 (nombre «Zentangle Creator») no es una reparación: es una decisión del
+dueño y no bloquea nada de lo anterior.
+
+R14 puede hacerse en cualquier momento después de R0; cuanto antes, mejor,
+porque fija los umbrales de R4 y R6.
+
+## 6. Cuándo se da por terminado
+
+| Meta | Hoy | Objetivo |
 |---|---|---|
-| 1.1 Escenas (D1, D2): dibujar fondo y figuritas una sola vez a nivel de página, recortados al marco menos las siluetas; subfiguras sin fondo propio; figuritas del tema de la escena | `figure.js` (`generateZenScene`) | Prueba nueva: ningún `clip-path` de fondo coincide con una `subArea`; todas las figuritas comparten tema con la escena; hueco vacío < 20 mm. Hoja de 12 escenas por tema revisada a ojo |
-| 1.2 Hasta que 1.1 pase, quitar los 3 estilos de escena del selector | `stylePicker.js` | Recorrido: no aparecen |
-| 1.3 Origami (D3): fondo más ligero que la figura (facetas mayores y sin tangle en 1 de cada 2, o tangles solo dentro), halo blanco de 3 mm y contorno de 1.6–2 mm | `figure.js`, presets `*_origami` | Razón ≥ 1.5 en todas las páginas y media ≥ 1.8 en 34 páginas; golden actualizado a propósito |
-| 1.4 Bípedos (D4): sacarlos del origami hasta tener silueta nueva (2.2) | `FIGURE_SETS.dinoOrigami*`, `cryptidsOrigami` | Ninguna página de origami con cobertura < 12 % |
-
-### Fase 2 — Figura protagonista (L)
-
-| Tarea | Cómo se verifica |
-|---|---|
-| 2.1 Encaje por área (Q1): las figuras delgadas se amplían y recortan en vez de encogerse; «offset» prohibido si la cobertura queda < 15 % | Cobertura < 15 % en menos del 10 % de las páginas de cada libro; mediana ≥ 20 % en dinosaurios y críptidos |
-| 2.2 Siluetas ilustradas (Q2, Q3): 40 SVG por el importador, en este orden: bípedos (6), adultos (caballo, lobo, ciervo, búho, zorro, elefante, tigre, colibrí), gatos (10), Navidad (10), aves (6) | Cada figura pasa el validador del importador; prueba de reconocimiento: la silueta sola, en negro, se nombra bien por 4 de 5 personas |
-| 2.3 Figuritas con sentido (Q4): reserva por etiquetas de tema; quitar la copia de la figura dentro de sí misma en adultos | Prueba: cada figurita comparte etiqueta con la figura principal |
-| 2.4 Infantil grueso (Q5): la receta fija el perfil `bold`, separación mínima de 3.5 mm y como máximo 4 secciones por parte | 95 % de las páginas con ≤ 4 zonas difíciles por dm²; ninguna región coloreable < 20 mm² dentro de la figura |
-
-### Fase 3 — Catálogo (M)
-
-| Tarea | Cómo se verifica |
-|---|---|
-| 3.1 Recetas de océano, gatos, aves y Navidad cuando cada tema tenga ≥ 14 figuras (Q6) | `audit:books` las incluye; ninguna figura sale más de 2 veces en un libro de 28 |
-| 3.2 Reducir los estilos geométricos a los 8 que más se distinguen (Q7); el resto queda accesible solo por receta antigua | Parecido entre estilos < 0.8 con `pageSimilarity`; las recetas guardadas siguen abriendo |
-
-### Fase 4 — Mantenimiento (M)
-
-| Tarea | Cómo se verifica |
-|---|---|
-| 4.1 Separar `npm test` en rápido (< 60 s) y completo (I2) | `npm run test:fast` < 60 s; `npm test` cubre lo mismo que hoy |
-| 4.2 Partir `figure.js` en definiciones por tema, motor, fondos y escenas (I3) | Golden idéntico sin `--update` |
-| 4.3 Decidir el nombre de la app (I4) | Decisión del dueño |
-
-### Compuerta de cada fase
-
-`npm run check` en verde, `npm run audit:books` dentro de umbrales (con la
-tabla de contraste de 0.1) y hoja de contacto (`npm run sheet -- <tipo> 24`)
-de cada libro afectado revisada a ojo. Cambiar el motor altera libros ya
-publicados: subir `engineVersion` en la receta en cada fase que toque el dibujo.
+| Estilos con defecto visible | 3 (escenas) | 0 |
+| Razón de contraste mínima en origami | 1.04 | ≥ 1.5 |
+| Páginas con figura pequeña (peor libro, origami) | 19 de 20 bajo el 20 % del marco; con el corte de 15 % no está medido | Menos del 10 % bajo el 15 % |
+| Infantil: zonas difíciles por dm² | hasta 13 | ≤ 4 en el 95 % |
+| Figuras ilustradas | 1 | ≥ 40 |
+| Temas con libro de un clic | 8 | 12 |
+| Contraste y cobertura vigilados por `audit:books` | No | Sí |
