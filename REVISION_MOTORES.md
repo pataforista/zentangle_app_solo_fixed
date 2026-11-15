@@ -2,8 +2,10 @@
 
 Revisión de `main` (`5372ab2`) hecha generando páginas, no releyendo código:
 hojas de contacto de los 8 tipos de libro (12 páginas cada uno), una página de
-cada uno de los 55 estilos, medición de contraste figura/fondo en 148 páginas y
-recorrido de la interfaz en Chromium. No se cambió código.
+cada uno de los 55 estilos, medición de contraste figura/fondo en 148 páginas,
+páginas de cortesía, guía, portada y doble página, ficha y regalías, las tres
+auditorías del proyecto y recorrido de la interfaz en Chromium (incluidos los
+botones secundarios). No se cambió código y ninguna reparación está empezada.
 
 **Para quién:** quien mantiene la app y decide qué construir a continuación.
 **Qué decide:** el orden de trabajo para que los libros compitan por aspecto,
@@ -16,8 +18,11 @@ no solo por cumplir KDP.
 | `npm test` (23 pruebas + golden de 168 páginas) | Pasa (7 min 22 s) |
 | `npm run e2e` (libro de 12 diseños, PDF de 47 páginas, ficha) | Pasa (46 s) |
 | Interfaz en escritorio (1400 px) y móvil (390 px) | Sin errores de consola |
+| `npm run audit:books` (8 libros completos) | Pasa: 0 pares casi iguales, huecos dentro de lo prometido |
+| `npm run audit:patterns` | Ejecutado: ver T1 |
+| Botones secundarios con un libro preparado (libro abierto, ficha, biblioteca, PDF) | Funcionan, sin errores de consola |
 | `bd` (Beads) | No instalado en este entorno: no se crearon tareas |
-| `audit:books`, `colorability` | No ejecutados en esta revisión |
+| `npm run colorability` | No ejecutado (la prueba 18 cubre lo mismo) |
 
 La parte de producción (receta, revisión, PDF, ficha, portada borrador) funciona.
 Los problemas que quedan son de **aspecto de la página**, y las pruebas actuales
@@ -69,6 +74,36 @@ estilos». La prueba 22 comprueba que la escena se compone, no cómo se ve.
 | Q5 | **El infantil no usa el perfil grueso**: trazo de patrón 0.35 mm y secciones pequeñas dentro de la figura | `zen_figure_kids` y receta `kids`; el perfil `bold` solo se aplica desde el menú |
 | Q6 | **Temas con ficha pero sin libro**: océano (10 figuras), aves (6), gatos (4), Navidad (5) | `FIGURE_SETS`; `bookListing.js` ya trae sus fichas |
 | Q7 | **24 estilos geométricos casi iguales** (`kdp_*`, `*_editorial`, `classic_*`) | Hoja de estilos heredados |
+
+### Patrones, doble página, portada y cortesía
+
+| # | Hallazgo | Evidencia |
+|---|---|---|
+| T1 | **Algunos patrones dejan manchitas en ciertas formas de celda**: Printemps en hexágono (132 manchitas por celda), Paradox en cuadrado (32), Flux (23), Circuit en banda (19), Crosses (8–10) | `npm run audit:patterns`; la prueba 18 solo vigila la suma (195 de un techo de 250) |
+| S1 | **La doble página parte la figura por el lomo**: el centro del dibujo, la zona con más detalle, cae en la encuadernación | `generateSpread`, semilla 77; `SPREAD_FIGURES` centra la figura en la unión |
+| C1 | **La portada es texto negro sobre blanco**: sin arte, sin color, contraportada sin miniaturas | `generateCoverSvg`; la app la llama «borrador» |
+| C2 | **Páginas de cortesía planas**: portadilla sin ornamento, créditos en letra muy pequeña, página de prueba casi vacía (sin casillas para probar colores), sin página final de reseña | `frontMatter.js`; no hay ninguna mención a «reseña» en el código |
+| C3 | **Repeticiones por encima de lo que dice la receta**: dinosaurios y origami tienen 15 figuras para 34 páginas (alguna sale 3 veces) | `audit:books`: «repetición máx 3»; `bookRecipes.js` promete ~2 vueltas |
+
+### Ficha y venta
+
+| # | Hallazgo | Evidencia |
+|---|---|---|
+| L1 | **La tabla de regalías usa tarifas que no coinciden con las de KDP**: 60 % siempre y coste de 0.85 USD + 0.01 por página | `bookListing.js:17–40`. KDP paga 50 % por debajo de 9.99 USD desde el 10 de junio de 2025 y publica otro coste fijo y por página [1][2]. Para 8.99 USD la app muestra 4.40 USD de regalía; con el 50 % sería menos |
+| L2 | **Faltan palabras clave**: 6 de 7 en español y 5 de 7 en inglés | Ficha bilingüe de dinosaurios: el filtro quita las que repiten el título y no repone |
+| L3 | **Palabras clave genéricas** («libro», «book») | KDP aconseja evitar términos comunes a toda la categoría [3] |
+| L4 | **Dos motores de ficha distintos**: `kdpListing.js` (español) y `bookListing.js` (bilingüe, regalías) con textos y palabras clave diferentes para el mismo libro | «Descargar todo» usa el primero; el botón bilingüe, el segundo |
+| L5 | **Sin recordatorio de la declaración de contenido de IA** | KDP pide declarar imágenes creadas por una herramienta de IA [4]. Insufficient data sobre cómo clasifica KDP el arte procedural |
+| L6 | **Categorías infantiles** (Juvenile Nonfiction) en un libro que la ficha vende «para niños y adultos» | Ficha bilingüe de dinosaurios. Insufficient data sobre qué categorías convierten mejor |
+
+### Interfaz
+
+| # | Hallazgo | Evidencia |
+|---|---|---|
+| U1 | **«Descargar todo» no baja todo**: deja fuera la portada, la ficha bilingüe y las maquetas | `bookExport.js:102` (PDF, ficha en español y receta) |
+| U2 | **La vista de libro abierto tarda más de 15 s** con 29 páginas y no muestra avance | Recorrido en Chromium |
+| U3 | **Ficha bilingüe y maquetas escondidas** en apartados plegados del paso 4 | `index.html:891–960` |
+| U4 | En móvil, el aviso de estado tapa miniaturas | Pendiente de la revisión anterior |
 
 ### Oportunidades de ingeniería
 
@@ -483,6 +518,233 @@ verde. Hacerla al final: antes chocaría con todas las reparaciones de dibujo.
 
 ---
 
+### R15 — Patrones sin manchitas (M) · resuelve T1
+
+**Problema.** Printemps, Paradox, Flux, Circuit y Crosses dejan regiones
+menores de 0.5 mm² en ciertas formas de celda. En papel se ven como motas de
+tinta.
+
+**Causa.** Cada relleno se dibuja igual en cualquier celda; al recortarlo
+contra un hexágono o un triángulo, los bordes dejan restos. La prueba 18
+vigila la suma de todas las combinaciones, así que una combinación mala se
+esconde entre las buenas.
+
+**Cómo se repara.**
+1. Fijar un techo **por combinación** relleno × forma: 2 zonas no
+   coloreables y 6 manchitas por celda.
+2. Para cada combinación por encima del techo, por este orden: (a) margen
+   interior del relleno respecto al borde de la celda, igual al que ya usan
+   las cuerdas (`gap * 1.5`); (b) descartar los elementos del patrón cuyo
+   centro quede a menos de medio elemento del borde; (c) si sigue por encima,
+   vetar esa combinación (como ya se hace con Triangles y Cadent en triángulo
+   y hexágono).
+3. Printemps y Paradox, además: aumentar el paso mínimo entre vueltas a
+   1.2 mm para que el centro no se cierre en negro.
+
+**Qué cambia en los libros.** Mezcla y estilos de celdas; las figuras que
+usen esos tangles.
+
+**Cómo se verifica.**
+- `npm run audit:patterns`: ninguna celda de la tabla por encima de 2 / 6.
+- La prueba 18 pasa a comprobar el techo por combinación, además de la suma.
+- `audit:books -- mix,adult`: zonas difíciles no peores que hoy.
+
+---
+
+### R16 — Doble página que respeta el lomo (M) · resuelve S1
+
+**Problema.** La figura se centra en la unión de las dos páginas y su parte
+más detallada se pierde en la encuadernación.
+
+**Causa.** `generateSpread` (`js/generators/spread.js`) genera una figura a
+doble ancho y la parte por la mitad.
+
+**Cómo se repara.**
+1. Componer la doble página con la figura desplazada: su centro en una de
+   las dos páginas (a un tercio del ancho total) y solo extremidades, cola,
+   alas o cintas cruzando el lomo.
+2. Reservar a cada lado del lomo una franja igual al margen interior de KDP
+   para ese número de páginas (`kdpInsideMarginMm`), donde solo puede haber
+   fondo y líneas largas, sin secciones pequeñas.
+3. Usar el punto `anchor` de R6: nunca a menos de 25 mm del lomo.
+4. Ampliar `SPREAD_FIGURES` con figuras alargadas (diplodoco, Nessie, koi,
+   pluma, cintas), que son las que ganan con el formato.
+
+**Qué cambia en los libros.** Las dobles páginas (hoy solo en «Adultos»).
+
+**Cómo se verifica.**
+- Prueba: en 30 dobles páginas, el `anchor` queda a ≥ 25 mm del lomo y la
+  franja del lomo no contiene regiones coloreables < 20 mm².
+- Vista de libro abierto (`btnOpenBook`) revisada a ojo.
+- Prueba impresa de un libro con dobles páginas antes de publicar: es lo
+  único que confirma cuánto se come la encuadernación.
+
+---
+
+### R17 — Portada con arte (L) · resuelve C1
+
+**Problema.** La portada es texto sobre blanco. La portada y su miniatura
+deciden el clic; hoy hay que hacerla fuera.
+
+**Cómo se repara.**
+1. **Elegir la página.** La de mejor puntuación compuesta del libro
+   (calidad + contraste + cobertura de R0), entre las de encuadre «center» o
+   «zoom».
+2. **Colorearla.** Relleno por regiones: las regiones blancas ya se detectan
+   en `analyzeColorability`. Asignar a cada región un color de una paleta
+   armónica de 5–6 tonos (una por tema), con la regla de que dos regiones
+   vecinas no repitan tono y que el fondo use los tonos más apagados para
+   que la figura destaque.
+3. **Maquetar.** Arte a sangre en la portada; banda de color sólido con el
+   título en hasta 3 líneas; subtítulo y autor. Contraportada con 4–6
+   miniaturas del interior en blanco y negro, texto de venta y hueco del
+   código de barras. Lomo con texto solo por encima de 79 páginas (ya
+   resuelto en `coverSpec`).
+4. **Exportar** como imagen a 300 ppp dentro del PDF de portada, con las
+   medidas que ya calcula `coverSpec`.
+5. Mantener la portada actual como opción «solo texto».
+
+**Cómo se verifica.**
+- Prueba: el PDF mide lo que dice `coverSpec`; el hueco del código de barras
+  queda sin arte ni texto; ningún término bloqueado en la portada.
+- Legibilidad: en la miniatura de 160 px de ancho, la altura de letra del
+  título es ≥ 10 px y su contraste con la banda ≥ 4.5 : 1 (se calcula).
+- Coloreado: ninguna región sin color; ningún par de regiones vecinas con el
+  mismo tono (prueba sobre el grafo de regiones).
+- Previsualizador de portadas de KDP sin avisos.
+- A ojo: la portada, junto a 5 portadas líderes del nicho, no desentona
+  (parte de R14).
+
+**Sin datos.** Insufficient data sobre qué paletas venden mejor por nicho.
+
+---
+
+### R18 — Páginas de cortesía con oficio (M) · resuelve C2
+
+**Cómo se repara.**
+1. **Portadilla:** marco hecho con un tangle del libro y una figura pequeña
+   del tema bajo el título.
+2. **Créditos:** letra de 3.2 mm como mínimo; año, autor, «todos los
+   derechos reservados» y la atribución que ya existe.
+3. **Página de prueba:** rejilla de 24 casillas para probar colores, una
+   franja para degradados y la nota de poner una hoja debajo.
+4. **Página final:** «¿Te gustó? Deja tu reseña», con un dibujo pequeño; sin
+   enlaces ni promesas de recompensa (KDP no permite incentivar reseñas).
+5. **Coherencia de serie:** mismo marco y misma tipografía en todos los
+   libros.
+
+**Cómo se verifica.** Prueba: ninguna página de cortesía con texto menor de
+3 mm; `planSequence` cuenta la página de reseña y el total sigue siendo par;
+e2e comprueba que el PDF las incluye. Hoja de contacto de cortesía a ojo.
+
+---
+
+### R19 — Regalías con las tarifas de KDP (S) · resuelve L1
+
+**Problema.** La tabla de regalías aplica 60 % a cualquier precio y un coste
+de impresión que no coincide con el publicado por KDP. Quien fije el precio
+con esa tabla calcula mal su margen.
+
+**Cómo se repara.**
+1. Sacar las tarifas de `bookListing.js` a un archivo de datos
+   (`js/core/kdpRates.js`) con fecha de consulta y enlace a la página oficial:
+   coste fijo, coste por página, tramo de páginas, tamaño normal o grande y
+   tinta, por tienda.
+2. Regalía por tramos: 50 % por debajo del umbral de la tienda (9.99 USD en
+   Amazon.com) y 60 % desde ahí [2].
+3. 8.5×11 in cuenta como tamaño grande: usar su tarifa por página.
+4. La ficha muestra la fecha de las tarifas y el aviso «comprueba en la
+   calculadora de KDP antes de fijar el precio».
+5. Calcular también el precio mínimo que deja regalía positiva.
+
+**Cómo se verifica.**
+- Prueba: tres casos calculados a mano con la calculadora oficial de KDP
+  (24, 80 y 200 páginas; un precio por debajo y otro por encima del umbral)
+  coinciden al céntimo.
+- La tabla marca el salto de 50 % a 60 %.
+
+**Sin datos.** Los valores exactos por tramo deben leerse de la página
+oficial el día que se haga: las páginas de ayuda encontradas tienen fechas
+distintas y no dan una tabla única [1].
+
+---
+
+### R20 — Una sola ficha, completa (M) · resuelve L2, L3, L4, L5, L6
+
+**Cómo se repara.**
+1. Un solo motor: `bookListing.js` pasa a construir sobre `kdpListing.js`
+   (mismos títulos, descripción y reglas de marca); la ficha bilingüe es la
+   misma ficha en dos idiomas.
+2. Palabras clave: reserva de 12 por tema e idioma; tras quitar las que
+   repiten el título se rellenan hasta 7; cada una ≤ 50 caracteres.
+3. Validador: avisa de «libro», «book», «colorear» sueltos, de palabras
+   repetidas entre casillas y de términos bloqueados.
+4. Categorías: dos juegos por tema (adultos / infantil) según la receta.
+5. Recordatorio fijo al final: revisar la declaración de contenido de IA al
+   publicar, con el enlace a la ayuda de KDP.
+
+**Cómo se verifica.** Prueba para cada tema e idioma: 7 palabras clave,
+≤ 50 caracteres, sin términos bloqueados ni palabras del título, sin
+duplicados; la ficha de «Descargar todo» y la bilingüe dan el mismo título.
+
+---
+
+### R21 — «Descargar todo» baja todo (S) · resuelve U1, U3
+
+**Cómo se repara.** Un ZIP (ya existe `js/core/zip.js`) con interior,
+portada, ficha bilingüe, receta y las 6 imágenes de maqueta. Los botones
+sueltos se quedan para quien quiera una sola pieza.
+
+**Cómo se verifica.** e2e: el ZIP contiene los 5 tipos de archivo y el PDF
+interior es idéntico al del botón suelto.
+
+---
+
+### R22 — Libro abierto con avance (S) · resuelve U2
+
+**Cómo se repara.** Generar la vista por pliegos, cediendo el control entre
+uno y otro, con barra de avance y botón de cancelar (el mismo patrón que
+`buildBookPdf` con `onProgress`).
+
+**Cómo se verifica.** e2e: durante la generación el estado cambia al menos
+una vez por pliego y la página responde a clics.
+
+---
+
+### R23 — Revisión en móvil (S) · resuelve U4
+
+**Cómo se repara.** El aviso de estado pasa a una línea fija bajo la vista
+previa en pantallas de menos de 600 px; la vista previa se pliega tras
+elegir el tipo de libro.
+
+**Cómo se verifica.** Captura a 390 px con un libro preparado: ninguna
+miniatura tapada; botones de al menos 44 px.
+
+---
+
+### R24 — Las mejores páginas primero (S)
+
+**Para qué.** «Leer muestra» enseña las primeras páginas. El modo escaparate
+ya existe (`showcaseMode`), pero ordena solo por colorabilidad.
+
+**Cómo se repara.** La puntuación del escaparate suma contraste y cobertura
+(R0); el modo queda activado por defecto en las recetas de un clic, sin
+romper la dificultad progresiva (elige entre las páginas del primer tercio).
+
+**Cómo se verifica.** Prueba: las 4 primeras ilustraciones tienen una
+puntuación compuesta mayor o igual que la mediana del libro.
+
+---
+
+### R25 — Repertorio suficiente por libro (S) · resuelve C3
+
+**Cómo se repara.** Regla en `bookRecipes.js`: `designs` ≤ 2 × figuras del
+repertorio. Dinosaurios y origami bajan a 30 o esperan a las figuras de R8.
+
+**Cómo se verifica.** `audit:books` falla si «repetición máx» > 2.
+
+---
+
 ### R14 — Referencia de la competencia (S, fuera del código)
 
 **Cómo se hace.** Escanear a 300 ppp 20 páginas de 3–5 libros líderes de
@@ -498,31 +760,127 @@ documento; umbrales de `audit:books` ajustados a ella.
 
 ## 5. Orden y dependencias
 
+Cuatro bloques. Dentro de cada uno, el orden es el de la tabla.
+
+**Bloque A — Medir y contener (≈ 1 semana).** No cambia el dibujo, salvo R5.
+
 | Orden | Reparación | Tamaño | Depende de | Cambia el dibujo |
 |---|---|---|---|---|
 | 1 | R0 Medición en la auditoría | S | — | No |
 | 2 | R1 Versión única del motor | S | — | No |
 | 3 | R2 Ocultar escenas | S | — | No |
-| 4 | R5 Bípedos fuera del origami | S | R0 | Origami, dinosaurios |
-| 5 | R4 Origami con contraste | M | R0 | Origami, dinosaurios, críptidos |
-| 6 | R7 Infantil grueso | S | R0 | Infantil |
-| 7 | R6 Encaje por área | M | R0 | Todos los de figura |
-| 8 | R3 Escenas | M | R6 | Escenas |
-| 9 | R9 Figuritas con sentido | S | — | Adultos, mezcla |
-| 10 | R8 Siluetas ilustradas | L | R6, R9 | Figuras sustituidas |
-| 11 | R10 Libros nuevos | M | R8 | Libros nuevos |
-| 12 | R11 Menos estilos | S | — | Mezcla |
-| 13 | R12 Pruebas rápidas | S | — | No |
-| 14 | R13 Partir `figure.js` | M | R3–R9 | No |
-| — | R14 Referencia de la competencia | S | R0 | No (ajusta umbrales) |
+| 4 | R19 Regalías correctas | S | — | No |
+| 5 | R5 Bípedos fuera del origami | S | R0 | Origami, dinosaurios |
+| 6 | R25 Repertorio suficiente | S | R5 | Nº de páginas |
+| 7 | R14 Referencia de la competencia | S | R0 | No (ajusta umbrales) |
+
+**Bloque B — Que la página se lea (≈ 3–4 semanas).**
+
+| Orden | Reparación | Tamaño | Depende de | Cambia el dibujo |
+|---|---|---|---|---|
+| 8 | R4 Origami con contraste | M | R0 | Origami, dinosaurios, críptidos |
+| 9 | R7 Infantil grueso | S | R0 | Infantil |
+| 10 | R15 Patrones sin manchitas | M | — | Mezcla, celdas, figuras |
+| 11 | R6 Encaje por área | M | R0 | Todos los de figura |
+| 12 | R3 Escenas | M | R6 | Escenas |
+| 13 | R16 Doble página | M | R6 | Dobles páginas |
+| 14 | R9 Figuritas con sentido | S | — | Adultos, mezcla |
+
+**Bloque C — Que el libro se venda (≈ 3–4 semanas, más el encargo de siluetas).**
+
+| Orden | Reparación | Tamaño | Depende de | Cambia el dibujo |
+|---|---|---|---|---|
+| 15 | R8 Siluetas ilustradas | L | R6, R9 | Figuras sustituidas |
+| 16 | R17 Portada con arte | L | R0 | Solo portada |
+| 17 | R18 Páginas de cortesía | M | — | Solo cortesía |
+| 18 | R24 Mejores páginas primero | S | R0 | Orden |
+| 19 | R20 Ficha única y completa | M | R19 | No |
+| 20 | R21 «Descargar todo» completo | S | R17, R20 | No |
+| 21 | R10 Libros nuevos | M | R8 | Libros nuevos |
+
+**Bloque D — Mantenimiento (≈ 1–2 semanas).**
+
+| Orden | Reparación | Tamaño | Depende de | Cambia el dibujo |
+|---|---|---|---|---|
+| 22 | R11 Menos estilos | S | — | Mezcla |
+| 23 | R22 Libro abierto con avance | S | — | No |
+| 24 | R23 Móvil | S | — | No |
+| 25 | R12 Pruebas rápidas | S | — | No |
+| 26 | R13 Partir `figure.js` | M | R3–R16 | No |
+
+Los plazos son estimaciones mías a partir del tamaño de cada tarea, no
+compromisos. R8 depende de un encargo externo: conviene lanzarlo al empezar
+el bloque B para que las siluetas lleguen a tiempo.
 
 I4 (nombre «Zentangle Creator») no es una reparación: es una decisión del
-dueño y no bloquea nada de lo anterior.
+dueño y no bloquea nada.
 
-R14 puede hacerse en cualquier momento después de R0; cuanto antes, mejor,
-porque fija los umbrales de R4 y R6.
+## 6. De hallazgo a reparación
 
-## 6. Cuándo se da por terminado
+| Hallazgo | Reparación | Comprobación que lo cierra |
+|---|---|---|
+| D1, D2 Escenas rotas | R2 (contención), R3 | Sin recortes rectangulares; figuritas del tema |
+| D3 Origami camuflado | R4 | Razón ≥ 1.5 en todas las páginas |
+| D4 Bípedos ilegibles | R5 (contención), R8 | Cobertura ≥ 15 % y reconocimiento 4 de 5 |
+| Q1 Figuras pequeñas | R6 | Menos del 10 % de páginas bajo el 15 % |
+| Q2, Q3 Siluetas | R8 | Validador y reconocimiento |
+| Q4 Figuritas sin sentido | R9 | Etiqueta compartida |
+| Q5 Infantil fino | R7 | ≤ 4 zonas difíciles por dm² en el 95 % |
+| Q6 Temas sin libro | R10 | Ninguna figura más de 2 veces |
+| Q7 Estilos casi iguales | R11 | Parecido < 0.8 entre los visibles |
+| T1 Manchitas | R15 | Tabla de patrones bajo 2 / 6 |
+| S1 Lomo | R16 | `anchor` a ≥ 25 mm del lomo; prueba impresa |
+| C1 Portada | R17 | Medidas, legibilidad a 160 px, previsualizador de KDP |
+| C2 Cortesía | R18 | Texto ≥ 3 mm; página de reseña en el plan |
+| C3 Repeticiones | R25 | Repetición máx ≤ 2 |
+| L1 Regalías | R19 | Tres casos iguales a la calculadora de KDP |
+| L2–L6 Ficha | R20 | 7 palabras clave válidas por tema e idioma |
+| U1, U3 Descarga | R21 | ZIP con las 5 piezas |
+| U2 Libro abierto | R22 | Avance por pliego |
+| U4 Móvil | R23 | Captura a 390 px sin solapes |
+| I1 Contraste sin vigilar | R0 | La auditoría falla bajo umbral |
+| I2 Pruebas lentas | R12 | `test:fast` < 60 s |
+| I3 `figure.js` | R13 | Golden idéntico |
+| I5 Versión duplicada | R1 | Una sola constante |
+| Competencia sin medir | R14 | Tabla de referencia |
+
+## 7. Pruebas nuevas que deja el plan
+
+| Prueba | Dónde | La añade |
+|---|---|---|
+| Contraste y cobertura por libro, con umbrales | `audit:books` | R0 |
+| Razón de contraste en página sintética | `test_verify.mjs` | R0 |
+| Escenas: recortes, tema de figuritas, solape, hueco vacío | `test_verify.mjs` | R3 |
+| `anchor` dentro del marco | `test_verify.mjs` | R6 |
+| Trazo mínimo en infantil | `test_verify.mjs` | R7 |
+| Figuritas con etiqueta compartida | `test_verify.mjs` | R9 |
+| Techo por combinación relleno × forma | prueba 18 | R15 |
+| Doble página: `anchor` y franja del lomo | `test_verify.mjs` | R16 |
+| Portada: medidas, hueco de código de barras, regiones coloreadas | `test_verify.mjs` | R17 |
+| Regalías frente a tres casos de la calculadora | `test_verify.mjs` | R19 |
+| Ficha: 7 palabras clave válidas por tema e idioma | `test_verify.mjs` | R20 |
+| ZIP completo | `e2e_book.mjs` | R21 |
+| Repetición máx ≤ 2 | `audit:books` | R25 |
+
+Tres comprobaciones no se pueden automatizar y quedan como paso manual:
+reconocimiento de siluetas por personas (R8), prueba impresa de dobles
+páginas (R16) y previsualizador de KDP para la portada (R17).
+
+## 8. Riesgos
+
+| Riesgo | Dónde aparece | Cómo se controla |
+|---|---|---|
+| Un cambio de motor altera libros ya publicados | R3–R9, R15, R16 | Versión del motor en la receta; la receta antigua avisa; el commit anterior reproduce el libro exacto |
+| Extraer el fondo cambia el sorteo de todas las páginas | R3 | Commit propio; el golden debe quedar idéntico antes de seguir |
+| Ampliar figuras corta cabezas | R6 | Punto `anchor` y su prueba |
+| El fondo ligero del origami deja huecos vacíos | R4 | Límite de 20 mm ya vigilado por `audit:books` |
+| Siluetas con derechos ajenos | R8 | Licencia y origen obligatorios en la ficha de la figura (ya lo exige el importador) |
+| Portada coloreada que parece hecha por máquina | R17 | Comparación con portadas líderes (R14); opción «solo texto» |
+| Tarifas de KDP que cambian | R19 | Archivo de datos con fecha y aviso en la ficha |
+| Umbrales propios (1.5 y 18 %) mal calibrados | R4, R6 | R14 los sustituye por cifras de libros que venden |
+| Incentivar reseñas incumple las normas de KDP | R18 | Página sin enlaces ni recompensas |
+
+## 9. Cuándo se da por terminado
 
 | Meta | Hoy | Objetivo |
 |---|---|---|
@@ -530,6 +888,33 @@ porque fija los umbrales de R4 y R6.
 | Razón de contraste mínima en origami | 1.04 | ≥ 1.5 |
 | Páginas con figura pequeña (peor libro, origami) | 19 de 20 bajo el 20 % del marco; con el corte de 15 % no está medido | Menos del 10 % bajo el 15 % |
 | Infantil: zonas difíciles por dm² | hasta 13 | ≤ 4 en el 95 % |
+| Combinaciones relleno × forma con más de 6 manchitas por celda | 21 (de 101) | 0 |
 | Figuras ilustradas | 1 | ≥ 40 |
+| Repetición máxima de una figura en un libro | 3 | 2 |
 | Temas con libro de un clic | 8 | 12 |
+| Portada | Texto sobre blanco | Arte coloreado, legible a 160 px |
+| Regalías | No coinciden con KDP | Iguales a la calculadora en 3 casos |
+| Palabras clave por ficha | 5–6 de 7 | 7 de 7 |
 | Contraste y cobertura vigilados por `audit:books` | No | Sí |
+
+## 10. Lo que esta revisión no cubre
+
+- **Competencia:** Insufficient data. No se midió ningún libro de terceros (R14).
+- **Personas que colorean:** Insufficient data. Ninguna prueba con usuarios.
+- **Papel:** Insufficient data. No se revisó ninguna prueba impresa; el
+  grosor de línea y el lomo solo se confirman en papel.
+- **Ventas:** Insufficient data sobre volúmenes de búsqueda, categorías y
+  paletas que convierten mejor.
+- **Tarifas exactas de KDP por tramo:** Insufficient data; hay que leerlas
+  de la página oficial al hacer R19.
+- **Accesibilidad con lector de pantalla** y **`npm run colorability`**: no
+  ejecutados.
+- **Importar una imagen** (`imageProcessor.js`) y **lotes**
+  (`batchGenerator.js`): no probados en esta revisión.
+
+## Fuentes
+
+1. [KDP — Coste de impresión de tapa blanda](https://kdp.amazon.com/en_US/help/topic/G201834340)
+2. [KDP — Regalías de tapa blanda](https://kdp.amazon.com/en_US/help/topic/G201834330)
+3. [KDP — Palabras clave](https://kdp.amazon.com/en_US/help/topic/G201298500)
+4. [KDP — Directrices de contenido (contenido de IA)](https://kdp.amazon.com/en_US/help/topic/G200672390)
