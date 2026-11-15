@@ -1,0 +1,34 @@
+{
+  "adult": {
+    "ratioMean": 2.13,
+    "coverMean": 0.225
+  },
+  "mix": {
+    "ratioMean": 2.31,
+    "coverMean": 0.19
+  },
+  "glass": {
+    "ratioMean": 1.56,
+    "coverMean": 0.24
+  },
+  "dino": {
+    "ratioMean": 1.74,
+    "coverMean": 0.116
+  },
+  "origami": {
+    "ratioMean": 1.42,
+    "coverMean": 0.099
+  },
+  "bio": {
+    "ratioMean": 1.98,
+    "coverMean": 0.226
+  },
+  "cryptids": {
+    "ratioMean": 1.79,
+    "coverMean": 0.166
+  },
+  "kids": {
+    "ratioMean": 2.69,
+    "coverMean": 0.262
+  }
+}
