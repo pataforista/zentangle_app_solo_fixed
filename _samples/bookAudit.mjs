@@ -8,6 +8,7 @@
 // Uso: npm run audit:books [-- adult,dino]   (BOOKS=2 audita 2 libros por tipo;
 //      SEED=… fija la semilla base; JSON=1 imprime el resumen en JSON)
 import { Resvg } from "@resvg/resvg-js";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 const ROOT = new URL("..", import.meta.url).href.replace(/\/$/, "");
 const { generateZentangle } = await import(ROOT + "/js/generators/zentangle.generator.js");
 const { generateSpread, SPREAD_FIGURES } = await import(ROOT + "/js/generators/spread.js");
@@ -17,6 +18,19 @@ const { designUnits, difficultyAt } = await import(ROOT + "/js/core/bookPlan.js"
 const { analyzeColorability, qualityVerdict, qualityScore } = await import(ROOT + "/js/core/pageQuality.js");
 const { pageSeed, spreadFigureFor, singlesBefore } = await import(ROOT + "/js/core/bookSeeds.js");
 const { isRandomKey } = await import(ROOT + "/js/generators/randomStyle.js");
+const { contrastStats, extractFigureMetrics } = await import(ROOT + "/js/core/pageQuality.js");
+// Contraste figura/fondo (R0): máscara de la silueta rasterizada con resvg a la
+// misma resolución que la página. Vale para figuras y escenas; sin silueta, null.
+const RATIO_LOW = 1.25, COVER_LOW = 0.15;
+function figureContrast(p) {
+  const m = extractFigureMetrics(p.svg);
+  if (!m || !m.silD) return null;
+  const mask = raster(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${p.wMm} ${PAPER.h}"><rect width="${p.wMm}" height="${PAPER.h}" fill="#000"/><path d="${m.silD}" fill="#fff"/></svg>`, p.r.width);
+  const mk = new Uint8Array(p.r.width * p.r.height);
+  for (let i = 0; i < mk.length; i++) mk[i] = mask.data[i * 4] > 128 ? 1 : 0;
+  const s = contrastStats(p.r.data, p.r.width, p.r.height, mk);
+  return { ratio: s.ratio, coverage: s.coverage, layout: m.layout };
+}
 console.warn = () => {};
 
 const PAPER = { w: 215.9, h: 279.4 }, M = 12.7, QPX = 6;
@@ -71,6 +85,22 @@ function measure(p) {
     layout: (p.svg.match(/data-layout="([^"]+)"/) || [])[1] || null, bg: (p.svg.match(/data-bg="([^"]+)"/) || [])[1] || null,
     hidden: (p.svg.match(/data-hidden="/g) || []).length, tangles: [...tangles],
     bad: q.bad, maxBad: v.maxBad, ink: q.ink, blankMm: q.blankMm, ok: v.ok, score: qualityScore(q, v.maxBad), fp: fingerprint(p.r, p.wMm),
+    contrast: figureContrast(p),
+  };
+}
+
+// Resumen de contraste y cobertura de un libro (solo páginas con figura).
+function contrastSummary(pages) {
+  const c = pages.map((p) => p.contrast).filter(Boolean);
+  if (!c.length) return { contrastPages: 0 };
+  const finite = c.map((x) => Math.min(x.ratio, 10));
+  const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  return {
+    contrastPages: c.length,
+    ratioMean: +mean(finite).toFixed(2), ratioMin: +Math.min(...finite).toFixed(2),
+    lowRatioPages: c.filter((x) => x.ratio < RATIO_LOW).length,
+    coverMean: +mean(c.map((x) => x.coverage)).toFixed(3), coverMin: +Math.min(...c.map((x) => x.coverage)).toFixed(3),
+    lowCoverPages: c.filter((x) => x.coverage < COVER_LOW).length,
   };
 }
 
@@ -117,6 +147,7 @@ async function auditBook(recipe, baseSeed) {
     layouts: count(pages.map((p) => p.layout).filter(Boolean)), bgs: count(pages.map((p) => p.bg).filter(Boolean)),
     presets: count(pages.map((p) => p.preset)), hiddenAvg: +avg((p) => p.hidden).toFixed(1),
     tanglesPerPage: +avg((p) => p.tangles.length).toFixed(1), distinctTangles: allT.size,
+    ...contrastSummary(pages),
     maxSim: +maxSim.toFixed(2), nearDupPairs: nearDup, simPairs: simPairs.slice(0, 6), figureOrder: figs.slice(0, 8),
   };
 }
@@ -136,6 +167,7 @@ for (const recipe of BOOK_RECIPES.filter((r) => !only || only.includes(r.id))) {
       console.log(`  calidad: marcadas ${res.flaggedBefore} → ${res.flaggedAfter} tras arreglo · zonas/máx ${res.badRatio} · tinta ${res.ink} % · hueco vacío medio ${res.blankMm} mm (máx ${res.maxBlankMm})`);
       console.log(`  figuras: ${res.distinctFigures} distintas en ${res.figures} páginas · repetición máx ${res.maxFigureRepeat} · seguidas ${res.seqRepeat} · escondidas/pág ${res.hiddenAvg}`);
       console.log(`  encuadres ${JSON.stringify(res.layouts)} · fondos ${JSON.stringify(res.bgs)}`);
+      if (res.contrastPages) console.log(`  contraste ${res.contrastPages} págs con figura · razón media ${res.ratioMean} (mín ${res.ratioMin}) · < ${RATIO_LOW}: ${res.lowRatioPages} · cobertura media ${(100 * res.coverMean).toFixed(0)} % (mín ${(100 * res.coverMin).toFixed(0)} %) · < ${COVER_LOW * 100} %: ${res.lowCoverPages}`);
       console.log(`  tangles/pág ${res.tanglesPerPage} · distintos en el libro ${res.distinctTangles} · parecido máx ${res.maxSim} · pares casi iguales ${res.nearDupPairs}`);
       if (res.simPairs.length) console.log(`  pares parecidos (> 0.7): ${res.simPairs.join(" · ")}`);
       if (Object.keys(res.presets).length > 1) console.log(`  estilos ${JSON.stringify(res.presets)}`);
@@ -151,7 +183,24 @@ if (process.env.JSON) console.log(JSON.stringify(out, null, 1));
 //    < 15 mm y máximo < 20 mm. Infantil y vitral quedan fuera a propósito:
 //    el infantil tiene fondo ligero (nubes, corazones) y el vitral piezas
 //    grandes y lisas; son sus zonas para colorear, no huecos sin dibujo.
+// R0: contraste y cobertura no pueden empeorar frente a la línea base medida
+// (contrastBaseline.json). Las cifras malas ya existentes se reparan en R4–R7;
+// esta comprobación solo impide que una reparación las empeore.
+// Actualizar la línea base: BASELINE_WRITE=1 npm run audit:books (tras revisar).
+const BASELINE_PATH = new URL("./contrastBaseline.json", import.meta.url);
 const fails = [];
+const baseline = existsSync(BASELINE_PATH) ? JSON.parse(readFileSync(BASELINE_PATH, "utf8")) : {};
+if (process.env.BASELINE_WRITE) {
+  const snap = Object.fromEntries(out.filter((r) => r.contrastPages).map((r) => [r.recipe, { ratioMean: r.ratioMean, coverMean: r.coverMean }]));
+  writeFileSync(BASELINE_PATH, JSON.stringify(snap, null, 2) + "\n");
+  console.log(`✓ Línea base de contraste escrita (${Object.keys(snap).length} libros).`);
+} else for (const r of out) {
+  const b = baseline[r.recipe];
+  if (b && r.contrastPages) {
+    if (r.ratioMean < b.ratioMean - 0.1) fails.push(`${r.recipe}: razón media de contraste ${r.ratioMean} (línea base ${b.ratioMean})`);
+    if (r.coverMean < b.coverMean - 0.02) fails.push(`${r.recipe}: cobertura media ${r.coverMean} (línea base ${b.coverMean})`);
+  }
+}
 for (const r of out) {
   if (r.nearDupPairs) fails.push(`${r.recipe}: ${r.nearDupPairs} pares casi iguales`);
   const wide = r.recipe === "kids" || r.recipe === "glass";

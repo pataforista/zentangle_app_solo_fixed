@@ -1297,6 +1297,13 @@ async function runTests() {
       assert.strictEqual(calculateRoyaltyTable(80)[0].rate, "50%", "ERROR: tramo 50 % por debajo de 9.99.");
       // Una sola versión del motor
       assert.strictEqual(ENGINE_VERSION, "2.1.0", "ERROR: versión del motor.");
+      // R2: escenas ocultas del selector, pero sus presets siguen existiendo (recetas antiguas)
+      const { HIDDEN_STYLES } = await import("./js/ui/stylePicker.js");
+      const { ZENTANGLE_PRESETS: Z } = await import("./js/generators/zentangle.presets.js");
+      for (const key of ["zen_scene", "zen_scene_dino", "zen_scene_ocean"]) {
+        assert.ok(HIDDEN_STYLES.has(key), `ERROR: ${key} debe estar oculto.`);
+        assert.ok(Z[key], `ERROR: ${key} debe seguir existiendo para recetas antiguas.`);
+      }
       console.log("✓ Regalías iguales a la fórmula de KDP en 4 casos calculados a mano; color sin cifras inventadas; versión del motor única.");
     }
 

@@ -148,12 +148,26 @@ export function extractFigureMetrics(svg) {
 export function analyzeContrast(raster, silD, wMm, hMm) {
   if (!silD) return null;
   const { data, width: w, height: h } = raster;
-  const N = w * h;
   // Crear máscara de la silueta: 1 = dentro, 0 = fuera.
   // Se rasteriza el path de la silueta en un canvas auxiliar con la misma
   // transformación que la página (mm → px).
   const mask = _rasterizeSilhouetteMask(silD, w, h, wMm, hMm);
   if (!mask) return null;
+  const { densityInside, densityOutside, contrast } = contrastStats(data, w, h, mask);
+  return {
+    densityInside: Math.round(densityInside * 1000) / 1000,
+    densityOutside: Math.round(densityOutside * 1000) / 1000,
+    contrast: Math.round(contrast * 1000) / 1000,
+    ok: contrast >= 0,
+    reason: contrast < 0 ? `Contraste negativo: fondo más denso (${Math.round(densityOutside * 100)}%) que figura (${Math.round(densityInside * 100)}%)` : null,
+  };
+}
+
+// Función pura (sin navegador): densidad de tinta dentro y fuera de una máscara.
+// data: RGBA de la página; mask: Uint8Array 1 = dentro de la silueta, 0 = fuera.
+// Razón = densidad dentro / densidad fuera (∞ si fuera no tiene tinta).
+export function contrastStats(data, w, h, mask) {
+  const N = w * h;
   let inkIn = 0, areaIn = 0, inkOut = 0, areaOut = 0;
   for (let i = 0; i < N; i++) {
     const isInk = data[i * 4] <= 128; // R <= 128 → tinta
@@ -162,13 +176,12 @@ export function analyzeContrast(raster, silD, wMm, hMm) {
   }
   const densityInside = areaIn > 0 ? inkIn / areaIn : 0;
   const densityOutside = areaOut > 0 ? inkOut / areaOut : 0;
-  const contrast = densityInside - densityOutside;
   return {
-    densityInside: Math.round(densityInside * 1000) / 1000,
-    densityOutside: Math.round(densityOutside * 1000) / 1000,
-    contrast: Math.round(contrast * 1000) / 1000,
-    ok: contrast >= 0,
-    reason: contrast < 0 ? `Contraste negativo: fondo más denso (${Math.round(densityOutside * 100)}%) que figura (${Math.round(densityInside * 100)}%)` : null,
+    densityInside,
+    densityOutside,
+    contrast: densityInside - densityOutside,
+    ratio: densityOutside > 0 ? densityInside / densityOutside : Infinity,
+    coverage: (areaIn + areaOut) > 0 ? areaIn / (areaIn + areaOut) : 0,
   };
 }
 
