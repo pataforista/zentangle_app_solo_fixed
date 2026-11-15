@@ -12,31 +12,8 @@ export const KDP_KEYWORD_MAX_LENGTH = 50;
 export const KDP_KEYWORD_COUNT = 7;
 export const KDP_CATEGORY_COUNT = 3;
 
-// Costos de impresión KDP (actualizado noviembre 2024)
-// Fuente: https://kdp.amazon.com/help/topic/G200672390
-export const KDP_PRINT_COSTS = {
-  // Libro en blanco y negro con papel blanco (tapa blanda)
-  blackWhite: {
-    fixedCost: 0.85, // USD costo fijo
-    perPageCost: 0.01, // USD por página
-  },
-  // Libro en color prémium con papel blanco (tapa blanda)
-  colorPremium: {
-    fixedCost: 0.85,
-    perPageCost: 0.06,
-  },
-  // Libro en color estándar con papel blanco
-  colorStandard: {
-    fixedCost: 0.85,
-    perPageCost: 0.04,
-  },
-};
-
-// Porcentaje de regalía según el canal
-export const KDP_ROYALTY_RATE = {
-  amazon: 0.60, // 60% en Amazon
-  expanded: 0.40, // 40% en canales expandidos
-};
+// Costes y regalías de KDP: viven en js/core/kdpRates.js (con fuentes y fecha).
+import { printCostUsd, royaltyPerSaleUsd, minPriceForPositiveRoyalty, KDP_RATES_AS_OF, KDP_PRINT_COSTS } from "../core/kdpRates.js";
 
 // Precios sugeridos para libros para colorear (USD)
 export const SUGGESTED_PRICES = {
@@ -581,11 +558,10 @@ function generateDescription(opts, lang = "es") {
  * @param {string} channel - Canal: "amazon" | "expanded"
  * @returns {Array} Tabla de regalías con diferentes precios
  */
-export function calculateRoyaltyTable(pages, printType = "blackWhite", channel = "amazon") {
-  const costs = KDP_PRINT_COSTS[printType];
-  const royaltyRate = KDP_ROYALTY_RATE[channel];
-
-  const printCost = costs.fixedCost + costs.perPageCost * pages;
+export function calculateRoyaltyTable(pages, printType = "blackWhite", channel = "amazon", trim = "large") {
+  const printCost = printCostUsd(pages, printType, trim);
+  // Sin tarifa verificada (color, canal expandido): no se inventan cifras.
+  if (printCost === null) return [];
 
   // Precios sugeridos según el número de páginas
   const priceRange = pages < 80 ? SUGGESTED_PRICES.small : pages < 120 ? SUGGESTED_PRICES.medium : SUGGESTED_PRICES.large;
@@ -599,13 +575,14 @@ export function calculateRoyaltyTable(pages, printType = "blackWhite", channel =
   ];
 
   return prices.map((price) => {
-    const royalty = (price - printCost) * royaltyRate;
+    const royalty = royaltyPerSaleUsd(price, printCost, channel);
     const margin = (royalty / price) * 100;
     return {
       price: price.toFixed(2),
       printCost: printCost.toFixed(2),
       royalty: royalty.toFixed(2),
       margin: margin.toFixed(1),
+      rate: price < 9.99 ? "50%" : "60%",
     };
   });
 }
@@ -614,30 +591,29 @@ export function calculateRoyaltyTable(pages, printType = "blackWhite", channel =
  * Genera el texto de la tabla de regalías para mostrar o exportar.
  */
 export function formatRoyaltyTable(pages, printType = "blackWhite", channel = "amazon") {
-  const table = calculateRoyaltyTable(pages, printType, channel);
-  const channelLabel = channel === "amazon" ? "Amazon (60%)" : "Expandido (40%)";
   const printTypeLabel = {
     blackWhite: "B/N papel blanco",
     colorPremium: "Color prémium",
     colorStandard: "Color estándar",
   }[printType];
+  const head = `TABLA DE REGALÍAS (${pages} páginas, ${printTypeLabel}, ${channel === "amazon" ? "Amazon.com" : "canal expandido"})`;
+  if (channel !== "amazon" || printCostUsd(pages, printType) === null) {
+    return [head, "=".repeat(60), "", `Sin tarifa verificada para esta combinación (${printTypeLabel}, ${channel}).`,
+      "Consulta la calculadora de KDP antes de fijar el precio."].join("\n");
+  }
+  const table = calculateRoyaltyTable(pages, printType, channel);
+  const minPrice = minPriceForPositiveRoyalty(printCostUsd(pages, printType), channel);
 
-  const lines = [
-    `TABLA DE REGALÍAS (${pages} páginas, ${printTypeLabel}, ${channelLabel})`,
-    "=".repeat(60),
-    "",
-    "Precio USD | Costo impresión | Regalía | Margen %",
-    "-".repeat(60),
-  ];
-
+  const lines = [head, "=".repeat(64), "", "Precio USD | Impresión | Tarifa | Regalía | Margen %", "-".repeat(64)];
   table.forEach((row) => {
-    lines.push(`$${row.price.padStart(7)} | $${row.printCost.padStart(13)} | $${row.royalty.padStart(6)} | ${row.margin.padStart(6)}%`);
+    lines.push(`$${row.price.padStart(7)} | $${row.printCost.padStart(7)} | ${row.rate.padStart(6)} | $${row.royalty.padStart(6)} | ${row.margin.padStart(6)}%`);
   });
-
   lines.push("");
-  lines.push(`Costo de impresión: $${KDP_PRINT_COSTS[printType].fixedCost} fijo + $${KDP_PRINT_COSTS[printType].perPageCost}/página`);
-  lines.push(`Porcentaje de regalía: ${channel === "amazon" ? "60%" : "40%"}`);
-
+  lines.push(`Precio mínimo para regalía positiva: $${minPrice.toFixed(2)}`);
+  const c = KDP_PRINT_COSTS[printType];
+  lines.push(`Impresión (tamaño grande): $${c.fixedCost.toFixed(2)} fijo + $${c.perPage.large}/página`);
+  lines.push("Regalía = tarifa × precio de lista − impresión (fórmula de KDP).");
+  lines.push(`Tarifas consultadas el ${KDP_RATES_AS_OF}: comprueba la calculadora de KDP antes de publicar.`);
   return lines.join("\n");
 }
 

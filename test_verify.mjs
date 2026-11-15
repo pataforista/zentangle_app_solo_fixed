@@ -1273,6 +1273,33 @@ async function runTests() {
       console.log(`✓ ${total} figuras delgadas sin falsas alarmas de cobertura, lomo centrado con sangrado, ${ids.length} figuras con nombre en español, PNG gris para el PDF, huella de parecido y libro infantil sin tangles avanzados.`);
     }
 
+    // -------------------------------------------------------------
+    // Prueba 24: Regalías con la fórmula y tarifas de KDP (R19) y versión única del motor (R1)
+    // -------------------------------------------------------------
+    {
+      console.log("\nPrueba 24: Regalías de KDP (tarifa × precio − impresión) y versión única del motor...");
+      const K = await import("./js/core/kdpRates.js");
+      const { calculateRoyaltyTable, formatRoyaltyTable } = await import("./js/generators/bookListing.js");
+      const { ENGINE_VERSION } = await import("./js/core/engineVersion.js");
+      // Valores calculados a mano con la fórmula de KDP (no con el propio código).
+      // 24 pp, 8.99 USD: impresión 1.00 + 24×0.017 = 1.408; 50 % × 8.99 − 1.408 = 3.087
+      assert.strictEqual(K.royaltyPerSaleUsd(8.99, K.printCostUsd(24)).toFixed(2), "3.09", "ERROR: regalía 24 pp a 8.99.");
+      // 200 pp, 12.99 USD: impresión 1.00 + 200×0.017 = 4.40; 60 % × 12.99 − 4.40 = 3.394
+      assert.strictEqual(K.royaltyPerSaleUsd(12.99, K.printCostUsd(200)).toFixed(2), "3.39", "ERROR: regalía 200 pp a 12.99.");
+      // 80 pp, 9.99 USD (tramo 60 %): impresión 2.36; 5.994 − 2.36 = 3.634
+      assert.strictEqual(K.royaltyPerSaleUsd(9.99, K.printCostUsd(80)).toFixed(2), "3.63", "ERROR: regalía 80 pp a 9.99.");
+      // Precio mínimo con regalía positiva, 80 pp: 2.36 / 0.5 = 4.72
+      assert.strictEqual(K.minPriceForPositiveRoyalty(K.printCostUsd(80)).toFixed(2), "4.72", "ERROR: precio mínimo 80 pp.");
+      // Sin tarifa verificada (color): no se inventa ninguna cifra
+      assert.strictEqual(calculateRoyaltyTable(80, "colorPremium").length, 0, "ERROR: color no debe tener cifras.");
+      assert.ok(formatRoyaltyTable(80, "colorPremium").includes("Sin tarifa verificada"), "ERROR: el texto debe avisar.");
+      // La tabla usa el tramo 50 % por debajo de 9.99
+      assert.strictEqual(calculateRoyaltyTable(80)[0].rate, "50%", "ERROR: tramo 50 % por debajo de 9.99.");
+      // Una sola versión del motor
+      assert.strictEqual(ENGINE_VERSION, "2.1.0", "ERROR: versión del motor.");
+      console.log("✓ Regalías iguales a la fórmula de KDP en 4 casos calculados a mano; color sin cifras inventadas; versión del motor única.");
+    }
+
     console.log("\n==============================================");
     console.log("🎉 TODAS LAS PRUEBAS PASARON EXITOSAMENTE! 🎉");
     console.log("==============================================");

@@ -552,7 +552,8 @@ export async function fixFlaggedPages() {
   }
 }
 
-export const ENGINE_VERSION = "2.1.0";
+import { ENGINE_VERSION } from "../core/engineVersion.js";
+export { ENGINE_VERSION };
 
 export function bookRecipe(review) {
   const { g, n, blank, flags, baseSeed, pages, total } = review;
