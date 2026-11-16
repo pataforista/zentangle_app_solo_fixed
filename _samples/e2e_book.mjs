@@ -118,7 +118,7 @@ try {
   const rec = JSON.parse(readFileSync(recPath, "utf8"));
   if (rec.pages?.length !== N || rec.totalPages !== expected) fail("la receta no recoge todas las páginas del libro.");
   if (rec.opts?.showSafeZone !== false) fail("la receta (y el libro) llevan las guías de zona segura.");
-  if (rec.engineVersion !== "2.1.0" || rec.seedScheme !== 2) fail("la receta no incluye engineVersion o seedScheme.");
+  if (rec.engineVersion !== "2.2.0" || rec.seedScheme !== 2) fail("la receta no incluye engineVersion o seedScheme.");
   // Con páginas marcadas el PDF no se descarga: hay que arreglarlas o aceptarlas.
   const stillFlagged = await page.$$eval(".book-tile .q-badge.bad", (els) => els.length);
   if (stillFlagged) {

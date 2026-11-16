@@ -2647,7 +2647,8 @@ export async function generateZenFigure(doc, opts) {
   const rich = !empty && opts.richFill !== false;
   const stroke = clampN(opts.patternStrokeMm, 0.15, 1.5, 0.35);
   const strStroke = clampN(opts.stringStrokeMm, 0.2, 2, 0.55);
-  const outStroke = clampN(opts.cellBorderWidthMm, 0.3, 3, 1.0);
+  const outMul = opts.figureAngular ? 1.4 : 1; // origami: contorno más grueso (R4)
+  const outStroke = clampN(opts.cellBorderWidthMm, 0.3, 3, 1.0) * outMul;
   const sketchy = clampN(opts.sketchy, 0, 2, 0.3);
   const prefix = `f_${(seed % 1000000).toString(16)}_`;
   const defs = [], body = [];
@@ -2675,7 +2676,10 @@ export async function generateZenFigure(doc, opts) {
   // buscarla; figureAuras [mín, máx] lo cambia (el fondo ligero usa 2–4).
   const [auraLo, auraHi] = Array.isArray(opts.figureAuras) ? opts.figureAuras : [1, 2];
   const aura = fStyle === "glass" ? 1 : rInt(rng, auraLo, auraHi);
-  const room = aura * gap * 1.6 + gap * 3; // margen para auras y respiro
+  // fitGapMm (infantil): el margen de encaje no crece con la separación de los
+  // patrones; si no, un trazo más abierto encogía la figura.
+  const roomGap = Number.isFinite(opts.fitGapMm) ? Math.min(gap, opts.fitGapMm) : gap;
+  const room = aura * roomGap * 1.6 + roomGap * 3; // margen para auras y respiro
   const bottomRoom = def.branch || def.stem ? 0.06 : 0;
   const sFit = Math.min((a.w - 2 * room) / (ub.x1 - ub.x0), (a.h - 2 * room) / ((ub.y1 - ub.y0) * (1 + bottomRoom)));
   // Encuadre: «center» (a página completa), «offset» (más pequeña y movida a
@@ -2861,7 +2865,10 @@ export async function generateZenFigure(doc, opts) {
     // Facetas rectas en todo el marco (la figura las tapa). Vitral: piezas
     // pequeñas y lisas; cubista: grandes, la mitad con un tangle amplio.
     // En vitral el fondo va en piezas más grandes que la figura: así destaca.
-    const target = fStyle === "glass" ? 900 : 1100;
+    // Origami (R4): piezas de fondo mayores que las de la figura y la mitad lisas,
+    // para que la figura no se pierda entre facetas iguales a las suyas.
+    const lightBg = !!opts.figureAngular;
+    const target = fStyle === "glass" ? 900 : lightBg ? 1900 : 1100;
     const facets = facetSections(rng, frameRings, target);
     const lines = pb(sketchy * 0.4);
     for (const f of facets) {
@@ -2873,6 +2880,7 @@ export async function generateZenFigure(doc, opts) {
       // Cubista: lisas solo algunas piezas pequeñas (las grandes, vacías, se
       // leían como huecos sin nada que colorear).
       if (fStyle === "glass" || f.area < 200 || (rng() < 0.3 && f.area < a.w * a.h * 0.02)) continue;
+      if (lightBg && rng() < 0.5 && f.area < 1500) continue;
       bg.push(`<g clip-path="url(#${clipOf(polyD(poly))})">${tangleIn(pickTangle(BG_POOL), f, BG_GAP)}</g>`);
     }
     if (fStyle !== "glass") bg.push(`<path d="${lines.d}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.6)}"/>`);
@@ -3109,7 +3117,9 @@ export async function generateZenFigure(doc, opts) {
           return { x, y };
         })
       : null;
-    const sec = makeSections(rng, rings, { ...p.strings, angle: p.strings.angle + rot, skeleton: skelPts }, gap, level);
+    // maxStrings (infantil): como mucho N cortes por familia, para dejar zonas grandes.
+    const capS = (r) => (Number.isFinite(opts.maxStrings) && Array.isArray(r) ? [Math.min(r[0], opts.maxStrings), Math.min(r[1], opts.maxStrings)] : r);
+    const sec = makeSections(rng, rings, { ...p.strings, a: capS(p.strings.a), b: capS(p.strings.b), angle: p.strings.angle + rot, skeleton: skelPts }, gap, level);
     let plainUsed = false;
     const totalArea = sec.sections.reduce((acc, q) => acc + q.area, 0);
     const out = [`<path d="${dc}" fill="#fff" stroke="none"/>`];
@@ -3191,7 +3201,7 @@ export async function generateZenFigure(doc, opts) {
 
   // Marco.
   if (opts.drawFrame !== false) {
-    body.push(el(polyD(frameRings[0]), "none", outStroke * 1.1));
+    body.push(el(polyD(frameRings[0]), "none", (outStroke / outMul) * 1.1));
   }
 
   if (Array.isArray(doc.defs)) doc.defs.push(...defs);

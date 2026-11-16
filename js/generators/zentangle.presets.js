@@ -910,11 +910,16 @@ export const ZENTANGLE_PRESETS = {
     // Sin tangles de nivel 3 ni Printemps: líneas muy juntas y manchitas
     // pequeñas que un niño no puede colorear (pendiente P6).
     excludeTangles: ["paradox", "hollibaugh", "bales", "cadent", "nido", "printemps"],
+    // Trazo grueso y zonas grandes (R7): línea de patrón de 0.6 mm, separación
+    // de 3.5 mm y como mucho 2 cortes por familia en cada parte.
+    lineThicknessProfile: "bold",
+    maxStrings: 2,
+    fitGapMm: 1.9,
     cellCount: 1,
-    cellBorderWidthMm: 1.2,
-    patternStrokeMm: 0.35,
-    stringStrokeMm: 0.75,
-    minGapMm: 1.9,
+    cellBorderWidthMm: 1.6,
+    patternStrokeMm: 0.6,
+    stringStrokeMm: 0.9,
+    minGapMm: 3.5,
     sketchy: 0.3,
     fillDeadSpace: false,
   },  // Temas de ciencia: prehistoria (dinosaurios, reptiles marinos, amonites) y biología.

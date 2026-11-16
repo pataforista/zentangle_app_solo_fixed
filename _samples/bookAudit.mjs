@@ -191,7 +191,8 @@ const BASELINE_PATH = new URL("./contrastBaseline.json", import.meta.url);
 const fails = [];
 const baseline = existsSync(BASELINE_PATH) ? JSON.parse(readFileSync(BASELINE_PATH, "utf8")) : {};
 if (process.env.BASELINE_WRITE) {
-  const snap = Object.fromEntries(out.filter((r) => r.contrastPages).map((r) => [r.recipe, { ratioMean: r.ratioMean, coverMean: r.coverMean }]));
+  // Se fusiona con lo que haya: auditar solo algunos libros no borra los demás.
+  const snap = { ...baseline, ...Object.fromEntries(out.filter((r) => r.contrastPages).map((r) => [r.recipe, { ratioMean: r.ratioMean, coverMean: r.coverMean }])) };
   writeFileSync(BASELINE_PATH, JSON.stringify(snap, null, 2) + "\n");
   console.log(`✓ Línea base de contraste escrita (${Object.keys(snap).length} libros).`);
 } else for (const r of out) {
