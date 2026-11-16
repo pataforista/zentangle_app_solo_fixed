@@ -13,6 +13,11 @@ import { compileFigureDefinition, registerImportedFigure } from "./js/core/svgIm
 import { FIGURES, FIGURE_IDS, FIGURE_SETS } from "./js/generators/figure.js";
 import { extractFigureMetrics } from "./js/core/pageQuality.js";
 
+// FAST=1 (npm run test:fast): muestrea los bucles más largos (1 de cada 4 figuras,
+// 1 semilla de libro, 1 de cada 2 tangles). `npm test` sin FAST recorre todo.
+const FAST = process.env.FAST === "1";
+const pick = (list) => (FAST ? list.filter((_, i) => i % (list.length > 8 ? 8 : 2) === 0) : list);
+
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
 
@@ -426,7 +431,7 @@ async function runTests() {
       assert.ok(ZENTANGLE_PRESETS[k], `ERROR: Más vendidos incluye ${k}, que no existe.`);
       assert.ok(isColoringSafe(ZENTANGLE_PRESETS[k]), `ERROR: Más vendidos incluye ${k}, que tiene rellenos negros.`);
     }
-    for (const bs of [1, 42, 347387974]) {
+    for (const bs of pick([1, 42, 347387974])) {
       const styles = Array.from({ length: deckTotal * 2 }, (_, i) => resolveBestSeller(0, { pageIndex: i, bookSeed: bs }).presetName);
       for (let i = 1; i < styles.length; i++) assert.notStrictEqual(styles[i], styles[i - 1], `ERROR: Más vendidos repite ${styles[i]} en las páginas ${i} y ${i + 1} (libro ${bs}).`);
       const first = styles.slice(0, deckTotal);
@@ -505,7 +510,7 @@ async function runTests() {
         }
         return q.map((v, i) => v / n[i]);
       };
-      for (const fig of FIGURE_IDS) {
+      for (const fig of pick(FIGURE_IDS)) {
         for (const bgKind of ["rays", "strings", "airy"]) {
           const opts = { seed: 11, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig, figureBackground: bgKind } };
           const d1 = { body: [], defs: [] }, d2 = { body: [], defs: [] };
@@ -522,13 +527,13 @@ async function runTests() {
         }
       }
       // Cada tangle clásico produce líneas en cajas chicas y grandes.
-      for (const t of CLASSIC_TANGLES) for (const side of [20, 120]) {
+      for (const t of pick(CLASSIC_TANGLES)) for (const side of [20, 120]) {
         const layers = t.fn(createRNG(5), { x0: 0, y0: 0, x1: side, y1: side * 0.8 }, { gap: 1.9, stroke: 0.35, sketchy: 0.3 });
         assert.ok(layers.some((l) => l.d && l.d.length > 40), `ERROR: el tangle ${t.id} quedó vacío en una caja de ${side} mm.`);
       }
       // En un libro, las figuras se recorren todas antes de repetir y nunca
       // sale la misma en dos páginas de figura seguidas.
-      for (const bs of [1, 42]) {
+      for (const bs of pick([1, 42])) {
         const seq = Array.from({ length: FIGURE_IDS.length * 3 }, (_, i) => figureForPage(bs, i));
         assert.strictEqual(new Set(seq.slice(0, FIGURE_IDS.length)).size, FIGURE_IDS.length, "ERROR: las primeras figuras del libro se repiten.");
         for (let i = 1; i < seq.length; i++) assert.notStrictEqual(seq[i], seq[i - 1], `ERROR: figura ${seq[i]} repetida en páginas de figura seguidas (libro ${bs}).`);
@@ -1027,7 +1032,7 @@ async function runTests() {
       const bad = {};
       for (const preset of ["zen_figure_facet", "zen_figure_glass"]) {
         let tot = 0;
-        for (const fig of FIGURE_IDS) {
+        for (const fig of pick(FIGURE_IDS)) {
           const run = async () => { const d = { body: [], defs: [] }; await generateZentangle(d, { seed: 21, presetName: preset, areaMm: page, overrides: { figureName: fig } }); return d; };
           const d1 = await run(), d2 = await run(), html = d1.body.join("");
           assert.strictEqual(html, d2.body.join(""), `ERROR: ${preset}/${fig} no es determinista.`);
@@ -1036,14 +1041,14 @@ async function runTests() {
           const img = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 5 } }).render();
           tot += analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5).bad;
         }
-        bad[preset] = tot / FIGURE_IDS.length;
+        bad[preset] = tot / pick(FIGURE_IDS).length;
       }
       // Vitral y facetado tienen piezas grandes: menos zonas difíciles que la figura con strings (~50).
       assert.ok(bad.zen_figure_glass < 25 && bad.zen_figure_facet < 45, `ERROR: zonas difíciles de media: facetado ${bad.zen_figure_facet.toFixed(1)}, vitral ${bad.zen_figure_glass.toFixed(1)}.`);
       // Figura zentangle con relleno rico y figuras escondidas: el margen
       // blanco junto a cuerdas, auras y marco mantiene las astillas a raya.
       let tot = 0, hidden = 0, nested = 0;
-      for (const fig of FIGURE_IDS) {
+      for (const fig of pick(FIGURE_IDS)) {
         const d = { body: [], defs: [] };
         await generateZentangle(d, { seed: 21, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig } });
         const html = d.body.join("");
@@ -1056,9 +1061,9 @@ async function runTests() {
         // Sin huecos vacíos grandes: el mayor círculo blanco del dibujo < 15 mm de radio.
         assert.ok(qa.blankMm < 15, `ERROR: ${fig} deja un hueco vacío de ${qa.blankMm.toFixed(1)} mm de radio.`);
       }
-      bad.zen_figure = tot / FIGURE_IDS.length;
+      bad.zen_figure = tot / pick(FIGURE_IDS).length;
       assert.ok(bad.zen_figure < 40, `ERROR: la figura zentangle sube a ${bad.zen_figure.toFixed(1)} zonas difíciles de media (techo 40).`);
-      assert.ok(hidden >= FIGURE_IDS.length * 2 && nested >= 15, `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
+      assert.ok(FAST || (hidden >= FIGURE_IDS.length * 2 && nested >= 15), `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
       // Repertorio por estilo: adulto (y abstracto) frente a infantil, en libro.
       const { FIGURE_SETS } = await import("./js/generators/figure.js");
       for (const [preset, allowed] of [["zen_figure", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_glass", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_kids", FIGURE_SETS.kids], ["zen_figure_dino", [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix]], ["zen_figure_dino_origami", FIGURE_SETS.dinoOrigami], ["zen_figure_bio", FIGURE_SETS.bio], ["zen_figure_cryptids", [...FIGURE_SETS.cryptids, ...FIGURE_SETS.cryptidsOrigami]]]) {
