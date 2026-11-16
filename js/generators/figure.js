@@ -2309,7 +2309,8 @@ FIGURE_SETS.christmas = ["tree", "snowflake", "bell", "candle", "reindeer"];
 // Mitad origami del libro de dinosaurios. R5 (REVISION_MOTORES.md): sin bípedos
 // (T. rex, alosaurio, velocirráptor, espinosaurio, parasaurolofo), que quedaban
 // ilegibles con 5–6 vértices. Vuelven con silueta ilustrada (R8).
-FIGURE_SETS.dinoOrigamiMix = ["stegosaurus", "triceratops", "ankylosaurus", "dimetrodon"];
+// Solo los que no están ya en el repertorio normal: así ninguna figura sale en los dos estilos.
+FIGURE_SETS.dinoOrigamiMix = ["stegosaurus", "triceratops"];
 // Origami: todos los que se leen bien simplificados (paquicefalosaurio e
 // iguanodonte quedaban idénticos al T. rex).
 FIGURE_SETS.dinoOrigami = [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix];

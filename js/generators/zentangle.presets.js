@@ -921,7 +921,10 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_dino: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.dino,
-    origamiMix: FIGURE_SETS.dinoOrigamiMix, // páginas alternas en origami
+    origamiMix: FIGURE_SETS.dinoOrigamiMix,
+    // 1 de cada 5 páginas en origami: con 2 figuras origami y 8 normales, cada
+    // figura sale 2 veces en un libro de 20.
+    origamiEvery: 5,
     themedBackground: "dino", // helechos prehistóricos
     cellCount: 1,
     cellBorderWidthMm: 1.2,

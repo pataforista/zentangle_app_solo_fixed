@@ -31,9 +31,9 @@ export const THEME_LISTING = {
     keywords: ["vitrales para colorear adultos", "libro colorear fácil relajante", "mosaicos para colorear", "colorear piezas grandes letra grande", "libro colorear principiantes adultos", "colorear para relajarse antiestrés", "regalo colorear adultos mayores"],
   },
   dino: {
-    titles: ["Dinosaurios para colorear: patrones prehistóricos", "Mundo prehistórico para colorear: T. rex, triceratops y más", "Dinosaurios con patrones: libro para colorear de fácil a difícil"],
+    titles: ["Dinosaurios para colorear: patrones prehistóricos", "Mundo prehistórico para colorear: triceratops, estegosaurio y más", "Dinosaurios con patrones: libro para colorear de fácil a difícil"],
     lead: (n) => `${n} ilustraciones de criaturas prehistóricas: triceratops, estegosaurio, braquiosaurio, pterosaurio, plesiosaurio, amonite y más, cada una llena de patrones.`,
-    keywords: ["dinosaurios para colorear", "libro colorear dinosaurios niños y adultos", "prehistoria para colorear", "t rex triceratops colorear", "regalo amantes de los dinosaurios", "colorear ciencia paleontología", "dinosaurios patrones zen"],
+    keywords: ["dinosaurios para colorear", "libro colorear dinosaurios niños y adultos", "prehistoria para colorear", "triceratops estegosaurio colorear", "regalo amantes de los dinosaurios", "colorear ciencia paleontología", "dinosaurios patrones zen"],
   },
   bio: {
     titles: ["Biología para colorear: células, ADN y neuronas", "La vida al microscopio: libro de ciencia para colorear", "Anatomía y células para colorear con patrones"],
@@ -42,7 +42,7 @@ export const THEME_LISTING = {
   },
   cryptids: {
     titles: ["Críptidos para colorear: Pie Grande, Nessie y más", "Criaturas misteriosas del mundo: libro para colorear", "Monstruos legendarios para colorear con patrones"],
-    lead: (n) => `${n} ilustraciones de criaturas legendarias del folclore: Pie Grande, Nessie, Mothman, chupacabras, kraken, yeti, ovni, Wendigo, jackalope y más.`,
+    lead: (n) => `${n} ilustraciones de criaturas legendarias del folclore: Pie Grande, Nessie, Mothman, kraken, yeti, ovni, Wendigo, jackalope y más.`,
     keywords: ["críptidos para colorear", "pie grande libro colorear", "monstruos legendarios colorear", "misterio y folclore para colorear", "regalo fans de lo paranormal", "ovnis y aliens para colorear", "criaturas míticas colorear adultos"],
   },
   kids: {

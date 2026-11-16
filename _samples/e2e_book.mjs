@@ -66,7 +66,7 @@ try {
   const quick = await page.evaluate(() => ({ style: document.getElementById("zPreset").value, n: document.getElementById("bookPages").value, prog: document.getElementById("bookProgressive").checked }));
   const autoTitle = await page.inputValue("#bookTitle");
   if (!/Dinosaurios/.test(autoTitle)) fail(`el tipo de libro no propone título y el libro saldría como «Libro para colorear» (${autoTitle}).`);
-  if (quick.style !== "zen_figure_dino" || quick.n !== "34" || !quick.prog) fail(`el atajo «Dinosaurios» no configuró el libro (${JSON.stringify(quick)}).`);
+  if (quick.style !== "zen_figure_dino" || quick.n !== "20" || !quick.prog) fail(`el atajo «Dinosaurios» no configuró el libro (${JSON.stringify(quick)}).`);
   await page.evaluate(({ n, blank }) => {
     const set = (id, v) => { const e = document.getElementById(id); if (e.type === "checkbox") e.checked = v; else e.value = v; e.dispatchEvent(new Event("change", { bubbles: true })); };
     set("bookPages", String(n)); set("bookBlank", blank);
