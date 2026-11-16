@@ -12,23 +12,23 @@
     "coverMean": 0.24
   },
   "dino": {
-    "ratioMean": 1.74,
-    "coverMean": 0.116
+    "ratioMean": 1.99,
+    "coverMean": 0.124
   },
   "origami": {
-    "ratioMean": 1.42,
-    "coverMean": 0.099
+    "ratioMean": 1.69,
+    "coverMean": 0.103
   },
   "bio": {
     "ratioMean": 1.98,
     "coverMean": 0.226
   },
   "cryptids": {
-    "ratioMean": 1.79,
-    "coverMean": 0.166
+    "ratioMean": 1.86,
+    "coverMean": 0.196
   },
   "kids": {
-    "ratioMean": 2.69,
-    "coverMean": 0.262
+    "ratioMean": 1.98,
+    "coverMean": 0.266
   }
 }
