@@ -2306,8 +2306,10 @@ FIGURE_SETS.ocean = ["whale", "turtle", "seahorse", "octopus", "jellyfish", "koi
 FIGURE_SETS.birds = ["hummingbird", "owl", "peacock", "bird", "penguin", "feather"];
 FIGURE_SETS.cats = ["sittingcat", "cat", "playfulcat", "sleepycat"];
 FIGURE_SETS.christmas = ["tree", "snowflake", "bell", "candle", "reindeer"];
-// Mitad origami del libro de dinosaurios.
-FIGURE_SETS.dinoOrigamiMix = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurolophus", "stegosaurus", "triceratops"];
+// Mitad origami del libro de dinosaurios. R5 (REVISION_MOTORES.md): sin bípedos
+// (T. rex, alosaurio, velocirráptor, espinosaurio, parasaurolofo), que quedaban
+// ilegibles con 5–6 vértices. Vuelven con silueta ilustrada (R8).
+FIGURE_SETS.dinoOrigamiMix = ["stegosaurus", "triceratops", "ankylosaurus", "dimetrodon"];
 // Origami: todos los que se leen bien simplificados (paquicefalosaurio e
 // iguanodonte quedaban idénticos al T. rex).
 FIGURE_SETS.dinoOrigami = [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix];
@@ -2316,7 +2318,9 @@ FIGURE_SETS.bio = FIGURE_IDS.filter((f) => FIGURES[f].science === "bio");
 // 3 páginas), los que solo funcionan simplificados. Fuera: serpiente marina y
 // monstruo de Flatwoods (no se leen en ningún estilo).
 FIGURE_SETS.cryptids = ["bigfoot", "yeti", "mothman", "nessie", "kraken", "jackalope", "wendigo", "greyalien", "ufo", "deathworm", "frogman", "goblin", "owlman"];
-FIGURE_SETS.cryptidsOrigami = ["chupacabra", "jerseydevil", "thunderbird"];
+// R5: sin origami en críptidos. Chupacabras y diablo de Jersey son bípedos con
+// cobertura de 11–13 % en origami; el pájaro del trueno repetiría ~6 veces por libro.
+FIGURE_SETS.cryptidsOrigami = [];
 export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
 // En los estilos para adultos, las figuritas escondidas también son adultas.
