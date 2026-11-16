@@ -2,21 +2,32 @@
 // Tarifas de KDP usadas para estimar regalías. Archivo de datos: cuando KDP
 // cambie sus tarifas, se cambia aquí y nada más.
 //
-// Fuentes (consultadas el 15 nov 2026):
-//   - Coste de impresión de tapa blanda (Amazon.com):
-//     https://kdp.amazon.com/en_US/help/topic/G201834340
-//   - Regalías de tapa blanda (50 % por debajo de 9.99 USD; 60 % desde 9.99):
-//     https://kdp.amazon.com/en_US/help/topic/G201834330
-// Verificado solo lo que aparece en esas fuentes: B/N con papel blanco.
-// Color y canal expandido NO están verificados: se devuelven como null y la
+// Fuentes (consultadas el 16 nov 2026):
+//   - Regalías de tapa blanda, página oficial de KDP (50 % por debajo de 9.99 USD;
+//     60 % desde 9.99): https://kdp.amazon.com/en_US/help/topic/G201834330
+//   - Coste de impresión: la página oficial
+//     (https://kdp.amazon.com/en_US/help/topic/G201834340) no se pudo leer desde
+//     el entorno de desarrollo. Los valores de abajo salen de dos guías de
+//     terceros que coinciden entre sí (usabookstudios.com/guides/kdp-print-cost,
+//     bookprinttools.com/guides/kdp-print-cost-and-royalty). SIN CONFIRMAR en la
+//     fuente oficial: comprobar con la calculadora de KDP antes de fijar precios.
+// Color y canal expandido no están verificados: se devuelven como null y la
 // tabla lo dice en lugar de inventar una cifra.
 
-export const KDP_RATES_AS_OF = "2026-11-15";
+export const KDP_RATES_AS_OF = "2026-11-16";
 
-// Coste de impresión en USD: fijo + por página. "large" = tamaños grandes
-// (8.5×11 in entra aquí); "regular" = tamaños pequeños (6×9 in).
+// Coste de impresión en USD, B/N. Dos tramos por nº de páginas:
+//   - libro corto (menos de SHORT_BOOK_MAX_PAGES): precio fijo, sin coste por página
+//   - resto: fijo + por página
+// "large" = tamaños grandes (8.5×11 in entra aquí); "regular" = pequeños (6×9 in).
+// Las fuentes discrepan en el borde del tramo (108–110 páginas): ahí, calculadora.
+export const SHORT_BOOK_MAX_PAGES = 110;
 export const KDP_PRINT_COSTS = {
-  blackWhite: { fixedCost: 1.0, perPage: { regular: 0.012, large: 0.017 } },
+  blackWhite: {
+    short: { regular: 2.3, large: 2.84 },
+    fixedCost: 1.0,
+    perPage: { regular: 0.012, large: 0.017 },
+  },
   colorPremium: null,
   colorStandard: null,
 };
@@ -29,6 +40,7 @@ export const KDP_ROYALTY_RATES_AMAZON = { below: 0.5, atOrAbove: 0.6 };
 export function printCostUsd(pages, printType = "blackWhite", trim = "large") {
   const c = KDP_PRINT_COSTS[printType];
   if (!c) return null;
+  if (pages < SHORT_BOOK_MAX_PAGES) return c.short[trim];
   return c.fixedCost + c.perPage[trim] * pages;
 }
 

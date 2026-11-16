@@ -611,7 +611,8 @@ export function formatRoyaltyTable(pages, printType = "blackWhite", channel = "a
   lines.push("");
   lines.push(`Precio mínimo para regalía positiva: $${minPrice.toFixed(2)}`);
   const c = KDP_PRINT_COSTS[printType];
-  lines.push(`Impresión (tamaño grande): $${c.fixedCost.toFixed(2)} fijo + $${c.perPage.large}/página`);
+  lines.push(`Impresión (tamaño grande): $${c.short.large.toFixed(2)} fijo con menos de 110 páginas; desde 110, $${c.fixedCost.toFixed(2)} + $${c.perPage.large}/página`);
+  lines.push("Coste de impresión tomado de guías de terceros, sin confirmar en la página oficial de KDP.");
   lines.push("Regalía = tarifa × precio de lista − impresión (fórmula de KDP).");
   lines.push(`Tarifas consultadas el ${KDP_RATES_AS_OF}: comprueba la calculadora de KDP antes de publicar.`);
   return lines.join("\n");
