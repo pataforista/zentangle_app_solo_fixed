@@ -1,34 +1,34 @@
 {
   "adult": {
-    "ratioMean": 2.13,
-    "coverMean": 0.225
+    "ratioMean": 2.09,
+    "coverMean": 0.232
   },
   "mix": {
-    "ratioMean": 2.31,
-    "coverMean": 0.19
+    "ratioMean": 2.23,
+    "coverMean": 0.2
   },
   "glass": {
-    "ratioMean": 1.56,
-    "coverMean": 0.24
+    "ratioMean": 1.54,
+    "coverMean": 0.245
   },
   "dino": {
-    "ratioMean": 1.99,
-    "coverMean": 0.124
+    "ratioMean": 1.87,
+    "coverMean": 0.147
   },
   "origami": {
-    "ratioMean": 1.69,
-    "coverMean": 0.103
+    "ratioMean": 1.57,
+    "coverMean": 0.131
   },
   "bio": {
-    "ratioMean": 1.98,
-    "coverMean": 0.226
+    "ratioMean": 1.91,
+    "coverMean": 0.231
   },
   "cryptids": {
-    "ratioMean": 1.86,
-    "coverMean": 0.196
+    "ratioMean": 1.82,
+    "coverMean": 0.207
   },
   "kids": {
-    "ratioMean": 1.98,
-    "coverMean": 0.266
+    "ratioMean": 1.95,
+    "coverMean": 0.269
   }
 }
