@@ -18,6 +18,7 @@ estilo, el nº de diseños y las opciones que mejor le van:
 | 🦕 Solo origami | Dinosaurios como papel doblado (sin bípedos por ahora) | 20 |
 | 🧬 Biología | Neurona, ADN, células, ameba, tardígrado, escarabajo, matraz, brote… | 26 |
 | 👣 Críptidos | Pie Grande, Nessie, Mothman, kraken, yeti, ovni, hombre rana, gusano de la muerte, duende de Hopkinsville, hombre búho | 26 |
+| 🌀 Flujo de patrones | Página completa sin figura: bandas curvas o estallido radial, unos 20 patrones distintos por página. Variantes en «Ver todos los estilos»: bandas, estallido y mandala | 30 |
 | 🧸 Infantil | Animales tiernos con huecos amplios, de fácil a difícil | 28 |
 
 ¿Quieres otro estilo? **🎨 Ver todos los estilos** los muestra con miniatura.

@@ -59,6 +59,8 @@ const byId = new Map([...POOL, ...BOLD_TANGLES].map((t) => [t.id, t]));
 // Disco central de los estallidos: patrones compactos y densos, que llenan un círculo sin dejar huecos.
 // Centro de la variante mandala: rosetas, soles y abanicos en círculo pequeño.
 export const MANDALA_CENTER_POOL = ["rosetas", "rayos", "abanicos", "marcos", "hojas"];
+// Patrones que se orientan con la banda en las páginas de flujo.
+const FLOW_FOLLOW = new Set(["escamas", "abanicos"]);
 export const FLOW_CENTER_POOL = ["rosetas", "rayos", "rombos", "marcos", "cestas", "hojas", "abanicos", "tipple", "purk"];
 export const FLOW_POOL = ["tipple", "purk", "nzeppel", "beadlines", "keeko", "static", "cubine", "ladrillos", "espinas", "red", "rizos",
   "flechas", "cadent", "escamas", "escamas", "florz", "scallops", "cestas", "abanicos", "chevrones", "rombos", "hojas", "rosetas", "rayos", "peldanos", "marcos"];
@@ -2871,8 +2873,12 @@ export async function generateZenFigure(doc, opts) {
 
   // Región de una página de flujo: si el patrón sorteado sale vacío en esa forma, se prueba
   // otro (hasta 6): una región en blanco es un defecto, no un respiro.
+  // ang: ángulo fijo, o una función t => ángulo|undefined (undefined = giro libre).
+  // Separación de las páginas de flujo: con ×0.95 la página media quedaba un 20 % por encima
+  // del límite de zonas diminutas (27 de 60 marcadas); con ×1.25, 0 de 60 y 13 % de tinta.
+  const flowGapMul = Number.isFinite(opts.flowGapMul) ? opts.flowGapMul : 1.25;
   const flowFill = (pool, box, gapMul, ang) => {
-    for (let k = 0; k < 6; k++) { const out = tangleIn(pickTangle(pool), box, gapMul, ang); if (out) return out; }
+    for (let k = 0; k < 6; k++) { const t = pickTangle(pool); const out = tangleIn(t, box, gapMul, typeof ang === "function" ? ang(t) : ang); if (out) return out; }
     return "";
   };
 
@@ -2919,7 +2925,7 @@ export async function generateZenFigure(doc, opts) {
     const rayAng = Array.from({ length: nW }, (_, k) => t0 + (k / nW) * TAU);
     for (let z = 0; z < edges.length - 1; z++) {
       const zc = ringClip(edges[z], edges[z + 1]);
-      if (z === 0) { bg.push(`<g clip-path="url(#${zc})">${flowFill(opts.flowPool || (mandala ? MANDALA_CENTER_POOL : FLOW_CENTER_POOL), { x0: cx0 - edges[1], y0: cy0 - edges[1], x1: cx0 + edges[1], y1: cy0 + edges[1] }, 0.9)}</g>`); continue; }
+      if (z === 0) { bg.push(`<g clip-path="url(#${zc})">${flowFill(opts.flowPool || (mandala ? MANDALA_CENTER_POOL : FLOW_CENTER_POOL), { x0: cx0 - edges[1], y0: cy0 - edges[1], x1: cx0 + edges[1], y1: cy0 + edges[1] }, flowGapMul * 0.95)}</g>`); continue; }
       for (let k = 0; k < nW; k++) {
         const ta = rayAng[k], tb = ta + TAU / nW, Rr = half * 2.2;
         const pts = [{ x: cx0, y: cy0 }];
@@ -2927,7 +2933,7 @@ export async function generateZenFigure(doc, opts) {
         const wedge = clipToRect(pts, frame);
         if (wedge.length < 3) continue;
         const wc = clipOf(polyD(wedge));
-        bg.push(`<g clip-path="url(#${zc})"><g clip-path="url(#${wc})">${flowFill(opts.flowPool || FLOW_POOL, bboxOf([wedge]), 0.95)}</g></g>`);
+        bg.push(`<g clip-path="url(#${zc})"><g clip-path="url(#${wc})">${flowFill(opts.flowPool || FLOW_POOL, bboxOf([wedge]), flowGapMul)}</g></g>`);
       }
     }
     const lines = pb(sketchy * 0.5);
@@ -2972,7 +2978,7 @@ export async function generateZenFigure(doc, opts) {
     // región con un patrón distinto del repertorio completo, como los zentangles
     // «de página entera» hechos a mano.
     const flow = !!opts.flowPage;
-    const flowGap = 0.95; // MULTIPLICADOR de la separación (tangleIn lo multiplica por gap)
+    const flowGap = flowGapMul; // multiplicador de la separación (tangleIn lo multiplica por gap)
     const flowAng = flow ? rFloat(rng, 0, Math.PI) : 0;
     const sec = makeSections(rng, frameRings, flow
       ? { angle: flowAng, a: [4, 6], b: [3, 5], aAmp: rFloat(rng, 0.35, 0.5) }
@@ -2989,7 +2995,10 @@ export async function generateZenFigure(doc, opts) {
         for (let q = 0; q < line.length; q++) { const dd = (line[q].x - cxr) ** 2 + (line[q].y - cyr) ** 2; if (dd < bestD) { bestD = dd; bestK = q; } }
         const pa = line[Math.max(0, bestK - 1)] || line[bestK], pb = line[Math.min(line.length - 1, bestK + 1)] || line[bestK];
         const tangent = pa && pb ? Math.atan2(pb.y - pa.y, pb.x - pa.x) : flowAng;
-        bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${flowFill(opts.flowPool || FLOW_POOL, sct, flowGap, tangent)}</g></g>`);
+        // Solo los patrones «de flujo» siguen la curva: alinear rejillas y ladrillos con el
+        // borde de la banda dejaba tiras finas (19 de 30 páginas marcadas frente a 10).
+        const ang = opts.flowOrient === false ? undefined : (t) => (FLOW_FOLLOW.has(t.id) ? tangent : undefined);
+        bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${flowFill(opts.flowPool || FLOW_POOL, sct, flowGap, ang)}</g></g>`);
         continue;
       }
       // Una sección lisa es respiro; una lisa enorme (más del 12 % del marco)
