@@ -207,6 +207,15 @@ export async function downloadOpenBook() {
     ui.status.textContent = "⚠ Primero prepara el libro";
     return;
   }
+  if (appState.bookJob) return;
+  // Con avance y cancelación, como el PDF del interior (R22).
+  const job = (appState.bookJob = { cancelled: false });
+  const others = busyButtons().filter((b) => b && b !== ui.btnBook);
+  others.forEach((b) => (b.disabled = true));
+  document.querySelectorAll(".tile-redo").forEach((b) => (b.disabled = true));
+  ui.btnBook.textContent = "✖ Cancelar";
+  ui.bookBar.hidden = false;
+  ui.bookBar.value = 0;
   try {
     const bookReview = appState.bookReview;
     const { g, baseSeed, pages, units, blank } = bookReview;
@@ -234,11 +243,24 @@ export async function downloadOpenBook() {
       hiddenSolutions: async () => extras.hiddenSolutions
     })[e.type]();
 
-    const filename = await downloadOpenBookPdf(sequence, geo, svgOf, title);
-    ui.status.textContent = `✓ Vista de libro abierta lista: ${filename}`;
+    const filename = await downloadOpenBookPdf(sequence, geo, svgOf, title, {
+      isCancelled: () => job.cancelled,
+      onProgress: (i, total) => {
+        ui.bookBar.value = i / total;
+        ui.btnBook.textContent = `✖ Cancelar (${i}/${total})`;
+        ui.status.textContent = `Vista de libro abierto… pliego ${i + 1} de ${total}`;
+      },
+    });
+    ui.status.textContent = filename ? `✓ Vista de libro abierta lista: ${filename}` : "Vista de libro abierto cancelada";
   } catch (err) {
     ui.status.textContent = `✗ No se pudo generar la vista de libro abierto: ${err.message}`;
     console.error("Error al generar vista de libro abierto:", err);
+  } finally {
+    appState.bookJob = null;
+    ui.bookBar.hidden = true;
+    others.forEach((b) => (b.disabled = false));
+    document.querySelectorAll(".tile-redo").forEach((b) => (b.disabled = false));
+    updateBookButton();
   }
 }
 

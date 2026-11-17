@@ -153,6 +153,14 @@ try {
   const next = await page.textContent("#nextSteps");
   if (!/✓ ⬇ PDF/.test(next) || !/✓ 📝 Ficha KDP/.test(next) || !/✓ 🧾 Receta/.test(next)) fail(`los pasos para terminar no se marcan (${next}).`);
 
+  // Libro abierto con avance por pliego y la página sigue respondiendo (R22).
+  await page.evaluate(() => { window.__seen = new Set(); new MutationObserver(() => window.__seen.add(document.getElementById("status").textContent)).observe(document.getElementById("status"), { childList: true, characterData: true, subtree: true }); });
+  await page.click("#btnOpenBook");
+  await page.waitForFunction(() => /Vista de libro abierta lista/.test(document.getElementById("status").textContent), null, { timeout: 600000 });
+  const seen = await page.evaluate(() => [...window.__seen]);
+  const steps = seen.filter((t) => /pliego \d+ de \d+/.test(t));
+  if (steps.length < 3) fail(`el libro abierto no muestra el avance por pliego (${steps.length} avisos).`);
+
   // «Descargar todo»: un solo ZIP con interior, portada, ficha, ficha bilingüe y receta (R21).
   const got = [];
   let zipPath = null;
@@ -160,7 +168,10 @@ try {
   await page.click("#btnDownloadAll");
   await page.waitForFunction(() => /✓ Listo: .*\.zip con \d+ archivos/.test(document.getElementById("status").textContent), null, { timeout: 1800000 });
   for (let k = 0; k < 80 && !zipPath; k++) await new Promise((r) => setTimeout(r, 250));
-  if (got.length !== 1 || !zipPath) fail(`«Descargar todo» debía bajar un solo ZIP (${got.join(", ")}).`);
+  const zips = got.filter((n) => /\.zip$/.test(n));
+  // Sin PDF ni textos sueltos de «Descargar todo»: solo el ZIP (el libro abierto de arriba es otra descarga).
+  const loose = got.filter((n) => !/\.zip$/.test(n) && !/^libro_abierto_/.test(n));
+  if (zips.length !== 1 || !zipPath || loose.length) fail(`«Descargar todo» debía bajar un solo ZIP, sin archivos sueltos (${got.join(", ")}).`);
   else {
     // ZIP sin compresión (método «store»): se leen las cabeceras locales.
     const buf = readFileSync(zipPath), entries = {};
