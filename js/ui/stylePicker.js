@@ -28,7 +28,7 @@ function splitLabel(text) {
 // Estilos retirados del selector mientras tienen defectos visibles (R2 de
 // REVISION_MOTORES.md). Siguen existiendo en los presets: una receta guardada
 // con uno de ellos se sigue abriendo. Para volver a mostrarlos, vaciar esta lista.
-export const HIDDEN_STYLES = new Set(["zen_scene", "zen_scene_dino", "zen_scene_ocean"]);
+export const HIDDEN_STYLES = new Set([]); // las escenas volvieron tras R3
 
 export function createStylePicker({ select, root, renderThumb, onPick }) {
   const groups = [];

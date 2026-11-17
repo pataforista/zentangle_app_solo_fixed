@@ -1181,7 +1181,8 @@ async function runTests() {
       const sceneHtml = dScene.body.join("");
       assert.ok(sceneHtml.includes('data-scene="dino"'), "ERROR: Escena no incluye data-scene.");
       assert.ok(sceneHtml.includes("data-figures="), "ERROR: Escena no incluye data-figures.");
-      assert.ok(sceneHtml.includes('data-scene-env="1"'), "ERROR: Escena debe incluir entorno paisajístico.");
+      assert.strictEqual((sceneHtml.match(/data-scene-bg="1"/g) || []).length, 1, "ERROR: la escena debe tener un único fondo de página.");
+      assert.strictEqual((sceneHtml.match(/data-scene-ground="1"/g) || []).length, 1, "ERROR: la escena con suelo debe tener una única banda de suelo.");
 
       const figsMatch = sceneHtml.match(/data-figures="([^"]+)"/);
       assert.ok(figsMatch, "ERROR: No se encontraron figuras en la escena.");
@@ -1206,6 +1207,25 @@ async function runTests() {
       });
       const oceanHtml = dOcean.body.join("");
       assert.ok(oceanHtml.includes('data-scene="ocean"'), "ERROR: Escena marina no generó data-scene.");
+
+      // R3: en 4 semillas por tema, un solo fondo a marco completo, ninguna figurita
+      // suelta, figuras del tema y, con suelo, todas las bases a la misma altura.
+      const { SCENE_POOLS } = await import("./js/generators/figure.js");
+      const poolOf = { zen_scene: SCENE_POOLS.nature, zen_scene_dino: SCENE_POOLS.dino(), zen_scene_ocean: SCENE_POOLS.ocean };
+      for (const preset of Object.keys(poolOf)) for (const sd of [3, 17, 58, 131]) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: sd, presetName: preset, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+        const h = d.body.join("");
+        assert.strictEqual((h.match(/data-scene-bg="1"/g) || []).length, 1, `ERROR: ${preset}@${sd} sin fondo único.`);
+        assert.ok(!/data-hidden=/.test(h.replace(/data-hidden="(owl|cat|fish|turtle|elephant|snail|bird|whale|mushroom|tree|bear|rabbit|penguin|fox)"/g, "")), `ERROR: ${preset}@${sd} lleva figuritas sueltas.`);
+        const figs = (h.match(/data-figures="([^"]+)"/) || [])[1].split(",");
+        for (const f of figs) assert.ok(poolOf[preset].includes(f), `ERROR: ${preset}@${sd} usa ${f}, que no es de su tema.`);
+        assert.ok(!["plesiosaur", "mosasaurus", "ammonite"].some((f) => preset === "zen_scene_ocean" && figs.includes(f)), "ERROR: reptiles prehistóricos en el océano.");
+        if (preset !== "zen_scene_ocean") {
+          const bottoms = [...h.matchAll(/data-sil-d="([^"]+)"/g)].map((m) => { const n = m[1].match(/-?\d+(?:\.\d+)?/g).map(Number); let y = -Infinity; for (let q = 1; q < n.length; q += 2) y = Math.max(y, n[q]); return y; });
+          assert.ok(Math.max(...bottoms) - Math.min(...bottoms) < 1, `ERROR: ${preset}@${sd}: las figuras no comparten suelo (${bottoms.map((b) => b.toFixed(1)).join(" / ")} mm).`);
+        }
+      }
 
       console.log("✓ Cuerdas curvilíneas por esqueleto y composición de escenas temáticas con 2-3 figuras verificadas.");
     }
@@ -1308,12 +1328,12 @@ async function runTests() {
       assert.strictEqual(calculateRoyaltyTable(80)[0].rate, "50%", "ERROR: tramo 50 % por debajo de 9.99.");
       // Una sola versión del motor
       assert.strictEqual(ENGINE_VERSION, "2.2.0", "ERROR: versión del motor.");
-      // R2: escenas ocultas del selector, pero sus presets siguen existiendo (recetas antiguas)
+      // R2/R3: las escenas vuelven al selector una vez reparadas.
       const { HIDDEN_STYLES } = await import("./js/ui/stylePicker.js");
       const { ZENTANGLE_PRESETS: Z } = await import("./js/generators/zentangle.presets.js");
       for (const key of ["zen_scene", "zen_scene_dino", "zen_scene_ocean"]) {
-        assert.ok(HIDDEN_STYLES.has(key), `ERROR: ${key} debe estar oculto.`);
-        assert.ok(Z[key], `ERROR: ${key} debe seguir existiendo para recetas antiguas.`);
+        assert.ok(!HIDDEN_STYLES.has(key), `ERROR: ${key} ya no debe estar oculto.`);
+        assert.ok(Z[key], `ERROR: falta el preset ${key}.`);
       }
       // R6: una figura delgada se amplía hasta ~18 % del marco y se recorta por la cola;
       // con figureFit: "box" vuelve el encaje por caja (sin recorte).
