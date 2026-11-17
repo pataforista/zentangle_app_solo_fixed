@@ -57,6 +57,8 @@ const byId = new Map([...POOL, ...BOLD_TANGLES].map((t) => [t.id, t]));
 // Páginas de flujo: patrones densos y de contraste fuerte; fuera los débiles a escala grande
 // (ondas, corrientes, lianas, panal, musgo…) y los muy cargados de tinta.
 // Disco central de los estallidos: patrones compactos y densos, que llenan un círculo sin dejar huecos.
+// Centro de la variante mandala: rosetas, soles y abanicos en círculo pequeño.
+export const MANDALA_CENTER_POOL = ["rosetas", "rayos", "abanicos", "marcos", "hojas"];
 export const FLOW_CENTER_POOL = ["rosetas", "rayos", "rombos", "marcos", "cestas", "hojas", "abanicos", "tipple", "purk"];
 export const FLOW_POOL = ["tipple", "purk", "nzeppel", "beadlines", "keeko", "static", "cubine", "ladrillos", "espinas", "red", "rizos",
   "flechas", "cadent", "florz", "scallops", "cestas", "abanicos", "chevrones", "rombos", "hojas", "rosetas", "rayos", "peldanos", "marcos"];
@@ -2885,15 +2887,17 @@ export async function generateZenFigure(doc, opts) {
     // Estallido radial de página completa: disco central y tres anillos, cada uno
     // partido en 10–14 cuñas con su propio patrón (como los mandalas «sunburst»).
     const cx0 = a.x + a.w / 2, cy0 = a.y + a.h / 2, half = Math.hypot(a.w, a.h) / 2;
-    const nW = rInt(rng, 10, 14), t0 = rng() * TAU;
-    const radii = [0.15, 0.3, 0.5].map((f) => f * half);
+    // Mandala (variante): disco central mayor, más anillos y más cuñas, con roseta en el centro.
+    const mandala = !!opts.mandala;
+    const nW = mandala ? rInt(rng, 16, 20) : rInt(rng, 10, 14), t0 = rng() * TAU;
+    const radii = (mandala ? [0.12, 0.26, 0.42, 0.6, 0.8] : [0.15, 0.3, 0.5]).map((f) => f * half);
     const edges = [0, ...radii, half * 2];
     const circ = (r) => `M ${fmt(cx0 - r)} ${fmt(cy0)} a ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(2 * r)} 0 a ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(-2 * r)} 0 Z`;
     const ringClip = (r0, r1) => { const cid = id("c"); defs.push(`<clipPath id="${cid}"><path clip-rule="evenodd" d="${circ(r1)}${r0 > 0 ? " " + circ(r0) : ""}"/></clipPath>`); return cid; };
     const rayAng = Array.from({ length: nW }, (_, k) => t0 + (k / nW) * TAU);
-    for (let z = 0; z < 4; z++) {
+    for (let z = 0; z < edges.length - 1; z++) {
       const zc = ringClip(edges[z], edges[z + 1]);
-      if (z === 0) { bg.push(`<g clip-path="url(#${zc})">${flowFill(opts.flowPool || FLOW_CENTER_POOL, { x0: cx0 - edges[1], y0: cy0 - edges[1], x1: cx0 + edges[1], y1: cy0 + edges[1] }, 0.9)}</g>`); continue; }
+      if (z === 0) { bg.push(`<g clip-path="url(#${zc})">${flowFill(opts.flowPool || (mandala ? MANDALA_CENTER_POOL : FLOW_CENTER_POOL), { x0: cx0 - edges[1], y0: cy0 - edges[1], x1: cx0 + edges[1], y1: cy0 + edges[1] }, 0.9)}</g>`); continue; }
       for (let k = 0; k < nW; k++) {
         const ta = rayAng[k], tb = ta + TAU / nW, Rr = half * 2.2;
         const pts = [{ x: cx0, y: cy0 }];

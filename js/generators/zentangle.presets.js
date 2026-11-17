@@ -918,6 +918,7 @@ export const ZENTANGLE_PRESETS = {
     fillDeadSpace: false,
   },
   zen_flow_bands: { cellLayout: "zen_figure", flowPage: true, figureBackground: "strings", figures: ["koi"], cellCount: 1, cellBorderWidthMm: 1.0, patternStrokeMm: 0.4, stringStrokeMm: 0.9, minGapMm: 1.9, sketchy: 0.3, fillDeadSpace: false },
+  zen_flow_mandala: { cellLayout: "zen_figure", flowPage: true, mandala: true, figureBackground: "rays", figures: ["koi"], cellCount: 1, cellBorderWidthMm: 1.0, patternStrokeMm: 0.4, stringStrokeMm: 0.9, minGapMm: 1.9, sketchy: 0.3, fillDeadSpace: false },
   zen_flow_radial: { cellLayout: "zen_figure", flowPage: true, figureBackground: "rays", figures: ["koi"], cellCount: 1, cellBorderWidthMm: 1.0, patternStrokeMm: 0.4, stringStrokeMm: 0.9, minGapMm: 1.9, sketchy: 0.3, fillDeadSpace: false },
   zen_figure_kids: {
     cellLayout: "zen_figure",

@@ -1421,6 +1421,14 @@ async function runTests() {
           const used = [...d.body.join("").matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1]).filter((x) => BOLD_IDS.includes(x));
           assert.deepStrictEqual(used, [], `ERROR: una figura usa patrones de flujo: ${used.join(", ")}.`);
         }
+        // Variante mandala: 5 anillos y 16–20 cuñas; la página sigue sin figura.
+        {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 12, presetName: "zen_flow_mandala", areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const h = d.body.join("");
+          assert.ok(!/data-figure=/.test(h) && !/NaN|Infinity/.test(h + d.defs.join("")), "ERROR: la mandala tiene figura o coordenadas inválidas.");
+          assert.ok(new Set([...h.matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1])).size >= 12, "ERROR: la mandala usa muy pocos patrones.");
+        }
         // Receta, tema de ficha y guía: el libro de flujo está completo.
         const { BOOK_RECIPES: RECIPES, STYLE_THEME: THEMES } = await import("./js/core/bookRecipes.js");
         assert.ok(RECIPES.some((r) => r.id === "flow" && r.style === "zen_flow_mix"), "ERROR: falta la receta de flujo.");
