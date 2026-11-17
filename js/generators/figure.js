@@ -2326,6 +2326,25 @@ export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
 // En los estilos para adultos, las figuritas escondidas también son adultas.
 const HIDEABLE_ADULT = ["koi", "hummingbird", "feather", "vase", "drops", "crystals", "leaf", "moon", "heart", "succulent", "seahorse", "wolf", "horse", "sittingcat", "teapot"];
+// Figuritas con sentido (R9): cada figura adulta esconde siluetas de su mismo
+// ambiente, no magdalenas junto a un lobo. Los símbolos (luna, corazón, gota,
+// hoja) valen para cualquiera y completan los ambientes cortos.
+const HIDE_GROUPS = {
+  naturaleza: ["koi", "hummingbird", "feather", "leaf", "succulent", "seahorse", "wolf", "horse"],
+  casa: ["vase", "teapot", "sittingcat", "succulent"],
+  simbolo: ["moon", "heart", "drops", "crystals", "leaf"],
+};
+const HIDE_GROUP_OF = {
+  koi: "naturaleza", hummingbird: "naturaleza", feather: "naturaleza", nautilus: "naturaleza", lunamoth: "naturaleza", lotus: "naturaleza",
+  butterfly: "naturaleza", dragonfly: "naturaleza", leaf: "naturaleza", flower: "naturaleza", rose: "naturaleza", succulent: "naturaleza",
+  seahorse: "naturaleza", octopus: "naturaleza", wolf: "naturaleza", horse: "naturaleza", peacock: "naturaleza",
+  vase: "casa", teapot: "casa", sittingcat: "casa",
+};
+// Reserva de figuritas de una figura adulta: su ambiente más los símbolos.
+export function hiddenPoolFor(figName) {
+  const g = HIDE_GROUPS[HIDE_GROUP_OF[figName]] || [];
+  return [...new Set([...g, ...HIDE_GROUPS.simbolo])];
+}
 const HIDEABLE = ["cat", "fish", "heart", "bird", "whale", "rabbit", "bear", "penguin", "moon", "leaf", "turtle", "mushroom", "tree", "fox", "elephant"];
 
 // Figura de la n-ésima página de figura de un libro: recorre todas las
@@ -2958,7 +2977,7 @@ export async function generateZenFigure(doc, opts) {
     const theme = def.science ? FIGURE_IDS.filter((f) => FIGURES[f].science === def.science && FIGURES[f].hide)
       : def.cryptid ? FIGURE_IDS.filter((f) => FIGURES[f].cryptid && FIGURES[f].hide) : null;
     const adultMode = !FIGURE_SETS.kids.includes(figName);
-    const pool = (theme && theme.length > 1 ? theme : adultMode ? HIDEABLE_ADULT : HIDEABLE).filter((f) => f !== figName && FIGURES[f]);
+    const pool = (theme && theme.length > 1 ? theme : adultMode ? hiddenPoolFor(figName) : HIDEABLE).filter((f) => f !== figName && FIGURES[f]);
     const placed = [], out = [];
     for (let n = 0; n < nHidden; n++) {
       const other = FIGURES[pool[Math.floor(rng() * pool.length)]];
@@ -3080,7 +3099,10 @@ export async function generateZenFigure(doc, opts) {
   // (como el corazón dentro del corazón), con otro tangle. Solo donde cabe
   // entera, lejos del contorno y sin tapar la cara ni las piezas de delante.
   const nestedSvg = () => {
-    if (!rich || def.mirror || def.abstract || def.science || def.nested === false || figName === "heart" || opts.nestedFigure === false) return "";
+    // La copia dentro de la figura («busca a la cría») solo en las figuras tiernas (R9):
+    // en adultos se leía como un error de dibujo. nestedFigure: true la fuerza.
+    const tender = FIGURE_SETS.kids.includes(figName);
+    if (!rich || def.mirror || def.abstract || def.science || def.nested === false || figName === "heart" || opts.nestedFigure === false || (!tender && opts.nestedFigure !== true)) return "";
     // Contenedor: cualquiera de las partes (cabeza o cuerpo del oso, etc.).
     const partRings = parts.map((p) => flatten(p.cmds, tf));
     const inFig = (x, y) => partRings.some((r) => inside(r, x, y));

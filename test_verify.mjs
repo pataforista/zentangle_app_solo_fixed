@@ -1063,7 +1063,7 @@ async function runTests() {
       }
       bad.zen_figure = tot / pick(FIGURE_IDS).length;
       assert.ok(bad.zen_figure < 40, `ERROR: la figura zentangle sube a ${bad.zen_figure.toFixed(1)} zonas difíciles de media (techo 40).`);
-      assert.ok(FAST || (hidden >= FIGURE_IDS.length * 2 && nested >= 15), `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
+      assert.ok(FAST || (hidden >= FIGURE_IDS.length * 2 && nested >= 4), `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
       // Repertorio por estilo: adulto (y abstracto) frente a infantil, en libro.
       const { FIGURE_SETS } = await import("./js/generators/figure.js");
       for (const [preset, allowed] of [["zen_figure", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_glass", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_kids", FIGURE_SETS.kids], ["zen_figure_dino", [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix]], ["zen_figure_dino_origami", FIGURE_SETS.dinoOrigami], ["zen_figure_bio", FIGURE_SETS.bio], ["zen_figure_cryptids", [...FIGURE_SETS.cryptids, ...FIGURE_SETS.cryptidsOrigami]]]) {
@@ -1327,6 +1327,19 @@ async function runTests() {
         const area = await gen({}), box = await gen({ figureFit: "box" });
         assert.ok(!box.cropped, `ERROR: ${fig} con figureFit box no debe recortarse.`);
         assert.ok(area.cov >= Math.min(17.5, box.cov * 1.3), `ERROR: ${fig} no gana cobertura con el encaje por área (${box.cov} → ${area.cov} %).`);
+      }
+      // R9: las figuritas de una figura adulta son de su ambiente o símbolos, y no hay copia dentro.
+      {
+        const { hiddenPoolFor } = await import("./js/generators/figure.js");
+        for (const [fig, seedR9] of [["wolf", 3], ["wolf", 8], ["teapot", 3], ["koi", 5], ["hamsa", 4], ["rose", 9]]) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: seedR9, presetName: "zen_figure", overrides: { seed: seedR9, figureName: fig }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const hid = [...d.body.join("").matchAll(/data-hidden="([^"]+)"/g)].map((m) => m[1]);
+          const pool = hiddenPoolFor(fig);
+          for (const h of hid) assert.ok(pool.includes(h), `ERROR: ${fig} esconde «${h}», que no es de su ambiente (${pool.join(", ")}).`);
+          assert.ok(!hid.includes(fig), `ERROR: ${fig} lleva una copia de sí misma dentro.`);
+        }
+        assert.ok(!hiddenPoolFor("wolf").includes("teapot"), "ERROR: el lobo no debe esconder teteras.");
       }
       console.log("✓ Regalías iguales a la fórmula de KDP en 4 casos calculados a mano; color sin cifras inventadas; versión del motor única.");
     }
