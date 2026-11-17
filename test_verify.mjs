@@ -1389,7 +1389,7 @@ async function runTests() {
         const { BOLD_TANGLES } = await import("./js/generators/patterns/boldTangles.js");
         const { createRNG: mkRng } = await import("./js/core/prng.js");
         const { analyzeColorability: colorab } = await import("./js/core/pageQuality.js");
-        assert.strictEqual(BOLD_TANGLES.length, 9, "ERROR: deben ser 9 patrones nuevos.");
+        assert.strictEqual(BOLD_TANGLES.length, 10, "ERROR: deben ser 10 patrones nuevos (9 + escamas).");
         // Cada patrón: dibuja algo, sin NaN, y rellena un cuadro de 60 mm sin pasar del percentil 90 de zonas diminutas de los existentes.
         for (const t of BOLD_TANGLES) for (const sd of [1, 2, 3]) {
           const layers = t.fn(mkRng(sd), { x0: 0, y0: 0, x1: 60, y1: 60 }, { gap: 1.9, stroke: 0.4, sketchy: 0.3 });

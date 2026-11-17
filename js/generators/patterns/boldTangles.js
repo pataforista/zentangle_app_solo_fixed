@@ -217,6 +217,30 @@ function marcos(rng, r, cfg) {
   return [{ d: b.d, fill: "none" }];
 }
 
+// ESCAMAS: filas de arcos como escamas de pez o pétalos apilados; cada fila se apoya en la
+// anterior. Se orientan con la banda (ang), así las filas siguen la curva.
+function escamas(rng, r, cfg) {
+  const g = cfg.gap, R = g * rFloat(rng, 2.4, 2.9), rot = rFloat(rng, -0.1, 0.1);
+  const { w, h, cx, cy } = dims(r);
+  const D = Math.hypot(w, h) / 2 + R * 3, c = Math.cos(rot), sn = Math.sin(rot);
+  const P = (u, v) => ({ x: cx + u * c - v * sn, y: cy + u * sn + v * c });
+  const b = mk(rng, cfg), rc = { x0: r.x0 - R, y0: r.y0 - R, x1: r.x1 + R, y1: r.y1 + R };
+  let j = 0;
+  for (let v = -D; v <= D; v += R * 0.9, j++) {
+    const off = (j & 1) ? R : 0;
+    for (let u = -D + off; u <= D; u += 2 * R) {
+      const L = P(u - R, v), Rt = P(u + R, v), top = P(u, v - R * 1.1);
+      if (L.x < rc.x0 || Rt.x > rc.x1 || L.y > rc.y1 || top.y < rc.y0 - R) continue;
+      b.moveTo(L.x, L.y);
+      b.quadTo(top.x, top.y, Rt.x, Rt.y);
+      const in1 = P(u, v - R * 0.45);
+      b.moveTo(P(u - R * 0.55, v).x, P(u - R * 0.55, v).y);
+      b.quadTo(in1.x, in1.y, P(u + R * 0.55, v).x, P(u + R * 0.55, v).y);
+    }
+  }
+  return [{ d: b.d, fill: "none" }];
+}
+
 export const BOLD_TANGLES = [
   { id: "cestas", fn: cestas },
   { id: "abanicos", fn: abanicos },
@@ -227,4 +251,5 @@ export const BOLD_TANGLES = [
   { id: "rayos", fn: rayos },
   { id: "peldanos", fn: peldanos },
   { id: "marcos", fn: marcos },
+  { id: "escamas", fn: escamas },
 ];

@@ -61,7 +61,7 @@ const byId = new Map([...POOL, ...BOLD_TANGLES].map((t) => [t.id, t]));
 export const MANDALA_CENTER_POOL = ["rosetas", "rayos", "abanicos", "marcos", "hojas"];
 export const FLOW_CENTER_POOL = ["rosetas", "rayos", "rombos", "marcos", "cestas", "hojas", "abanicos", "tipple", "purk"];
 export const FLOW_POOL = ["tipple", "purk", "nzeppel", "beadlines", "keeko", "static", "cubine", "ladrillos", "espinas", "red", "rizos",
-  "flechas", "cadent", "florz", "scallops", "cestas", "abanicos", "chevrones", "rombos", "hojas", "rosetas", "rayos", "peldanos", "marcos"];
+  "flechas", "cadent", "escamas", "escamas", "florz", "scallops", "cestas", "abanicos", "chevrones", "rombos", "hojas", "rosetas", "rayos", "peldanos", "marcos"];
 // Para la guía de tangles del libro (bookExtras.js).
 export const FIGURE_TANGLES = POOL;
 export const GUIDE_TANGLES = [...POOL, ...BOLD_TANGLES]; // la guía explica también los patrones de flujo
@@ -2849,8 +2849,8 @@ export async function generateZenFigure(doc, opts) {
 
   // Región de una página de flujo: si el patrón sorteado sale vacío en esa forma, se prueba
   // otro (hasta 6): una región en blanco es un defecto, no un respiro.
-  const flowFill = (pool, box, gapMul) => {
-    for (let k = 0; k < 6; k++) { const out = tangleIn(pickTangle(pool), box, gapMul); if (out) return out; }
+  const flowFill = (pool, box, gapMul, ang) => {
+    for (let k = 0; k < 6; k++) { const out = tangleIn(pickTangle(pool), box, gapMul, ang); if (out) return out; }
     return "";
   };
 
@@ -2951,14 +2951,16 @@ export async function generateZenFigure(doc, opts) {
     // «de página entera» hechos a mano.
     const flow = !!opts.flowPage;
     const flowGap = 0.95; // MULTIPLICADOR de la separación (tangleIn lo multiplica por gap)
+    const flowAng = flow ? rFloat(rng, 0, Math.PI) : 0;
     const sec = makeSections(rng, frameRings, flow
-      ? { angle: rFloat(rng, 0, Math.PI), a: [4, 6], b: [3, 5], aAmp: rFloat(rng, 0.35, 0.5) }
+      ? { angle: flowAng, a: [4, 6], b: [3, 5], aAmp: rFloat(rng, 0.35, 0.5) }
       : { angle: rFloat(rng, 0, Math.PI), a: [2, 3], b: [1, 2] }, gap);
     for (const sct of sec.sections) {
       if (sct.area < 150) continue;
       if (flow) {
         const ca = clipOf(polyD(clipToRect(sec.stripA(sct.i), frame))), cb = clipOf(polyD(sec.stripB(sct.j)));
-        bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${flowFill(opts.flowPool || FLOW_POOL, sct, flowGap)}</g></g>`);
+        // Patrones orientados a la banda: las escamas y líneas siguen la dirección de la curva.
+        bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${flowFill(opts.flowPool || FLOW_POOL, sct, flowGap, flowAng + rFloat(rng, -0.25, 0.25))}</g></g>`);
         continue;
       }
       // Una sección lisa es respiro; una lisa enorme (más del 12 % del marco)
