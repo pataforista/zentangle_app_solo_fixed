@@ -1315,6 +1315,19 @@ async function runTests() {
         assert.ok(HIDDEN_STYLES.has(key), `ERROR: ${key} debe estar oculto.`);
         assert.ok(Z[key], `ERROR: ${key} debe seguir existiendo para recetas antiguas.`);
       }
+      // R6: una figura delgada se amplía hasta ~18 % del marco y se recorta por la cola;
+      // con figureFit: "box" vuelve el encaje por caja (sin recorte).
+      for (const fig of ["diplodocus", "plesiosaur", "mosasaurus", "ankylosaurus"]) {
+        const gen = async (extra) => {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 11, presetName: "zen_figure_dino", overrides: { seed: 11, figureName: fig, figureLayout: "center", richFill: false, ...extra }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const svg = d.body.join("");
+          return { cov: parseFloat((svg.match(/data-coverage="([^"]+)"/) || [])[1]), cropped: /data-cropped="1"/.test(svg) };
+        };
+        const area = await gen({}), box = await gen({ figureFit: "box" });
+        assert.ok(!box.cropped, `ERROR: ${fig} con figureFit box no debe recortarse.`);
+        assert.ok(area.cov >= Math.min(17.5, box.cov * 1.3), `ERROR: ${fig} no gana cobertura con el encaje por área (${box.cov} → ${area.cov} %).`);
+      }
       console.log("✓ Regalías iguales a la fórmula de KDP en 4 casos calculados a mano; color sin cifras inventadas; versión del motor única.");
     }
 

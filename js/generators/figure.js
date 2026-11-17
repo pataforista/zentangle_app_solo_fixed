@@ -2714,18 +2714,41 @@ export async function generateZenFigure(doc, opts) {
   // quedaban diminutas en un mar de fondo. Se mueven igual, pero se encogen poco.
   const silArea = unitRings.reduce((acc, r) => acc + Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p.x * q.y - q.x * p.y; }, 0)) / 2, 0);
   const thin = (silArea * sFit * sFit) / (a.w * a.h) < SMALL_FIGURE_COVER;
-  const s = sFit * (layout === "offset" ? (thin ? rFloat(rng, 0.86, 0.94) : rFloat(rng, 0.66, 0.8)) : layout === "zoom" ? rFloat(rng, 1.1, 1.22) : 1);
+  const s0 = sFit * (layout === "offset" ? (thin ? rFloat(rng, 0.86, 0.94) : rFloat(rng, 0.66, 0.8)) : layout === "zoom" ? rFloat(rng, 1.1, 1.22) : 1);
+  // Encaje por área (R6): una figura delgada encajada por su caja deja la página
+  // casi vacía (diplodoco, neurona: 6-12 % del marco). Se amplía hasta cubrir
+  // ~18 % y lo que no cabe se recorta por el lado contrario a la cabeza. La
+  // cabeza se deduce de los detalles (ojos, pico: deco); sin ellos, la
+  // ampliación es menor y el recorte se reparte.
+  const FIT_COVER = 0.18;
+  const cov0 = (silArea * s0 * s0) / (a.w * a.h);
+  let headU = null, headV = null;
+  const headDeco = opts.figureAngular ? def0.deco : def.deco; // origami no dibuja deco, pero sirve para saber dónde está la cabeza
+  if (typeof headDeco === "function" && !empty) {
+    const dp = (headDeco() || []).filter((q) => q && q.cmds).flatMap((q) => flatten(q.cmds, (u, v) => [u * Math.cos(rot) - v * Math.sin(rot), u * Math.sin(rot) + v * Math.cos(rot)])).flat();
+    if (dp.length) { const db = bboxOf([dp]); headU = (db.x0 + db.x1) / 2; headV = (db.y0 + db.y1) / 2; }
+  }
+  const maxBoost = opts.figureFit === "box" || empty || layout === "zoom" ? 1 : headU === null ? 1.15 : opts.figureAngular ? 1.25 : 1.4;
+  const boost = cov0 < FIT_COVER ? Math.min(maxBoost, Math.sqrt(FIT_COVER / Math.max(cov0, 1e-6))) : 1;
+  const s = s0 * boost;
   // Cobertura real de la silueta sobre el marco (para auditoría M2).
   const coverage = Math.min(1, (silArea * s * s) / (a.w * a.h));
   const figW = (ub.x1 - ub.x0) * s, figH = (ub.y1 - ub.y0) * s;
+  const overX = boost > 1 ? Math.max(0, figW - (a.w - 2 * room)) : 0;
+  const overY = boost > 1 ? Math.max(0, figH * (1 + bottomRoom) - (a.h - 2 * room)) : 0;
+  const cropped = overX > 0 || overY > 0;
   // Holgura para mover la figura: dentro del marco (offset) o hasta un ~25 %
   // fuera de él (zoom).
   // Primer plano suave: sale del marco como mucho un ~6 % (antes ~12 %: se
   // perdían cabezas y la figura dejaba de leerse).
   const slackX = layout === "zoom" ? Math.max(0, (figW - a.w) / 2) + figW * 0.06 : Math.max(0, (a.w - 2 * room - figW) / 2);
   const slackY = layout === "zoom" ? Math.max(0, (figH - a.h) / 2) + figH * 0.06 : Math.max(0, (a.h - 2 * room - figH * (1 + bottomRoom)) / 2);
-  const ox = layout === "center" ? 0 : rFloat(rng, -1, 1) * Math.max(0, slackX);
+  let ox = layout === "center" ? 0 : rFloat(rng, -1, 1) * Math.max(0, slackX);
   let oy = layout === "center" ? 0 : rFloat(rng, -1, 1) * Math.max(0, slackY);
+  // Recorte dirigido: el lado de la cabeza queda dentro; con suelo, se conserva la base.
+  const midU = (ub.x0 + ub.x1) / 2, midV = (ub.y0 + ub.y1) / 2;
+  if (overX > 0) ox = headU === null ? 0 : (headU > midU ? -1 : 1) * overX / 2;
+  if (overY > 0) oy = def.branch || def.stem ? -overY / 2 : headV === null ? 0 : (headV > midV ? -1 : 1) * overY / 2;
   // Con suelo (rama, tallo) la figura va de la mitad hacia abajo: no flota.
   if ((def.branch || def.stem) && layout === "offset") oy = Math.abs(oy);
   const fcx = a.x + a.w / 2 - ((ub.x0 + ub.x1) / 2) * s + ox;
@@ -3195,8 +3218,8 @@ export async function generateZenFigure(doc, opts) {
   const silAuditD = silCmds.map((cm) => shapeD(cm, 0)).join(" ");
   const covPct = Math.round(coverage * 1000) / 10; // 1 decimal
   // En «zoom» la figura sale del marco: se recorta a él.
-  body.push(layout === "zoom"
-    ? `<g data-figure="${figName}" data-layout="zoom" data-bg="${themedOverlay ? `${bgKind}+themed` : bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
+  body.push(layout === "zoom" || cropped
+    ? `<g data-figure="${figName}" data-layout="${layout}"${cropped ? ' data-cropped="1"' : ""} data-bg="${themedOverlay ? `${bgKind}+themed` : bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}"><g clip-path="url(#${frameClip})">${figure.join("")}</g></g>`
     : `<g data-figure="${figName}" data-layout="${layout}" data-bg="${themedOverlay ? `${bgKind}+themed` : bgKind}" data-coverage="${covPct}" data-sil-d="${silAuditD}">${figure.join("")}</g>`);
 
   // Marco.
