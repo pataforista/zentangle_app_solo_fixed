@@ -4,7 +4,7 @@
 // Las palabras clave siguen las reglas de KDP: máximo 50 caracteres por casilla,
 // sin repetir palabras del título ni usar marcas registradas.
 
-import { BLOCKED_TERMS, ATTRIBUTION_ES, ATTRIBUTION_EN } from "../core/kdpListing.js";
+import { BLOCKED_TERMS, ATTRIBUTION_ES, ATTRIBUTION_EN, THEME_LISTING } from "../core/kdpListing.js";
 
 // ===================== CONFIGURACIÓN DE KDP =====================
 // Límites de KDP para palabras clave
@@ -434,6 +434,29 @@ export function filterKeywordsByTitle(keywords, title) {
     .slice(0, KDP_KEYWORD_COUNT);
 }
 
+// Reserva de palabras clave válidas para cualquier tema: completa las 7 casillas
+// cuando el filtro por título deja huecos (R20). Ninguna usa marcas ni la palabra
+// suelta «libro»/«book», que KDP desaconseja por ser común a toda la categoría.
+export const KEYWORD_RESERVE = {
+  es: ["patrones relajantes para pintar", "arte antiestrés líneas", "regalo creativo cumpleaños", "páginas de una sola cara", "rotuladores y lápices de colores",
+    "atención plena y calma", "dibujos de líneas detalladas", "actividad creativa en casa", "diseños originales para pintar", "pasatiempo relajante"],
+  en: ["relaxing pattern art", "stress relief line designs", "creative birthday gift", "single sided pages", "markers and colored pencils",
+    "mindful calm activity", "detailed line drawings", "creative activity at home", "original designs to color in", "relaxing pastime"],
+};
+
+// Rellena hasta 7 palabras clave sin repetir, sin palabras del título, de 50
+// caracteres como mucho y sin términos bloqueados.
+export function completeKeywords(keywords, title, lang = "es") {
+  const titleWords = new Set(title.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3));
+  const out = [...new Set(keywords)].filter((kw) => validateKeyword(kw).valid);
+  for (const kw of KEYWORD_RESERVE[lang] || []) {
+    if (out.length >= KDP_KEYWORD_COUNT) break;
+    if (out.includes(kw) || kw.split(/\s+/).some((w) => titleWords.has(w))) continue;
+    if (validateKeyword(kw).valid) out.push(kw);
+  }
+  return out.slice(0, KDP_KEYWORD_COUNT);
+}
+
 /**
  * Genera la ficha bilingüe completa para un libro.
  * @param {Object} opts - Opciones del libro
@@ -450,7 +473,8 @@ export function generateBilingualListing(opts) {
 
   // Obtener títulos bilingües
   const titles = BILINGUAL_TITLES[theme] || BILINGUAL_TITLES.adult;
-  const selectedTitleEs = titles.es[0];
+  // Un solo título por tema: el de la ficha en español (kdpListing.js) manda (R20).
+  const selectedTitleEs = THEME_LISTING[theme]?.titles?.[0] || titles.es[0];
   const selectedTitleEn = titles.en[0];
 
   // Subtítulo
@@ -462,8 +486,8 @@ export function generateBilingualListing(opts) {
     : `${designs} original designs to relax and focus`;
 
   // Palabras clave (filtradas para no repetir palabras del título)
-  const keywordsEs = filterKeywordsByTitle(KEYWORD_SUGGESTIONS[theme] || KEYWORD_SUGGESTIONS.adult, selectedTitleEs);
-  const keywordsEn = filterKeywordsByTitle(KEYWORD_SUGGESTIONS_EN[theme] || KEYWORD_SUGGESTIONS_EN.adult, selectedTitleEn);
+  const keywordsEs = completeKeywords(filterKeywordsByTitle(KEYWORD_SUGGESTIONS[theme] || KEYWORD_SUGGESTIONS.adult, selectedTitleEs), selectedTitleEs, "es");
+  const keywordsEn = completeKeywords(filterKeywordsByTitle(KEYWORD_SUGGESTIONS_EN[theme] || KEYWORD_SUGGESTIONS_EN.adult, selectedTitleEn), selectedTitleEn, "en");
 
   // Categorías
   const categories = CATEGORY_SUGGESTIONS[theme] || CATEGORY_SUGGESTIONS.adult;
@@ -699,6 +723,9 @@ export function generateFullListingText(opts) {
     "  ✓ No uses «Zentangle», «Zendala» en título, subtítulo ni palabras clave",
     "  ✓ «Zentangle®» solo en la descripción como atribución",
     "  ✓ Valida las medidas de portada con la calculadora de KDP",
+    "  ✓ Al publicar, KDP pregunta si el libro tiene contenido generado con IA. Este arte lo dibuja",
+    "    un programa con reglas fijas (no un modelo de IA); lee la definición vigente de KDP y responde",
+    "    según ella: https://kdp.amazon.com/help/topic/G200672390",
     "═══════════════════════════════════════════════════════════════",
   ];
 

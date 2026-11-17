@@ -1361,6 +1361,29 @@ async function runTests() {
         }
         assert.ok(!hiddenPoolFor("wolf").includes("teapot"), "ERROR: el lobo no debe esconder teteras.");
       }
+      // R20: una sola ficha completa. En los 10 temas y los 2 idiomas: 7 palabras clave
+      // válidas, distintas, de ≤ 50 caracteres, sin marcas bloqueadas; el título en español
+      // es el mismo que el de la ficha de «Descargar todo»; la ficha recuerda la declaración de IA.
+      {
+        const BL = await import("./js/generators/bookListing.js");
+        const KL = await import("./js/core/kdpListing.js");
+        for (const theme of Object.keys(BL.BILINGUAL_TITLES)) {
+          const l = BL.generateBilingualListing({ theme, designs: 30, pages: 70, paperLabel: "8.5×11 in" });
+          for (const lang of ["es", "en"]) {
+            const kws = l.keywords[lang];
+            assert.strictEqual(kws.length, 7, `ERROR: ${theme}/${lang} tiene ${kws.length} palabras clave (deben ser 7).`);
+            assert.strictEqual(new Set(kws).size, 7, `ERROR: ${theme}/${lang} repite palabras clave.`);
+            for (const kw of kws) {
+              assert.ok(kw.length <= 50, `ERROR: «${kw}» excede 50 caracteres.`);
+              assert.strictEqual(KL.containsBlocked(kw), null, `ERROR: «${kw}» contiene un término bloqueado.`);
+              assert.ok(!/^(libro|book)$/i.test(kw.trim()), `ERROR: palabra clave genérica «${kw}».`);
+            }
+          }
+          if (KL.THEME_LISTING[theme]) assert.strictEqual(l.title.es, KL.THEME_LISTING[theme].titles[0], `ERROR: ${theme}: el título bilingüe no coincide con el de la ficha en español.`);
+        }
+        assert.ok(BL.generateFullListingText({ theme: "dino", designs: 20, pages: 50, paperLabel: "8.5×11 in" }).includes("contenido generado con IA"), "ERROR: la ficha bilingüe no recuerda la declaración de IA.");
+        assert.ok(KL.kdpListingText({ designs: 20, pages: 50, theme: "dino", flags: {} }).includes("CONTENIDO DE IA"), "ERROR: la ficha en español no recuerda la declaración de IA.");
+      }
       console.log("✓ Regalías iguales a la fórmula de KDP en 4 casos calculados a mano; color sin cifras inventadas; versión del motor única.");
     }
 
