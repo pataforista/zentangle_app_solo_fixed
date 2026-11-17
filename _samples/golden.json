@@ -120,6 +120,9 @@
   "zen_flow_bands@7": "5aa073903f5cd267",
   "zen_flow_bands@99": "6cc43a51af2d1f0a",
   "zen_flow_bands@1147527462": "576d76d0b28bf454",
+  "zen_flow_mandala@7": "8a15f4f743a6fa6b",
+  "zen_flow_mandala@99": "7ad5d695968c06ec",
+  "zen_flow_mandala@1147527462": "10dc566f4ca7c317",
   "zen_flow_radial@7": "68669d31716a2301",
   "zen_flow_radial@99": "42075b962ef80526",
   "zen_flow_radial@1147527462": "a38ecaadc7e6272f",
@@ -299,6 +302,9 @@
   "zen_flow_bands@7": "5aa073903f5cd267",
   "zen_flow_bands@99": "6cc43a51af2d1f0a",
   "zen_flow_bands@1147527462": "576d76d0b28bf454",
+  "zen_flow_mandala@7": "8a15f4f743a6fa6b",
+  "zen_flow_mandala@99": "7ad5d695968c06ec",
+  "zen_flow_mandala@1147527462": "10dc566f4ca7c317",
   "zen_flow_radial@7": "68669d31716a2301",
   "zen_flow_radial@99": "42075b962ef80526",
   "zen_flow_radial@1147527462": "a38ecaadc7e6272f",
@@ -367,9 +373,9 @@
  "books": {
   "best_sellers@123456789": "da3b8beea2b54834",
   "best_sellers@1147527462": "b763bcd8e7b43474",
-  "random_all@123456789": "292dd666cede7e5b",
-  "random_all@1147527462": "2ffcd6c4a55d5412",
-  "random_color@123456789": "b0ccb2fe81d21f5d",
-  "random_color@1147527462": "08e6534521cc7c9f"
+  "random_all@123456789": "88811e7216b823ef",
+  "random_all@1147527462": "348de8c71071a287",
+  "random_color@123456789": "89bf8b90c7b89d6f",
+  "random_color@1147527462": "f08156e69c12ad29"
  }
 }
