@@ -1384,6 +1384,23 @@ async function runTests() {
         assert.ok(BL.generateFullListingText({ theme: "dino", designs: 20, pages: 50, paperLabel: "8.5×11 in" }).includes("contenido generado con IA"), "ERROR: la ficha bilingüe no recuerda la declaración de IA.");
         assert.ok(KL.kdpListingText({ designs: 20, pages: 50, theme: "dino", flags: {} }).includes("CONTENIDO DE IA"), "ERROR: la ficha en español no recuerda la declaración de IA.");
       }
+      // R24: modo escaparate. Las 4 primeras páginas puntúan ≥ la mediana, las fijadas no se
+      // pierden ni se mueven, el resto conserva su orden y, con ventana, solo se elige del principio.
+      {
+        const { showcaseOrder: order, showcaseScore: score } = await import("./js/core/showcase.js");
+        const items = Array.from({ length: 20 }, (_, i) => ({ score: ((i * 7) % 20) / 20, pinned: i === 3 || i === 11 }));
+        const o = order(items, { count: 4 });
+        assert.deepStrictEqual([...o].sort((a, b) => a - b), Array.from({ length: 20 }, (_, i) => i), "ERROR: el escaparate pierde o repite páginas.");
+        assert.strictEqual(o[3], 3, "ERROR: una página fijada se movió."); assert.strictEqual(o[11], 11, "ERROR: una página fijada se movió.");
+        const med = [...items.map((x) => x.score)].sort((a, b) => a - b)[10];
+        const first4 = [0, 1, 2, 4].map((slot) => items[o[slot]].score);
+        assert.ok(first4.every((v) => v >= med), "ERROR: las primeras páginas del escaparate no están entre las mejores.");
+        const rest = o.filter((_, slot) => !items[slot].pinned).slice(4).filter((i) => !o.slice(0, 5).includes(i));
+        assert.deepStrictEqual(rest, [...rest].sort((a, b) => a - b), "ERROR: el escaparate mezcla el resto de las páginas.");
+        const w = order(items, { count: 4, windowFraction: 1 / 3 });
+        for (const slot of [0, 1, 2, 4]) assert.ok(w[slot] < Math.ceil(20 / 3), "ERROR: con ventana se adelantó una página del final.");
+        assert.ok(score({ coverage: 0.4, contrast: 0.3 }) > score({ coverage: 0.1, contrast: 0.0 }), "ERROR: la puntuación del escaparate no premia cobertura y contraste.");
+      }
       console.log("✓ Regalías iguales a la fórmula de KDP en 4 casos calculados a mano; color sin cifras inventadas; versión del motor única.");
     }
 
