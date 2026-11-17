@@ -153,14 +153,32 @@ try {
   const next = await page.textContent("#nextSteps");
   if (!/✓ ⬇ PDF/.test(next) || !/✓ 📝 Ficha KDP/.test(next) || !/✓ 🧾 Receta/.test(next)) fail(`los pasos para terminar no se marcan (${next}).`);
 
-  // «Descargar todo»: PDF + ficha + receta con un solo clic.
+  // «Descargar todo»: un solo ZIP con interior, portada, ficha, ficha bilingüe y receta (R21).
   const got = [];
-  page.on("download", (d) => got.push(d.suggestedFilename()));
+  let zipPath = null;
+  page.on("download", async (d) => { got.push(d.suggestedFilename()); if (/\.zip$/.test(d.suggestedFilename())) { zipPath = join(mkdtempSync(join(tmpdir(), "zt-")), d.suggestedFilename()); await d.saveAs(zipPath); } });
   await page.click("#btnDownloadAll");
-  await page.waitForFunction(() => /PDF, ficha de KDP y receta descargados/.test(document.getElementById("status").textContent), null, { timeout: 1800000 });
-  await page.waitForFunction(() => true); // deja llegar los eventos de descarga
-  for (let k = 0; k < 40 && got.length < 3; k++) await new Promise((r) => setTimeout(r, 250));
-  if (!got.some((n) => /\.pdf$/.test(n)) || !got.some((n) => /^ficha_kdp/.test(n)) || !got.some((n) => /^receta_libro/.test(n))) fail(`«Descargar todo» no bajó los 3 archivos (${got.join(", ")}).`);
+  await page.waitForFunction(() => /✓ Listo: .*\.zip con \d+ archivos/.test(document.getElementById("status").textContent), null, { timeout: 1800000 });
+  for (let k = 0; k < 80 && !zipPath; k++) await new Promise((r) => setTimeout(r, 250));
+  if (got.length !== 1 || !zipPath) fail(`«Descargar todo» debía bajar un solo ZIP (${got.join(", ")}).`);
+  else {
+    // ZIP sin compresión (método «store»): se leen las cabeceras locales.
+    const buf = readFileSync(zipPath), entries = {};
+    for (let o = 0; o + 30 < buf.length && buf.readUInt32LE(o) === 0x04034b50;) {
+      const size = buf.readUInt32LE(o + 18), nl = buf.readUInt16LE(o + 26), xl = buf.readUInt16LE(o + 28);
+      const name = buf.subarray(o + 30, o + 30 + nl).toString("utf8");
+      entries[name] = buf.subarray(o + 30 + nl + xl, o + 30 + nl + xl + size);
+      o += 30 + nl + xl + size;
+    }
+    const names = Object.keys(entries);
+    const pdfs = names.filter((n) => /\.pdf$/.test(n));
+    if (pdfs.length !== 2) fail(`el ZIP debe traer 2 PDF (interior y portada): ${names.join(", ")}.`);
+    for (const n of pdfs) if (entries[n].subarray(0, 4).toString() !== "%PDF" || entries[n].length < 5000) fail(`el PDF ${n} del ZIP no es válido.`);
+    if (!pdfs.some((n) => /^libro_/.test(n)) || !pdfs.some((n) => /^portada_/.test(n))) fail(`faltan interior o portada en el ZIP: ${pdfs.join(", ")}.`);
+    if (!names.some((n) => /^ficha_kdp/.test(n)) || !names.some((n) => /^ficha_bilingue/.test(n)) || !names.some((n) => /^receta_libro/.test(n))) fail(`faltan fichas o receta en el ZIP: ${names.join(", ")}.`);
+    const bil = entries[names.find((n) => /^ficha_bilingue/.test(n))].toString("utf8");
+    if (!/TABLA DE REGAL/.test(bil) || !/contenido generado con IA/.test(bil)) fail("la ficha bilingüe del ZIP está incompleta.");
+  }
 
   if (errors.length) fail(`errores en la página: ${errors.join(" | ")}`);
   if (!process.exitCode) console.log(`✓ Libro de ${N} diseños (${BLANK === "1" ? "con" : "sin"} hojas en blanco): ${pages} páginas en el PDF, revisión completa y ficha KDP correcta.`);

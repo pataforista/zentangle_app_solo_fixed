@@ -3,6 +3,7 @@
 // en un solo PDF con las dimensiones exactas que pide KDP.
 import { coverSpec, BLOCKED_TERMS, containsBlocked } from "../core/kdpListing.js";
 import { textWidthMm, wrapText, fits } from "./frontMatter.js";
+import { savePdf } from "../core/collector.js";
 
 const fmt = (n) => (Math.round(Number(n) * 100) / 100).toString();
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -187,7 +188,7 @@ export async function downloadCoverPdf({ pages, trimWmm, trimHmm, paper = "white
   doc.addImage(dataUrl, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
   
   const filename = `portada_${pages}pag_${trimWmm}x${trimHmm}mm.pdf`;
-  doc.save(filename);
+  savePdf(doc, filename);
   
   return { spec, filename };
 }
