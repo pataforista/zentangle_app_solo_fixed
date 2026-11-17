@@ -22,7 +22,7 @@ export const ATTRIBUTION_EN = "Inspired by the Zentangle® Method of pattern dra
 export const THEME_LISTING = {
   adult: {
     titles: ["Figuras con patrones: libro para colorear para adultos", "Koi, colibríes y nautilus: patrones intrincados para colorear", "Arte de patrones para colorear: figuras elegantes y abstractas"],
-    lead: (n) => `${n} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, lobo, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
+    lead: (n) => `${n} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, mariposa, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
     keywords: ["libro para colorear adultos patrones", "colorear para relajarse antiestrés", "patrones intrincados animales y flores", "doodle art para colorear adultos", "libro colorear mindfulness", "aprender a dibujar patrones paso a paso", "regalo para adultos que colorean"],
   },
   flow: {
@@ -46,9 +46,9 @@ export const THEME_LISTING = {
     keywords: ["biología para colorear", "libro colorear ciencia", "células y adn para colorear", "regalo estudiantes de medicina", "anatomía para colorear", "neurociencia regalo", "colorear para estudiar biología"],
   },
   cryptids: {
-    titles: ["Críptidos para colorear: Pie Grande, Nessie y más", "Criaturas misteriosas del mundo: libro para colorear", "Monstruos legendarios para colorear con patrones"],
-    lead: (n) => `${n} ilustraciones de criaturas legendarias del folclore: Pie Grande, Nessie, Mothman, kraken, yeti, ovni, Wendigo, jackalope y más.`,
-    keywords: ["críptidos para colorear", "pie grande libro colorear", "monstruos legendarios colorear", "misterio y folclore para colorear", "regalo fans de lo paranormal", "ovnis y aliens para colorear", "criaturas míticas colorear adultos"],
+    titles: ["Críptidos para colorear: Nessie, Mothman y más", "Criaturas misteriosas del mundo: libro para colorear", "Monstruos legendarios para colorear con patrones"],
+    lead: (n) => `${n} ilustraciones de criaturas legendarias del folclore: Nessie, Mothman, kraken, alien gris, ovni, Wendigo, hombre rana y más.`,
+    keywords: ["críptidos para colorear", "nessie mothman para colorear", "monstruos legendarios colorear", "misterio y folclore para colorear", "regalo fans de lo paranormal", "ovnis y aliens para colorear", "criaturas míticas colorear adultos"],
   },
   kids: {
     titles: ["Animales tiernos para colorear: búhos, gatos, osos y más", "Mi libro de animales con patrones para colorear", "Animalitos para colorear de fácil a difícil"],

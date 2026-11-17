@@ -2325,22 +2325,28 @@ export const FIGURES = {
 export const FIGURE_IDS = Object.keys(FIGURES);
 // Grupos: figuras para adultos (elegantes, sin caritas), composiciones
 // abstractas y animales tiernos (libro infantil).
+// Figuras retiradas de los libros porque no se reconocen (revisión de las 101 figuras,
+// 17 nov 2026): caballo, lobo, pulpo, Pie Grande, yeti, jackalope, gusano de la muerte,
+// campana, reno, gato dormido y gato juguetón. Siguen definidas (recetas antiguas) y
+// esperan silueta ilustrada (R8). Ver REVISION_MOTORES.md, «Figuras retiradas».
+export const RETIRED_FIGURES = ["horse", "wolf", "octopus", "bigfoot", "yeti", "jackalope", "deathworm", "bell", "reindeer", "sleepycat", "playfulcat"];
 export const FIGURE_SETS = {
   adult: ["koi", "hummingbird", "feather", "nautilus", "lunamoth", "hamsa", "vase", "lotus", "butterfly", "dragonfly", "leaf", "flower", "moon", "heart",
-    "rose", "succulent", "seahorse", "octopus", "wolf", "horse", "peacock", "sittingcat", "teapot", "sun"],
+    "rose", "succulent", "seahorse", "peacock", "sittingcat", "teapot", "sun"],
   abstract: ["ribbons", "drops", "orbs", "crystals"],
   kids: ["owl", "cat", "fish", "turtle", "elephant", "snail", "bird", "whale", "mushroom", "tree", "bear", "rabbit", "penguin", "fox"],
 };
 // Temas de ciencia: se leen de la etiqueta `science` de cada figura.
-// Bípedos por esqueleto: solo en origami (en el estilo normal no se ven bien).
+// Bípedos por esqueleto: en origami no se leen (5–6 vértices). En contorno suave sí,
+// pero los siete tienen casi la misma silueta: solo el T. rex va al libro.
 const BIPEDS = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurolophus", "pachycephalosaurus", "iguanodon"];
 // Estilo normal: solo los que se ven bien con contorno suave (estegosaurio y
 // triceratops tienen patas en bloque: van en origami).
-FIGURE_SETS.dino = ["brachiosaurus", "diplodocus", "ankylosaurus", "dimetrodon", "pterosaur", "plesiosaur", "mosasaurus", "ammonite"];
-FIGURE_SETS.ocean = ["whale", "turtle", "seahorse", "octopus", "jellyfish", "koi", "fish", "nautilus", "ammonite", "plesiosaur"];
+FIGURE_SETS.dino = ["trex", "brachiosaurus", "diplodocus", "ankylosaurus", "dimetrodon", "pterosaur", "plesiosaur", "mosasaurus", "ammonite"];
+FIGURE_SETS.ocean = ["whale", "turtle", "seahorse", "jellyfish", "koi", "fish", "nautilus", "ammonite", "plesiosaur"];
 FIGURE_SETS.birds = ["hummingbird", "owl", "peacock", "bird", "penguin", "feather"];
-FIGURE_SETS.cats = ["sittingcat", "cat", "playfulcat", "sleepycat"];
-FIGURE_SETS.christmas = ["tree", "snowflake", "bell", "candle", "reindeer"];
+FIGURE_SETS.cats = ["sittingcat", "cat"];
+FIGURE_SETS.christmas = ["tree", "snowflake", "candle"];
 // Mitad origami del libro de dinosaurios. R5 (REVISION_MOTORES.md): sin bípedos
 // (T. rex, alosaurio, velocirráptor, espinosaurio, parasaurolofo), que quedaban
 // ilegibles con 5–6 vértices. Vuelven con silueta ilustrada (R8).
@@ -2348,24 +2354,24 @@ FIGURE_SETS.christmas = ["tree", "snowflake", "bell", "candle", "reindeer"];
 FIGURE_SETS.dinoOrigamiMix = ["stegosaurus", "triceratops"];
 // Origami: todos los que se leen bien simplificados (paquicefalosaurio e
 // iguanodonte quedaban idénticos al T. rex).
-FIGURE_SETS.dinoOrigami = [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix];
+FIGURE_SETS.dinoOrigami = [...FIGURE_SETS.dino.filter((f) => !BIPEDS.includes(f)), ...FIGURE_SETS.dinoOrigamiMix]; // sin bípedos
 FIGURE_SETS.bio = FIGURE_IDS.filter((f) => FIGURES[f].science === "bio");
 // Críptidos: los que se ven bien con contorno suave y, en origami (1 de cada
 // 3 páginas), los que solo funcionan simplificados. Fuera: serpiente marina y
 // monstruo de Flatwoods (no se leen en ningún estilo).
-FIGURE_SETS.cryptids = ["bigfoot", "yeti", "mothman", "nessie", "kraken", "jackalope", "wendigo", "greyalien", "ufo", "deathworm", "frogman", "goblin", "owlman"];
+FIGURE_SETS.cryptids = ["mothman", "nessie", "kraken", "wendigo", "greyalien", "ufo", "frogman", "goblin", "owlman"];
 // R5: sin origami en críptidos. Chupacabras y diablo de Jersey son bípedos con
 // cobertura de 11–13 % en origami; el pájaro del trueno repetiría ~6 veces por libro.
 FIGURE_SETS.cryptidsOrigami = [];
 export const ADULT_FIGURES = [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract];
 // Figuras que se reconocen como silueta pequeña (las figuritas escondidas).
 // En los estilos para adultos, las figuritas escondidas también son adultas.
-const HIDEABLE_ADULT = ["koi", "hummingbird", "feather", "vase", "drops", "crystals", "leaf", "moon", "heart", "succulent", "seahorse", "wolf", "horse", "sittingcat", "teapot"];
+const HIDEABLE_ADULT = ["koi", "hummingbird", "feather", "vase", "drops", "crystals", "leaf", "moon", "heart", "succulent", "seahorse", "sittingcat", "teapot"];
 // Figuritas con sentido (R9): cada figura adulta esconde siluetas de su mismo
 // ambiente, no magdalenas junto a un lobo. Los símbolos (luna, corazón, gota,
 // hoja) valen para cualquiera y completan los ambientes cortos.
 const HIDE_GROUPS = {
-  naturaleza: ["koi", "hummingbird", "feather", "leaf", "succulent", "seahorse", "wolf", "horse"],
+  naturaleza: ["koi", "hummingbird", "feather", "leaf", "succulent", "seahorse"],
   casa: ["vase", "teapot", "sittingcat", "succulent"],
   simbolo: ["moon", "heart", "drops", "crystals", "leaf"],
 };
@@ -3092,8 +3098,9 @@ export async function generateZenFigure(doc, opts) {
     if (def.branch) { const [, by] = tf(0, def.branch + 0.06), bh = Math.max(gap * 5, s * 0.1); band = [by - bh, by + bh]; }
     // Solo siluetas que se reconocen pequeñas y sin detalles interiores.
     // Figuritas del mismo tema (ciencia), o adultas, o tiernas.
-    const theme = def.science ? FIGURE_IDS.filter((f) => FIGURES[f].science === def.science && FIGURES[f].hide)
-      : def.cryptid ? FIGURE_IDS.filter((f) => FIGURES[f].cryptid && FIGURES[f].hide) : null;
+    // Sin figuras retiradas: tampoco deben esconderse (Pie Grande, yeti…).
+    const theme = def.science ? FIGURE_IDS.filter((f) => FIGURES[f].science === def.science && FIGURES[f].hide && !RETIRED_FIGURES.includes(f))
+      : def.cryptid ? FIGURE_IDS.filter((f) => FIGURES[f].cryptid && FIGURES[f].hide && !RETIRED_FIGURES.includes(f)) : null;
     const adultMode = !FIGURE_SETS.kids.includes(figName);
     const pool = (theme && theme.length > 1 ? theme : adultMode ? hiddenPoolFor(figName) : HIDEABLE).filter((f) => f !== figName && FIGURES[f]);
     const placed = [], out = [];
@@ -3494,6 +3501,6 @@ export async function generateZenScene(doc, opts) {
 // Repertorio de las escenas por tema.
 export const SCENE_POOLS = {
   dino: () => [...FIGURE_SETS.dino.filter((f) => !["plesiosaur", "mosasaurus", "ammonite", "pterosaur"].includes(f)), ...FIGURE_SETS.dinoOrigamiMix],
-  ocean: ["whale", "fish", "turtle", "koi", "seahorse", "octopus", "jellyfish"],
-  nature: ["owl", "bird", "wolf", "fox", "bear", "rabbit", "cat", "tree", "mushroom"],
+  ocean: ["whale", "fish", "turtle", "koi", "seahorse", "jellyfish"],
+  nature: ["owl", "bird", "fox", "bear", "rabbit", "cat", "tree", "mushroom"],
 };

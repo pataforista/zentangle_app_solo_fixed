@@ -81,12 +81,12 @@ export const BILINGUAL_TITLES = {
   },
   cryptids: {
     es: [
-      "Críptidos para colorear: Pie Grande, Nessie y más",
+      "Críptidos para colorear: Nessie, Mothman y más",
       "Criaturas misteriosas del mundo: libro para colorear",
       "Monstruos legendarios: patrones para colorear",
     ],
     en: [
-      "Cryptids Coloring Book: Bigfoot, Nessie and More",
+      "Cryptids Coloring Book: Nessie, Mothman and More",
       "Mysterious Creatures of the World: Coloring Book",
       "Legendary Monsters: Patterns to Color",
     ],
@@ -131,12 +131,12 @@ export const BILINGUAL_TITLES = {
     es: [
       "Aves para colorear: patrones de aves exóticas",
       "Mundo de las aves: libro de patrones para colorear",
-      "Pájaros con patrones: colibríes, loros y más",
+      "Pájaros con patrones: colibríes, búhos y más",
     ],
     en: [
       "Birds Coloring Book: Exotic Bird Patterns",
       "Bird World: Pattern Coloring Book",
-      "Patterned Birds: Hummingbirds, Parrots and More",
+      "Patterned Birds: Hummingbirds, Owls and More",
     ],
   },
   christmas: {
@@ -205,7 +205,7 @@ export const KEYWORD_SUGGESTIONS = {
   ],
   cryptids: [
     "críptidos colorear",
-    "pie grande libro colorear",
+    "nessie mothman colorear",
     "monstruos legendarios",
     "misterio folclore colorear",
     "regalo paranormal",
@@ -242,7 +242,7 @@ export const KEYWORD_SUGGESTIONS = {
   birds: [
     "aves colorear adultos",
     "pájaros exóticos patrones",
-    "colibríes loros aves",
+    "colibríes búhos aves",
     "mundo aves colorear",
     "ornitología regalo",
     "aves tropicales patrones",
@@ -308,7 +308,7 @@ export const KEYWORD_SUGGESTIONS_EN = {
   ],
   cryptids: [
     "cryptids coloring book",
-    "bigfoot coloring book",
+    "nessie mothman coloring",
     "legendary monsters",
     "mystery folklore coloring",
     "paranormal gift",
@@ -345,7 +345,7 @@ export const KEYWORD_SUGGESTIONS_EN = {
   birds: [
     "birds coloring adults",
     "exotic birds patterns",
-    "hummingbirds parrots birds",
+    "hummingbirds owls birds",
     "bird world coloring",
     "ornithology gift",
     "tropical birds patterns",
@@ -541,30 +541,30 @@ function generateDescription(opts, lang = "es") {
 
   const leads = {
     es: {
-      adult: `${designs} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, lobo, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
+      adult: `${designs} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, mariposa, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
       flow: `${designs} páginas completas de patrones: bandas curvas y estallidos radiales con decenas de regiones, cada una con un diseño distinto para colorear.`,
       glass: `${designs} diseños estilo vitral: cada figura y su fondo se dividen en piezas grandes y lisas, rápidas y relajantes de colorear.`,
       dino: `${designs} ilustraciones de criaturas prehistóricas: triceratops, estegosaurio, braquiosaurio, pterosaurio, plesiosaurio, amonite y más, cada una llena de patrones.`,
       bio: `${designs} ilustraciones de biología: neurona, cerebro, ADN, célula vegetal y animal, mitocondria, virus, bacteria, corazón, ojo y más, llenas de patrones para colorear.`,
-      cryptids: `${designs} ilustraciones de criaturas legendarias del folclore: Pie Grande, Nessie, Mothman, kraken, yeti, ovni, Wendigo, jackalope y más.`,
+      cryptids: `${designs} ilustraciones de criaturas legendarias del folclore: Nessie, Mothman, kraken, alien gris, ovni, Wendigo, hombre rana y más.`,
       kids: `${designs} animales tiernos para colorear: búho, gato, oso, conejo, pingüino, zorro, ballena, tortuga y más, con zonas amplias para colorear.`,
-      ocean: `${designs} criaturas marinas para colorear: tortuga, medusa, ballena, raya, pulpo, caballito de mar y más, llenas de patrones oceánicos.`,
+      ocean: `${designs} criaturas marinas para colorear: tortuga, medusa, ballena, koi, caballito de mar, nautilus y más, llenas de patrones oceánicos.`,
       cats: `${designs} gatos con patrones para colorear: diferentes poses y razas, cada una llena de patrones relajantes para colorear.`,
-      birds: `${designs} aves exóticas para colorear: colibrí, loro, águila, búho, pavo real, flamenco y más, llenas de patrones detallados.`,
-      christmas: `${designs} diseños navideños para colorear: árboles, estrellas, adornos, regalos, renos y más, con patrones festivos relajantes.`,
+      birds: `${designs} aves exóticas para colorear: colibrí, búho, pavo real, pingüino, pájaro cantor y plumas, llenas de patrones detallados.`,
+      christmas: `${designs} diseños navideños para colorear: árboles, copos de nieve y velas, con patrones festivos relajantes.`,
     },
     en: {
-      adult: `${designs} original illustrations for adults: koi, hummingbird, feather, nautilus, rose, wolf, peacock and abstract compositions, filled with patterns of lines, curves and circles.`,
+      adult: `${designs} original illustrations for adults: koi, hummingbird, feather, nautilus, rose, butterfly, peacock and abstract compositions, filled with patterns of lines, curves and circles.`,
       flow: `${designs} full-page pattern designs: flowing bands and radial bursts with dozens of regions, each filled with a different pattern to color.`,
       glass: `${designs} stained glass style designs: each figure and background divided into large, smooth pieces, quick and relaxing to color.`,
       dino: `${designs} prehistoric creature illustrations: triceratops, stegosaurus, brachiosaurus, pterosaur, plesiosaur, ammonite and more, each filled with patterns.`,
       bio: `${designs} biology illustrations: neuron, brain, DNA, plant and animal cells, mitochondria, virus, bacteria, heart, eye and more, filled with coloring patterns.`,
-      cryptids: `${designs} legendary folklore creature illustrations: Bigfoot, Nessie, Mothman, kraken, yeti, UFO, Wendigo, jackalope and more.`,
+      cryptids: `${designs} legendary folklore creature illustrations: Nessie, Mothman, kraken, grey alien, UFO, Wendigo, frogman and more.`,
       kids: `${designs} cute animals to color: owl, cat, bear, rabbit, penguin, fox, whale, turtle and more, with large areas to color.`,
-      ocean: `${designs} sea creatures to color: turtle, jellyfish, whale, ray, octopus, seahorse and more, filled with ocean patterns.`,
+      ocean: `${designs} sea creatures to color: turtle, jellyfish, whale, koi, seahorse, nautilus and more, filled with ocean patterns.`,
       cats: `${designs} patterned cats to color: different poses and breeds, each filled with relaxing patterns to color.`,
-      birds: `${designs} exotic birds to color: hummingbird, parrot, eagle, owl, peacock, flamingo and more, filled with detailed patterns.`,
-      christmas: `${designs} Christmas designs to color: trees, stars, ornaments, gifts, reindeer and more, with relaxing festive patterns.`,
+      birds: `${designs} exotic birds to color: hummingbird, owl, peacock, penguin, songbird and feathers, filled with detailed patterns.`,
+      christmas: `${designs} Christmas designs to color: trees, snowflakes and candles, with relaxing festive patterns.`,
     },
   };
 

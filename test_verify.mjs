@@ -723,7 +723,7 @@ async function runTests() {
       for (const k of Object.keys(STYLE_THEME)) assert.ok(PR[k] && THEME_LISTING[STYLE_THEME[k]], `ERROR: tema de ${k}.`);
       const { generateBookRecipe } = await import("./js/core/batchGenerator.js");
       const bRec = generateBookRecipe({ seed: 123, theme: "dino", pages: 30, paperKey: "LETTER" });
-      assert.strictEqual(bRec.engineVersion, "2.2.0", "ERROR: engineVersion en batchGenerator.");
+      assert.strictEqual(bRec.engineVersion, "2.3.0", "ERROR: engineVersion en batchGenerator.");
       assert.strictEqual(bRec.recipeVersion, 1, "ERROR: recipeVersion en batchGenerator.");
       assert.strictEqual(bRec.seedScheme, 2, "ERROR: seedScheme en batchGenerator.");
       const { downloadBatchZip } = await import("./js/core/batchGenerator.js");
@@ -1327,7 +1327,7 @@ async function runTests() {
       // La tabla usa el tramo 50 % por debajo de 9.99
       assert.strictEqual(calculateRoyaltyTable(80)[0].rate, "50%", "ERROR: tramo 50 % por debajo de 9.99.");
       // Una sola versión del motor
-      assert.strictEqual(ENGINE_VERSION, "2.2.0", "ERROR: versión del motor.");
+      assert.strictEqual(ENGINE_VERSION, "2.3.0", "ERROR: versión del motor.");
       // R2/R3: las escenas vuelven al selector una vez reparadas.
       const { HIDDEN_STYLES } = await import("./js/ui/stylePicker.js");
       const { ZENTANGLE_PRESETS: Z } = await import("./js/generators/zentangle.presets.js");
@@ -1351,7 +1351,7 @@ async function runTests() {
       // R9: las figuritas de una figura adulta son de su ambiente o símbolos, y no hay copia dentro.
       {
         const { hiddenPoolFor } = await import("./js/generators/figure.js");
-        for (const [fig, seedR9] of [["wolf", 3], ["wolf", 8], ["teapot", 3], ["koi", 5], ["hamsa", 4], ["rose", 9]]) {
+        for (const [fig, seedR9] of [["hummingbird", 3], ["koi", 8], ["teapot", 3], ["koi", 5], ["hamsa", 4], ["rose", 9]]) {
           const d = { body: [], defs: [] };
           await generateZentangle(d, { seed: seedR9, presetName: "zen_figure", overrides: { seed: seedR9, figureName: fig }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
           const hid = [...d.body.join("").matchAll(/data-hidden="([^"]+)"/g)].map((m) => m[1]);
@@ -1359,7 +1359,7 @@ async function runTests() {
           for (const h of hid) assert.ok(pool.includes(h), `ERROR: ${fig} esconde «${h}», que no es de su ambiente (${pool.join(", ")}).`);
           assert.ok(!hid.includes(fig), `ERROR: ${fig} lleva una copia de sí misma dentro.`);
         }
-        assert.ok(!hiddenPoolFor("wolf").includes("teapot"), "ERROR: el lobo no debe esconder teteras.");
+        assert.ok(!hiddenPoolFor("koi").includes("teapot"), "ERROR: el koi no debe esconder teteras.");
       }
       // R20: una sola ficha completa. En los 10 temas y los 2 idiomas: 7 palabras clave
       // válidas, distintas, de ≤ 50 caracteres, sin marcas bloqueadas; el título en español
@@ -1428,6 +1428,23 @@ async function runTests() {
           const h = d.body.join("");
           assert.ok(!/data-figure=/.test(h) && !/NaN|Infinity/.test(h + d.defs.join("")), "ERROR: la mandala tiene figura o coordenadas inválidas.");
           assert.ok(new Set([...h.matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1])).size >= 12, "ERROR: la mandala usa muy pocos patrones.");
+        }
+        // Figuras retiradas (revisión del 17 nov 2026): no salen en ningún libro de un clic,
+        // ni como figura principal ni escondidas; el T. rex está en dinosaurios y ningún bípedo en origami.
+        {
+          const { RETIRED_FIGURES, FIGURE_SETS: SETS } = await import("./js/generators/figure.js");
+          const { BOOK_RECIPES: RB } = await import("./js/core/bookRecipes.js");
+          assert.strictEqual(RETIRED_FIGURES.length, 11, "ERROR: deben ser 11 figuras retiradas.");
+          for (const k of Object.keys(SETS)) for (const f of RETIRED_FIGURES) assert.ok(!SETS[k].includes(f), `ERROR: ${f} sigue en el repertorio ${k}.`);
+          assert.ok(SETS.dino.includes("trex"), "ERROR: el T. rex debe estar en el libro de dinosaurios.");
+          const bipeds = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurolophus", "pachycephalosaurus", "iguanodon"];
+          assert.ok(!SETS.dinoOrigami.some((f) => bipeds.includes(f)) && !SETS.dinoOrigamiMix.some((f) => bipeds.includes(f)), "ERROR: un bípedo en el origami.");
+          for (const r of RB.filter((x) => !x.style.startsWith("zen_flow"))) for (let k = 0; k < pick([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]).length; k++) {
+            const d = { body: [], defs: [] };
+            await generateZentangle(d, { seed: 900 + k, presetName: r.style, overrides: { seed: 900 + k, figurePage: k }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex: k, bookSeed: 31 });
+            const found = [...d.body.join("").matchAll(/data-(?:figure|hidden)="([^"]+)"/g)].map((m) => m[1]).filter((f) => RETIRED_FIGURES.includes(f));
+            assert.deepStrictEqual(found, [], `ERROR: el libro ${r.id} usa figuras retiradas: ${found.join(", ")}.`);
+          }
         }
         // Receta, tema de ficha y guía: el libro de flujo está completo.
         const { BOOK_RECIPES: RECIPES, STYLE_THEME: THEMES } = await import("./js/core/bookRecipes.js");
