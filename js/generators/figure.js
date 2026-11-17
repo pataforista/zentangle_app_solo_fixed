@@ -15,6 +15,7 @@ import { CLASSIC_TANGLES, smoothPath } from "./patterns/classicTangles.js";
 import { fillCadent, fillFlorz, fillCrescentMoon } from "./patterns/tangles.js";
 import { fillScallops } from "./patterns/organic.js";
 import { ORIGINAL_TANGLES } from "./patterns/originalTangles.js";
+import { BOLD_TANGLES } from "./patterns/boldTangles.js";
 
 const TAU = Math.PI * 2;
 const W = "#fff";
@@ -49,9 +50,19 @@ const BG_POOL = ["tipple", "purk", "printemps", "beadlines", "static", "nzeppel"
 // Rellenos de detalle (alas, cola, aletas): de grano fino y direccional.
 const DETAIL_POOL = ["static", "keeko", "scallops", "beadlines", "nzeppel", "cubine", "tipple",
   "flechas", "espinas", "lianas", "dunas"];
-const byId = new Map(POOL.map((t) => [t.id, t]));
+// Los patrones «de página completa» (BOLD_TANGLES) solo los usan las páginas de flujo: así
+// los libros de figura no cambian. Para sumarlos a las figuras, añadirlos a POOL y medir.
+export const TANGLE_IDS = [...POOL, ...BOLD_TANGLES].map((t) => t.id);
+const byId = new Map([...POOL, ...BOLD_TANGLES].map((t) => [t.id, t]));
+// Páginas de flujo: patrones densos y de contraste fuerte; fuera los débiles a escala grande
+// (ondas, corrientes, lianas, panal, musgo…) y los muy cargados de tinta.
+// Disco central de los estallidos: patrones compactos y densos, que llenan un círculo sin dejar huecos.
+export const FLOW_CENTER_POOL = ["rosetas", "rayos", "rombos", "marcos", "cestas", "hojas", "abanicos", "tipple", "purk"];
+export const FLOW_POOL = ["tipple", "purk", "nzeppel", "beadlines", "keeko", "static", "cubine", "ladrillos", "espinas", "red", "rizos",
+  "flechas", "cadent", "florz", "scallops", "cestas", "abanicos", "chevrones", "rombos", "hojas", "rosetas", "rayos", "peldanos", "marcos"];
 // Para la guía de tangles del libro (bookExtras.js).
 export const FIGURE_TANGLES = POOL;
+export const GUIDE_TANGLES = [...POOL, ...BOLD_TANGLES]; // la guía explica también los patrones de flujo
 // Tangles de trazo exigente (muchas líneas cortas o cruces): van al final de
 // un libro con dificultad progresiva.
 const HARD = new Set(["paradox", "hollibaugh", "bales", "cubine", "cadent", "florz", "printemps", "keeko",
@@ -2653,7 +2664,9 @@ export async function generateZenFigure(doc, opts) {
   // Dificultad (0 fácil … 1 difícil): huecos más amplios y menos secciones al
   // principio del libro; más finos y numerosos al final.
   const level = Number.isFinite(opts.difficulty) ? Math.min(1, Math.max(0, opts.difficulty)) : null;
-  const gap = Math.max(1.4, clampN(opts.minGapMm, 1, 5, 1.9) * (level === null ? 1 : 1.3 - 0.45 * level));
+  // Páginas de flujo: la dificultad mueve poco la separación (1.12→0.95); con 1.3 los patrones
+  // salían enormes en regiones de 10–20 mm y dejaban huecos.
+  const gap = Math.max(1.4, clampN(opts.minGapMm, 1, 5, 1.9) * (level === null ? 1 : opts.flowPage ? 1.12 - 0.17 * level : 1.3 - 0.45 * level));
   // «Tu turno»: la figura queda con sus secciones vacías para dibujar los
   // tangles propios (el fondo, ligero).
   const empty = opts.emptySections === true;
@@ -2793,7 +2806,8 @@ export async function generateZenFigure(doc, opts) {
   let last = [];
   // tanglePalette: tangles permitidos en esta página (libro). Si deja un
   // grupo con menos de 3, ese grupo usa su lista completa.
-  const palette = Array.isArray(opts.tanglePalette) && opts.tanglePalette.length ? new Set(opts.tanglePalette) : null;
+  // Las páginas de flujo usan todo el repertorio: la paleta de 8 es para figuras.
+  const palette = Array.isArray(opts.tanglePalette) && opts.tanglePalette.length && !opts.flowPage ? new Set(opts.tanglePalette) : null;
   // excludeTangles: nunca en este estilo (infantil: sin tangles avanzados ni
   // los de muchas manchitas). Si un grupo se queda vacío, se ignora.
   const banned = Array.isArray(opts.excludeTangles) ? new Set(opts.excludeTangles) : null;
@@ -2831,6 +2845,13 @@ export async function generateZenFigure(doc, opts) {
     return inner ? `<g transform="rotate(${fmt((ang * 180) / Math.PI)} ${fmt(cx)} ${fmt(cy)})" data-tangle="${t.id}">${inner}</g>` : "";
   };
 
+  // Región de una página de flujo: si el patrón sorteado sale vacío en esa forma, se prueba
+  // otro (hasta 6): una región en blanco es un defecto, no un respiro.
+  const flowFill = (pool, box, gapMul) => {
+    for (let k = 0; k < 6; k++) { const out = tangleIn(pickTangle(pool), box, gapMul); if (out) return out; }
+    return "";
+  };
+
   /* ---- 1) Fondo ---- */
   const frame = { x0: a.x, y0: a.y, x1: a.x + a.w, y1: a.y + a.h };
   const frameD = polyD([{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]);
@@ -2846,7 +2867,9 @@ export async function generateZenFigure(doc, opts) {
   // (infantil, «Tu turno»).
   const themedOnly = !!themedBgFn && (empty || opts.themedBackgroundMode === "only");
   const themedOverlay = !!themedBgFn && !themedOnly && opts.figureBackground !== "none";
-  const bgKind = themedOnly ? "themed" : fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : bgPick(rng() < 0.5 ? "rays" : "strings"));
+  // Página de flujo: «mixed» alterna por semilla entre bandas curvas (55 %) y estallido radial (45 %).
+  const flowKind = opts.flowPage ? (opts.figureBackground === "rays" || opts.figureBackground === "strings" ? opts.figureBackground : hash(seed, 0xf10) % 100 < 45 ? "rays" : "strings") : null;
+  const bgKind = flowKind || (themedOnly ? "themed" : fStyle !== "strings" ? "facets" : opts.figureBackground || (empty ? "airy" : bgPick(rng() < 0.5 ? "rays" : "strings")));
   const frameRings = [[{ x: frame.x0, y: frame.y0 }, { x: frame.x1, y: frame.y0 }, { x: frame.x1, y: frame.y1 }, { x: frame.x0, y: frame.y1 }]];
   const frameClip = clipOf(frameD);
   const bg = [], bgLines = [];
@@ -2858,6 +2881,34 @@ export async function generateZenFigure(doc, opts) {
     // propia del tema (helechos, burbujas, estrellas, moléculas, nubes…).
     const themedSvg = themedBgFn(rng, frame, { _stroke: stroke });
     if (themedSvg) bg.push(`<g clip-path="url(#${frameClip})">${themedSvg}</g>`);
+  } else if (bgKind === "rays" && opts.flowPage) {
+    // Estallido radial de página completa: disco central y tres anillos, cada uno
+    // partido en 10–14 cuñas con su propio patrón (como los mandalas «sunburst»).
+    const cx0 = a.x + a.w / 2, cy0 = a.y + a.h / 2, half = Math.hypot(a.w, a.h) / 2;
+    const nW = rInt(rng, 10, 14), t0 = rng() * TAU;
+    const radii = [0.15, 0.3, 0.5].map((f) => f * half);
+    const edges = [0, ...radii, half * 2];
+    const circ = (r) => `M ${fmt(cx0 - r)} ${fmt(cy0)} a ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(2 * r)} 0 a ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(-2 * r)} 0 Z`;
+    const ringClip = (r0, r1) => { const cid = id("c"); defs.push(`<clipPath id="${cid}"><path clip-rule="evenodd" d="${circ(r1)}${r0 > 0 ? " " + circ(r0) : ""}"/></clipPath>`); return cid; };
+    const rayAng = Array.from({ length: nW }, (_, k) => t0 + (k / nW) * TAU);
+    for (let z = 0; z < 4; z++) {
+      const zc = ringClip(edges[z], edges[z + 1]);
+      if (z === 0) { bg.push(`<g clip-path="url(#${zc})">${flowFill(opts.flowPool || FLOW_CENTER_POOL, { x0: cx0 - edges[1], y0: cy0 - edges[1], x1: cx0 + edges[1], y1: cy0 + edges[1] }, 0.9)}</g>`); continue; }
+      for (let k = 0; k < nW; k++) {
+        const ta = rayAng[k], tb = ta + TAU / nW, Rr = half * 2.2;
+        const pts = [{ x: cx0, y: cy0 }];
+        for (let q = 0; q <= 8; q++) { const t = ta + ((tb - ta) * q) / 8; pts.push({ x: cx0 + Math.cos(t) * Rr, y: cy0 + Math.sin(t) * Rr }); }
+        const wedge = clipToRect(pts, frame);
+        if (wedge.length < 3) continue;
+        const wc = clipOf(polyD(wedge));
+        bg.push(`<g clip-path="url(#${zc})"><g clip-path="url(#${wc})">${flowFill(opts.flowPool || FLOW_POOL, bboxOf([wedge]), 0.95)}</g></g>`);
+      }
+    }
+    const lines = pb(sketchy * 0.5);
+    for (const t of rayAng) lines.moveTo(cx0 + Math.cos(t) * radii[0], cy0 + Math.sin(t) * radii[0]).lineTo(cx0 + Math.cos(t) * half * 2.2, cy0 + Math.sin(t) * half * 2.2);
+    const ringsD = radii.map(circ).join(" ");
+    if (rich) bg.push(`<g clip-path="url(#${frameClip})"><path d="${lines.d}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.6)}"/><path d="${ringsD}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.6)}"/></g>`);
+    bgLines.push(el(lines.d, "none", strStroke), el(ringsD, "none", strStroke * 1.25));
   } else if (bgKind === "rays") {
     // Cuñas desde el centro de la figura hasta el marco, cada una con un tangle amplio.
     const n = rInt(rng, 5, 8), t0 = rng() * TAU, Rr = Math.hypot(a.w, a.h);
@@ -2891,9 +2942,21 @@ export async function generateZenFigure(doc, opts) {
     if (rich) bg.push(`<path d="${lines.d}" fill="none" stroke="#fff" stroke-width="${fmt(gap * 1.6)}"/>`);
     bgLines.push(el(lines.d, "none", strStroke));
   } else if (bgKind === "strings") {
-    const sec = makeSections(rng, frameRings, { angle: rFloat(rng, 0, Math.PI), a: [2, 3], b: [1, 2] }, gap);
+    // Página de flujo (sin figura): bandas curvas que cruzan toda la página, cada
+    // región con un patrón distinto del repertorio completo, como los zentangles
+    // «de página entera» hechos a mano.
+    const flow = !!opts.flowPage;
+    const flowGap = 0.95; // MULTIPLICADOR de la separación (tangleIn lo multiplica por gap)
+    const sec = makeSections(rng, frameRings, flow
+      ? { angle: rFloat(rng, 0, Math.PI), a: [4, 6], b: [3, 5], aAmp: rFloat(rng, 0.35, 0.5) }
+      : { angle: rFloat(rng, 0, Math.PI), a: [2, 3], b: [1, 2] }, gap);
     for (const sct of sec.sections) {
       if (sct.area < 150) continue;
+      if (flow) {
+        const ca = clipOf(polyD(clipToRect(sec.stripA(sct.i), frame))), cb = clipOf(polyD(sec.stripB(sct.j)));
+        bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${flowFill(opts.flowPool || FLOW_POOL, sct, flowGap)}</g></g>`);
+        continue;
+      }
       // Una sección lisa es respiro; una lisa enorme (más del 12 % del marco)
       // se lee como un error. El sorteo se mantiene para no mover la semilla.
       if (rng() < 0.1 && sct.area < a.w * a.h * 0.02) continue;
@@ -2946,7 +3009,7 @@ export async function generateZenFigure(doc, opts) {
   const minisAt = body.length; // las figuritas escondidas van aquí (ver más abajo)
   // Solo el fondo (escenas): la página pide el fondo a marco completo y coloca
   // encima las figuras, cada una sin fondo propio.
-  if (opts.backgroundOnly) {
+  if (opts.backgroundOnly || opts.flowPage) {
     if (opts.drawFrame !== false) body.push(el(polyD(frameRings[0]), "none", (outStroke / outMul) * 1.1));
     if (Array.isArray(doc.defs)) doc.defs.push(...defs);
     else doc.body.unshift("<defs>" + defs.join("") + "</defs>");

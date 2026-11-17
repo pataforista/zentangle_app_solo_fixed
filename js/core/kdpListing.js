@@ -25,6 +25,11 @@ export const THEME_LISTING = {
     lead: (n) => `${n} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, lobo, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
     keywords: ["libro para colorear adultos patrones", "colorear para relajarse antiestrés", "patrones intrincados animales y flores", "doodle art para colorear adultos", "libro colorear mindfulness", "aprender a dibujar patrones paso a paso", "regalo para adultos que colorean"],
   },
+  flow: {
+    titles: ["Patrones para colorear: páginas completas de diseños relajantes", "Mandalas y flujos de patrones para colorear: páginas completas sin figuras", "Colorea patrones: libro antiestrés de página completa"],
+    lead: (n) => `${n} páginas completas de patrones: bandas curvas y estallidos radiales con decenas de regiones, cada una con un diseño distinto para colorear.`,
+    keywords: ["patrones para colorear adultos", "mandalas antiestrés para colorear", "páginas completas patrones", "colorear diseños abstractos", "libro colorear relajante adultos", "regalo creativo colorear", "arte antiestrés líneas"],
+  },
   glass: {
     titles: ["Vitrales para colorear: libro relajante para adultos", "Mosaicos de vitral para colorear: figuras de piezas grandes", "Colorea un vitral: diseños sencillos y relajantes"],
     lead: (n) => `${n} diseños estilo vitral: cada figura y su fondo se dividen en piezas grandes y lisas, rápidas y relajantes de colorear.`,

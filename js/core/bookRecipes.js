@@ -21,6 +21,8 @@ export const BOOK_RECIPES = [
     style: "zen_figure_bio", designs: 26, progressive: true, guide: false, spreads: false, turn: false },
   { id: "cryptids", label: "👣 Críptidos", hint: "Pie Grande, Nessie, Mothman, hombre rana, gusano de la muerte, duende, hombre búho y más.",
     style: "zen_figure_cryptids", designs: 26, progressive: false, guide: false, spreads: false, turn: true },
+  { id: "flow", label: "🌀 Flujo de patrones", hint: "Página completa sin figura: bandas curvas o estallido radial, cada región con un patrón distinto. De fácil a difícil.",
+    style: "zen_flow_mix", designs: 30, progressive: true, guide: true, spreads: false, turn: false },
   { id: "kids", label: "🧸 Infantil", hint: "Animales tiernos con huecos amplios, de fácil a difícil.",
     style: "zen_figure_kids", designs: 28, progressive: true, guide: false, spreads: false, turn: false },
 ];
@@ -28,5 +30,5 @@ export const BOOK_RECIPES = [
 // Tema de la ficha de KDP según el estilo elegido.
 export const STYLE_THEME = {
   zen_figure: "adult", zen_figure_light: "adult", zen_figure_facet: "adult", zen_figure_glass: "glass",
-  zen_figure_dino: "dino", zen_figure_dino_origami: "dino", zen_figure_bio: "bio", zen_figure_cryptids: "cryptids", zen_figure_kids: "kids",
+  zen_figure_dino: "dino", zen_figure_dino_origami: "dino", zen_figure_bio: "bio", zen_figure_cryptids: "cryptids", zen_figure_kids: "kids", zen_flow_mix: "flow", zen_flow_bands: "flow", zen_flow_radial: "flow",
 };

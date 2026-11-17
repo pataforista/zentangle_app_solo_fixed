@@ -39,6 +39,10 @@ export const BILINGUAL_TITLES = {
       "Mandalas and Figures: Stress Relief Coloring Book for Adults",
     ],
   },
+  flow: {
+    es: ["Patrones para colorear: páginas completas de diseños relajantes", "Mandalas y flujos de patrones para colorear sin figuras", "Colorea patrones: libro antiestrés de página completa"],
+    en: ["Pattern Coloring Book: Full-Page Relaxing Designs for Adults", "Mandala and Flow Patterns to Color: No Figures, Just Patterns", "Color the Patterns: Full-Page Stress Relief Designs"],
+  },
   glass: {
     es: [
       "Vitrales para colorear: libro relajante para adultos",
@@ -163,6 +167,15 @@ export const KEYWORD_SUGGESTIONS = {
     "aprender dibujar patrones",
     "regalo adultos colorear",
   ],
+  flow: [
+    "patrones colorear adultos",
+    "mandalas antiestrés colorear",
+    "páginas completas patrones",
+    "diseños abstractos colorear",
+    "libro relajante adultos",
+    "regalo creativo colorear",
+    "arte antiestrés líneas",
+  ],
   glass: [
     "vitrales colorear adultos",
     "libro colorear fácil relajante",
@@ -257,6 +270,15 @@ export const KEYWORD_SUGGESTIONS_EN = {
     "learn draw patterns",
     "gift adults coloring",
   ],
+  flow: [
+    "pattern coloring adults",
+    "mandala stress relief coloring",
+    "full page patterns",
+    "abstract designs to color",
+    "relaxing adult coloring",
+    "creative coloring gift",
+    "line art stress relief",
+  ],
   glass: [
     "stained glass coloring adults",
     "easy relaxing coloring book",
@@ -348,6 +370,11 @@ export const CATEGORY_SUGGESTIONS = {
     { code: "CRA001000", name: "Crafts & Hobbies / Coloring Books" },
     { code: "SEL000000", name: "Self-Help / General" },
     { code: "ART015000", name: "Art / Techniques / Color" },
+  ],
+  flow: [
+    { code: "CRA001000", name: "Crafts & Hobbies / Coloring Books" },
+    { code: "ART015000", name: "Art / Techniques / Drawing" },
+    { code: "SEL030000", name: "Self-Help / Stress Management" },
   ],
   glass: [
     { code: "CRA001000", name: "Crafts & Hobbies / Coloring Books" },
@@ -515,6 +542,7 @@ function generateDescription(opts, lang = "es") {
   const leads = {
     es: {
       adult: `${designs} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, lobo, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
+      flow: `${designs} páginas completas de patrones: bandas curvas y estallidos radiales con decenas de regiones, cada una con un diseño distinto para colorear.`,
       glass: `${designs} diseños estilo vitral: cada figura y su fondo se dividen en piezas grandes y lisas, rápidas y relajantes de colorear.`,
       dino: `${designs} ilustraciones de criaturas prehistóricas: triceratops, estegosaurio, braquiosaurio, pterosaurio, plesiosaurio, amonite y más, cada una llena de patrones.`,
       bio: `${designs} ilustraciones de biología: neurona, cerebro, ADN, célula vegetal y animal, mitocondria, virus, bacteria, corazón, ojo y más, llenas de patrones para colorear.`,
@@ -527,6 +555,7 @@ function generateDescription(opts, lang = "es") {
     },
     en: {
       adult: `${designs} original illustrations for adults: koi, hummingbird, feather, nautilus, rose, wolf, peacock and abstract compositions, filled with patterns of lines, curves and circles.`,
+      flow: `${designs} full-page pattern designs: flowing bands and radial bursts with dozens of regions, each filled with a different pattern to color.`,
       glass: `${designs} stained glass style designs: each figure and background divided into large, smooth pieces, quick and relaxing to color.`,
       dino: `${designs} prehistoric creature illustrations: triceratops, stegosaurus, brachiosaurus, pterosaur, plesiosaur, ammonite and more, each filled with patterns.`,
       bio: `${designs} biology illustrations: neuron, brain, DNA, plant and animal cells, mitochondria, virus, bacteria, heart, eye and more, filled with coloring patterns.`,

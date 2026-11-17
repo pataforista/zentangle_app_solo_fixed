@@ -1384,6 +1384,50 @@ async function runTests() {
         assert.ok(BL.generateFullListingText({ theme: "dino", designs: 20, pages: 50, paperLabel: "8.5×11 in" }).includes("contenido generado con IA"), "ERROR: la ficha bilingüe no recuerda la declaración de IA.");
         assert.ok(KL.kdpListingText({ designs: 20, pages: 50, theme: "dino", flags: {} }).includes("CONTENIDO DE IA"), "ERROR: la ficha en español no recuerda la declaración de IA.");
       }
+      // Estilo «Flujo de patrones» y los 9 patrones nuevos (boldTangles.js).
+      {
+        const { BOLD_TANGLES } = await import("./js/generators/patterns/boldTangles.js");
+        const { createRNG: mkRng } = await import("./js/core/prng.js");
+        const { analyzeColorability: colorab } = await import("./js/core/pageQuality.js");
+        assert.strictEqual(BOLD_TANGLES.length, 9, "ERROR: deben ser 9 patrones nuevos.");
+        // Cada patrón: dibuja algo, sin NaN, y rellena un cuadro de 60 mm sin pasar del percentil 90 de zonas diminutas de los existentes.
+        for (const t of BOLD_TANGLES) for (const sd of [1, 2, 3]) {
+          const layers = t.fn(mkRng(sd), { x0: 0, y0: 0, x1: 60, y1: 60 }, { gap: 1.9, stroke: 0.4, sketchy: 0.3 });
+          const d = layers.map((l) => l.d).join(" ");
+          assert.ok(d.length > 200 && !/NaN|Infinity/.test(d), `ERROR: el patrón ${t.id} (semilla ${sd}) no dibuja o tiene coordenadas inválidas.`);
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect width="60" height="60" fill="#fff"/><clipPath id="c"><rect x="2" y="2" width="56" height="56"/></clipPath><g clip-path="url(#c)"><path d="${d}" fill="none" stroke="#000" stroke-width="0.4"/></g><rect x="2" y="2" width="56" height="56" fill="none" stroke="#000" stroke-width="0.8"/></svg>`;
+          const im = new Resvg(svg, { fitTo: { mode: "width", value: 300 } }).render();
+          const q = colorab({ data: im.pixels, width: im.width, height: im.height }, 5);
+          // Umbral calibrado: con este método los 30 patrones existentes dan mediana 5 y percentil 90 de 22.
+          assert.ok(q.bad <= 22, `ERROR: el patrón ${t.id} (semilla ${sd}) deja ${q.bad} zonas diminutas en 60 mm (máx. 22).`);
+        }
+        // Páginas de flujo: sin figura, ≥ 10 patrones distintos por página y las dos composiciones.
+        const BOLD_IDS = BOLD_TANGLES.map((t) => t.id);
+        let radial = 0, bands = 0;
+        for (const sd of [3, 8, 21, 55, 89, 144, 233, 377]) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: sd, presetName: "zen_flow_mix", areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const h = d.body.join(""), defs = d.defs.join("");
+          assert.ok(!/data-figure=/.test(h) && !/NaN|Infinity/.test(h + defs), `ERROR: página de flujo @${sd} con figura o coordenadas inválidas.`);
+          const ids = new Set([...h.matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1]));
+          assert.ok(ids.size >= 10, `ERROR: la página de flujo @${sd} solo usa ${ids.size} patrones distintos (≥ 10).`);
+          if (/clip-rule="evenodd"/.test(defs)) radial++; else bands++;
+        }
+        assert.ok(radial >= 1 && bands >= 1, `ERROR: el flujo mixto debe alternar estallido (${radial}) y bandas (${bands}).`);
+        // Aislamiento: los libros de figura no usan los patrones nuevos.
+        for (let k = 0; k < 8; k++) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 40 + k, presetName: "zen_figure", areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex: k, bookSeed: 5 });
+          const used = [...d.body.join("").matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1]).filter((x) => BOLD_IDS.includes(x));
+          assert.deepStrictEqual(used, [], `ERROR: una figura usa patrones de flujo: ${used.join(", ")}.`);
+        }
+        // Receta, tema de ficha y guía: el libro de flujo está completo.
+        const { BOOK_RECIPES: RECIPES, STYLE_THEME: THEMES } = await import("./js/core/bookRecipes.js");
+        assert.ok(RECIPES.some((r) => r.id === "flow" && r.style === "zen_flow_mix"), "ERROR: falta la receta de flujo.");
+        assert.strictEqual(THEMES.zen_flow_mix, "flow", "ERROR: el estilo de flujo no tiene tema de ficha.");
+        const { TANGLE_INFO: INFO } = await import("./js/generators/bookExtras.js");
+        for (const id of BOLD_IDS) assert.ok(INFO[id] && INFO[id].how && INFO[id].combo, `ERROR: el patrón ${id} no tiene ficha para la guía.`);
+      }
       // R24: modo escaparate. Las 4 primeras páginas puntúan ≥ la mediana, las fijadas no se
       // pierden ni se mueven, el resto conserva su orden y, con ventana, solo se elige del principio.
       {
