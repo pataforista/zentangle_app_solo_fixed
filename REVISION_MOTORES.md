@@ -912,6 +912,48 @@ páginas (R16) y previsualizador de KDP para la portada (R17).
 - **Importar una imagen** (`imageProcessor.js`) y **lotes**
   (`batchGenerator.js`): no probados en esta revisión.
 
+## 11. Figuras retiradas (17 nov 2026)
+
+Revisión de las 101 figuras: cada una en el estilo de su libro, centrada, semilla 31, con
+cobertura y contraste medidos por raster y hoja de contacto por grupo. El contraste
+figura/fondo pasa en las 101 (ninguna por debajo de 1.25). Estas 11 no se reconocen y
+salen de todos los libros de un clic, como figura principal y como figurita escondida.
+Siguen definidas en `figure.js` (`RETIRED_FIGURES`) para que las recetas antiguas abran.
+
+| Figura | Id | Tema | Por qué |
+|---|---|---|---|
+| Caballo | `horse` | Adultos | Parece una pieza de ajedrez |
+| Lobo | `wolf` | Adultos | Silueta ambigua |
+| Pulpo | `octopus` | Adultos, océano | Se confunde con una medusa |
+| Pie Grande | `bigfoot` | Críptidos | Bulto sin rasgos |
+| Yeti | `yeti` | Críptidos | Bulto sin rasgos |
+| Jackalope | `jackalope` | Críptidos | Bulto sin rasgos |
+| Gusano de la muerte | `deathworm` | Críptidos | Forma sin lectura |
+| Campana | `bell` | Navidad | Parece un fragmento |
+| Reno | `reindeer` | Navidad | Irreconocible |
+| Gato dormido | `sleepycat` | Gatos | Un octágono |
+| Gato juguetón | `playfulcat` | Gatos | Irreconocible |
+
+**Vuelve:** el T. rex, al libro de dinosaurios en contorno suave (se lee bien; solo fallaba
+en origami). Los otros seis bípedos tienen casi su misma silueta y siguen fuera.
+
+**Efecto en los libros** (repetición máxima 2 en todos; medido en 3 libros por receta):
+
+| Libro | Figuras antes → después | Diseños antes → después |
+|---|---|---|
+| Adultos | 28 → 25 | 40 (igual) |
+| Dinosaurios | 10 → 11 | 20 → 22 |
+| Críptidos | 13 → 9 | 26 → 18 |
+| Mezcla, vitral | sin cambio de tamaño | sin cambio |
+
+**Pendiente para R8** (silueta ilustrada, en este orden): caballo, lobo, Pie Grande (el
+críptido más conocido), pulpo, yeti, reno, campana, gatos dormido y juguetón, jackalope,
+gusano de la muerte. Con Navidad en 3 figuras y gatos en 2, esos temas no pueden tener
+libro hasta entonces.
+
+**Límites:** una semilla y un encuadre por figura; «se reconoce» es un juicio sobre
+miniaturas, sin prueba con personas.
+
 ## Fuentes
 
 1. [KDP — Coste de impresión de tapa blanda](https://kdp.amazon.com/en_US/help/topic/G201834340)

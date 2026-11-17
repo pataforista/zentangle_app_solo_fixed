@@ -92,13 +92,13 @@
   - **Animales tiernos** («Animales tiernos (infantil)»): búho, gato, pez,
     tortuga, elefante, caracol, pájaro, ballena, hongo, árbol, oso, conejo,
     pingüino y zorro.
-  - **Temas** (un libro por tema): «Dinosaurios y prehistoria» (15: mitad con patrones y mitad origami),
+  - **Temas** (un libro por tema): «Dinosaurios y prehistoria» (11: T. rex y 8 con patrones, y estegosaurio y triceratops en origami, 1 de cada 5 páginas),
     «Biología» (18: neurona, ADN, células, virus, ameba, tardígrado, escarabajo, matraz, brote…) y «Críptidos del mundo»
-    (12: Pie Grande, yeti, Mothman, Nessie, kraken, jackalope, Wendigo, alien
-    gris, ovni, hombre rana de Loveland, gusano de la muerte mongol, duende de Hopkinsville y hombre búho; y en origami, 1 de cada 5 páginas, chupacabras, Diablo de
-    Jersey y Thunderbird). Las figuritas escondidas son del mismo tema.
-  - Para adultos también: rosa, suculenta, caballito de mar, pulpo, lobo,
-    caballo, pavo real, gato sentado, tetera y sol.
+    (9: Mothman, Nessie, kraken, Wendigo, alien gris, ovni, hombre rana de Loveland,
+    duende de Hopkinsville y hombre búho). Las figuritas escondidas son del mismo tema.
+    Retiradas hasta tener silueta ilustrada: Pie Grande, yeti, jackalope y gusano de la muerte.
+  - Para adultos también: rosa, suculenta, caballito de mar, pavo real, gato sentado,
+    tetera y sol. (Lobo, caballo y pulpo, retirados hasta tener silueta ilustrada.)
 - **Encuadre variable:** la figura sale centrada, más pequeña en un lado o en
   primer plano recortada por el marco.
 - **Sin huecos vacíos:** solo quedan lisas secciones pequeñas (≤ 2 % del
