@@ -409,6 +409,26 @@ function inside(rings, x, y) {
   return c;
 }
 
+// Área de la unión de varias siluetas (cada grupo = piezas de una silueta, paridad par-impar
+// dentro de cada grupo y unión entre grupos), medida con una rejilla sobre su caja.
+function unionAreaUnit(groups, box, N = 260) {
+  const dx = (box.x1 - box.x0) / N, dy = (box.y1 - box.y0) / N;
+  const inside = (x, y) => {
+    for (const rings of groups) {
+      let par = 0;
+      for (const r of rings) for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        const a = r[i], b = r[j];
+        if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) par ^= 1;
+      }
+      if (par) return true;
+    }
+    return false;
+  };
+  let hits = 0;
+  for (let i = 0; i < N; i++) for (let k = 0; k < N; k++) if (inside(box.x0 + (i + 0.5) * dx, box.y0 + (k + 0.5) * dy)) hits++;
+  return hits * dx * dy;
+}
+
 function bboxOf(rings) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of rings) for (const q of p) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }
@@ -2746,7 +2766,9 @@ export async function generateZenFigure(doc, opts) {
   if (opts.figureAngular && layout === "zoom") layout = "center";
   // Figuras delgadas o apaisadas (neurona, mosasaurio, diplodoco): en «offset»
   // quedaban diminutas en un mar de fondo. Se mueven igual, pero se encogen poco.
-  const silArea = unitRings.reduce((acc, r) => acc + Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p.x * q.y - q.x * p.y; }, 0)) / 2, 0);
+  // Área de la UNIÓN de las piezas (no la suma: las piezas solapadas contaban dos veces
+  // y sobrestimaban la cobertura, p. ej. owl 61 % frente a 49 % medido en raster).
+  const silArea = unionAreaUnit(silCmds.map((c) => flatten(c, (u, v) => [u * Math.cos(rot) - v * Math.sin(rot), u * Math.sin(rot) + v * Math.cos(rot)])), ub);
   const thin = (silArea * sFit * sFit) / (a.w * a.h) < SMALL_FIGURE_COVER;
   const s0 = sFit * (layout === "offset" ? (thin ? rFloat(rng, 0.86, 0.94) : rFloat(rng, 0.66, 0.8)) : layout === "zoom" ? rFloat(rng, 1.1, 1.22) : 1);
   // Encaje por área (R6): una figura delgada encajada por su caja deja la página
@@ -2960,7 +2982,14 @@ export async function generateZenFigure(doc, opts) {
       if (flow) {
         const ca = clipOf(polyD(clipToRect(sec.stripA(sct.i), frame))), cb = clipOf(polyD(sec.stripB(sct.j)));
         // Patrones orientados a la banda: las escamas y líneas siguen la dirección de la curva.
-        bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${flowFill(opts.flowPool || FLOW_POOL, sct, flowGap, flowAng + rFloat(rng, -0.25, 0.25))}</g></g>`);
+        // Tangente local: la curva de banda más cercana al centro de la región.
+        const cxr = (sct.x0 + sct.x1) / 2, cyr = (sct.y0 + sct.y1) / 2;
+        const kLine = Math.min(sct.i, sec.nA - 1), line = sec.lines[kLine] || [];
+        let bestK = 0, bestD = Infinity;
+        for (let q = 0; q < line.length; q++) { const dd = (line[q].x - cxr) ** 2 + (line[q].y - cyr) ** 2; if (dd < bestD) { bestD = dd; bestK = q; } }
+        const pa = line[Math.max(0, bestK - 1)] || line[bestK], pb = line[Math.min(line.length - 1, bestK + 1)] || line[bestK];
+        const tangent = pa && pb ? Math.atan2(pb.y - pa.y, pb.x - pa.x) : flowAng;
+        bg.push(`<g clip-path="url(#${ca})"><g clip-path="url(#${cb})">${flowFill(opts.flowPool || FLOW_POOL, sct, flowGap, tangent)}</g></g>`);
         continue;
       }
       // Una sección lisa es respiro; una lisa enorme (más del 12 % del marco)
