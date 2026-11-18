@@ -4,6 +4,8 @@
 
 import { $, ui, appState, busyButtons, pageGeometry, bookPlan, kdpWarning, isRandomKey, int, PAPER_LABELS } from "./state.js";
 import { buildBookPdf, downloadTextFile } from "../core/export.js";
+import { beginCollect, endCollect, collect, savePdf } from "../core/collector.js";
+import { SimpleZip } from "../core/zip.js";
 import { kdpListingText } from "../core/kdpListing.js";
 import { downloadCoverPdf } from "../generators/cover.js";
 import { downloadOpenBookPdf } from "../generators/openBookView.js";
@@ -78,7 +80,7 @@ export async function createBook() {
     }
     const bleedSuffix = g.opts.kdpBleedMm ? "_con_sangrado" : "";
     const name = `libro_${n}disenos_${g.paperKey}_${g.zPresetKey}_seed${baseSeed}${bleedSuffix}.pdf`;
-    doc.save(name);
+    savePdf(doc, name);
     bookReview.done.pdf = true;
     updateNextSteps();
     const changed = pages.filter((p) => p.tries).length;
@@ -98,15 +100,47 @@ export async function createBook() {
   }
 }
 
-// Todo en un clic: PDF del interior, ficha de KDP y receta.
+// Texto de la ficha bilingüe con el libro tal como está configurado (o revisado).
+export function bilingualListingText() {
+  const plan = bookPlan();
+  const g = pageGeometry();
+  const fresh = reviewIsFresh();
+  return generateFullListingText({
+    theme: $("listingTheme")?.value || STYLE_THEME[g.zPresetKey] || "adult",
+    designs: plan.n,
+    pages: fresh ? appState.bookReview.total : plan.total,
+    paperLabel: PAPER_LABELS[g.paperKey] || g.paperKey,
+    flags: plan.flags,
+    blank: plan.blank,
+    printType: $("listingPrintType")?.value || "blackWhite",
+    channel: "amazon",
+  });
+}
+
+// Todo en un clic, en un solo ZIP: PDF del interior, portada, ficha de KDP
+// (español y bilingüe) y receta (R21). Los botones sueltos siguen para quien
+// quiera una sola pieza.
 export async function downloadAll() {
   if (appState.bookJob || !appState.bookReview) return;
   const review = appState.bookReview;
-  await createBook();
-  if (appState.bookReview !== review || !review.done.pdf) return; // cancelado o con error
-  downloadListing();
-  downloadBookRecipe();
-  ui.status.textContent = "✓ Listo: PDF, ficha de KDP y receta descargados. Sube el PDF como interior y pega la ficha en KDP.";
+  beginCollect();
+  let files = [];
+  try {
+    await createBook();
+    if (appState.bookReview !== review || !review.done.pdf) return; // cancelado o con error
+    downloadListing();
+    downloadBookRecipe();
+    collect(`ficha_bilingue_${review.n}disenos.txt`, bilingualListingText());
+    await downloadCover();
+  } finally {
+    files = endCollect();
+  }
+  if (!files.some((f) => /\.pdf$/.test(f.name))) return;
+  const zip = new SimpleZip();
+  for (const f of files) zip.addFile(f.name, f.data);
+  const name = `libro_${review.n}disenos_${review.g.paperKey}_seed${review.baseSeed}.zip`;
+  zip.download(name);
+  ui.status.textContent = `✓ Listo: ${name} con ${files.length} archivos (PDF del interior, portada, ficha de KDP, ficha bilingüe y receta). Sube el PDF como interior y pega la ficha en KDP.`;
 }
 
 // Ficha de KDP con el libro tal como está configurado (o revisado), según su tema.
@@ -173,6 +207,15 @@ export async function downloadOpenBook() {
     ui.status.textContent = "⚠ Primero prepara el libro";
     return;
   }
+  if (appState.bookJob) return;
+  // Con avance y cancelación, como el PDF del interior (R22).
+  const job = (appState.bookJob = { cancelled: false });
+  const others = busyButtons().filter((b) => b && b !== ui.btnBook);
+  others.forEach((b) => (b.disabled = true));
+  document.querySelectorAll(".tile-redo").forEach((b) => (b.disabled = true));
+  ui.btnBook.textContent = "✖ Cancelar";
+  ui.bookBar.hidden = false;
+  ui.bookBar.value = 0;
   try {
     const bookReview = appState.bookReview;
     const { g, baseSeed, pages, units, blank } = bookReview;
@@ -200,11 +243,24 @@ export async function downloadOpenBook() {
       hiddenSolutions: async () => extras.hiddenSolutions
     })[e.type]();
 
-    const filename = await downloadOpenBookPdf(sequence, geo, svgOf, title);
-    ui.status.textContent = `✓ Vista de libro abierta lista: ${filename}`;
+    const filename = await downloadOpenBookPdf(sequence, geo, svgOf, title, {
+      isCancelled: () => job.cancelled,
+      onProgress: (i, total) => {
+        ui.bookBar.value = i / total;
+        ui.btnBook.textContent = `✖ Cancelar (${i}/${total})`;
+        ui.status.textContent = `Vista de libro abierto… pliego ${i + 1} de ${total}`;
+      },
+    });
+    ui.status.textContent = filename ? `✓ Vista de libro abierta lista: ${filename}` : "Vista de libro abierto cancelada";
   } catch (err) {
     ui.status.textContent = `✗ No se pudo generar la vista de libro abierto: ${err.message}`;
     console.error("Error al generar vista de libro abierto:", err);
+  } finally {
+    appState.bookJob = null;
+    ui.bookBar.hidden = true;
+    others.forEach((b) => (b.disabled = false));
+    document.querySelectorAll(".tile-redo").forEach((b) => (b.disabled = false));
+    updateBookButton();
   }
 }
 

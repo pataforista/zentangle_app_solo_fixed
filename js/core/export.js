@@ -1,5 +1,8 @@
 // js/core/export.js
+import { collecting, collect } from "./collector.js";
+
 export function downloadTextFile(filename, text, type = "image/svg+xml;charset=utf-8") {
+  if (collecting()) { collect(filename, text); return; } // «Descargar todo»: va al ZIP
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

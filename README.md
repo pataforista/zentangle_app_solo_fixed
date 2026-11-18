@@ -18,7 +18,7 @@ En 4 pasos (el detalle y la lista de control están en
 **[PRODUCCION.md](PRODUCCION.md)**):
 
 1. **¿Qué libro quieres hacer?** Elige un tipo de libro (adultos, mezcla más
-   vendida, vitral, dinosaurios, solo origami, biología, críptidos, infantil):
+   vendida, vitral, dinosaurios, solo origami, biología, críptidos, flujo de patrones, infantil):
    un clic fija estilo, nº de diseños y opciones. «Ver todos los estilos»
    permite elegir uno a mano.
 2. **Página**: tamaño de papel, margen, semilla.

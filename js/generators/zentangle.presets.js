@@ -902,6 +902,24 @@ export const ZENTANGLE_PRESETS = {
     fillDeadSpace: false,
   },
   // Animales tiernos (búho, gato, oso, conejo…): para libros infantiles.
+  // Páginas completas de patrones sin figura (R-flujo): bandas curvas o estallido radial,
+  // 25–45 regiones por página, cada una con un patrón distinto.
+  zen_flow_mix: {
+    cellLayout: "zen_figure",
+    flowPage: true,
+    figureBackground: "mixed",
+    figures: ["koi"],
+    cellCount: 1,
+    cellBorderWidthMm: 1.0,
+    patternStrokeMm: 0.4,
+    stringStrokeMm: 0.9,
+    minGapMm: 1.9,
+    sketchy: 0.3,
+    fillDeadSpace: false,
+  },
+  zen_flow_bands: { cellLayout: "zen_figure", flowPage: true, figureBackground: "strings", figures: ["koi"], cellCount: 1, cellBorderWidthMm: 1.0, patternStrokeMm: 0.4, stringStrokeMm: 0.9, minGapMm: 1.9, sketchy: 0.3, fillDeadSpace: false },
+  zen_flow_mandala: { cellLayout: "zen_figure", flowPage: true, mandala: true, figureBackground: "rays", figures: ["koi"], cellCount: 1, cellBorderWidthMm: 1.0, patternStrokeMm: 0.4, stringStrokeMm: 0.9, minGapMm: 1.9, sketchy: 0.3, fillDeadSpace: false },
+  zen_flow_radial: { cellLayout: "zen_figure", flowPage: true, figureBackground: "rays", figures: ["koi"], cellCount: 1, cellBorderWidthMm: 1.0, patternStrokeMm: 0.4, stringStrokeMm: 0.9, minGapMm: 1.9, sketchy: 0.3, fillDeadSpace: false },
   zen_figure_kids: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.kids,
@@ -910,18 +928,26 @@ export const ZENTANGLE_PRESETS = {
     // Sin tangles de nivel 3 ni Printemps: líneas muy juntas y manchitas
     // pequeñas que un niño no puede colorear (pendiente P6).
     excludeTangles: ["paradox", "hollibaugh", "bales", "cadent", "nido", "printemps"],
+    // Trazo grueso y zonas grandes (R7): línea de patrón de 0.6 mm, separación
+    // de 3.5 mm y como mucho 2 cortes por familia en cada parte.
+    lineThicknessProfile: "bold",
+    maxStrings: 2,
+    fitGapMm: 1.9,
     cellCount: 1,
-    cellBorderWidthMm: 1.2,
-    patternStrokeMm: 0.35,
-    stringStrokeMm: 0.75,
-    minGapMm: 1.9,
+    cellBorderWidthMm: 1.6,
+    patternStrokeMm: 0.6,
+    stringStrokeMm: 0.9,
+    minGapMm: 3.5,
     sketchy: 0.3,
     fillDeadSpace: false,
   },  // Temas de ciencia: prehistoria (dinosaurios, reptiles marinos, amonites) y biología.
   zen_figure_dino: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.dino,
-    origamiMix: FIGURE_SETS.dinoOrigamiMix, // páginas alternas en origami
+    origamiMix: FIGURE_SETS.dinoOrigamiMix,
+    // 1 de cada 5 páginas en origami: con 2 figuras origami y 8 normales, cada
+    // figura sale 2 veces en un libro de 20.
+    origamiEvery: 5,
     themedBackground: "dino", // helechos prehistóricos
     cellCount: 1,
     cellBorderWidthMm: 1.2,
@@ -959,10 +985,7 @@ export const ZENTANGLE_PRESETS = {
   zen_figure_cryptids: {
     cellLayout: "zen_figure",
     figures: FIGURE_SETS.cryptids,
-    // 1 de cada 5 páginas en origami: con 3 figuras origami y 13 normales, cada
-    // una sale ~1,7 veces en un libro de 28 (con 1 de cada 3, las origami salían 3).
-    origamiMix: FIGURE_SETS.cryptidsOrigami,
-    origamiEvery: 5,
+    // Sin origami (R5): ver FIGURE_SETS.cryptidsOrigami.
     themedBackground: "cryptids", // estrellas, luna, cielo nocturno
     cellCount: 1,
     cellBorderWidthMm: 1.2,

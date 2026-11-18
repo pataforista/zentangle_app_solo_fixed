@@ -5,7 +5,7 @@
 //   - pie de página con nivel de dificultad y tiempo estimado.
 // Todo devuelve SVG en texto (página completa o fragmento), en mm.
 import { createRNG, hash } from "../core/prng.js";
-import { FIGURE_TANGLES } from "./figure.js";
+import { GUIDE_TANGLES } from "./figure.js";
 import { scaleStrokeForProfile } from "../core/thicknessProfiles.js";
 
 const fmt = (n) => (Math.round(Number(n) * 100) / 100).toString();
@@ -14,6 +14,16 @@ const FONT = `font-family="Helvetica, Arial, sans-serif"`;
 
 // Nombre y cómo se dibuja, en una o dos frases (lo que leerá quien colorea).
 export const TANGLE_INFO = {
+  cestas: { name: "Cestas", level: 1, combo: "Junto a Anillos o Tipple: las rectas del tejido frente a círculos.", how: "Divide el espacio en cuadrados iguales. Rellena cada uno con 3 o 4 rayas paralelas, y alterna: horizontales en uno, verticales en el vecino." },
+  abanicos: { name: "Abanicos", level: 2, combo: "Con Cestas o Chevrones: curvas suaves frente a rectas.", how: "Dibuja una fila de medios círculos tocándose por las puntas. Repite dentro de cada uno dos o tres arcos más pequeños. La fila siguiente va desplazada media vuelta." },
+  chevrones: { name: "Chevrones", level: 1, combo: "Al lado de Rombos o Marcos: el zigzag da ritmo a las formas cerradas.", how: "Traza una línea en zigzag. Repítela dos o tres veces, paralela y a igual distancia. La banda siguiente se dibuja al revés." },
+  rombos: { name: "Rombos", level: 2, combo: "Con Abanicos: ángulos frente a curvas.", how: "Dibuja una retícula de rombos. Dentro de cada uno, otro rombo a la mitad de tamaño y un punto en el centro." },
+  hojas: { name: "Hojas", level: 2, combo: "Con Rosetas: un jardín de hojas y flores.", how: "Dibuja hojas en forma de almendra, con una línea central y dos pares de venas cortas. Colócalas en filas, cada una entre las dos de arriba." },
+  rosetas: { name: "Rosetas", level: 3, combo: "Con Hojas o Anillos: flores entre redondeles.", how: "Dibuja flores de seis pétalos que se tocan en el centro y empaquétalas como un panal, sin dejar espacio entre ellas." },
+  rayos: { name: "Soles", level: 2, combo: "Con Cestas o Marcos: círculos radiantes entre cuadrados.", how: "Dibuja un círculo con un círculo interior; entre ambos, ocho o diez púas. Pon un punto en el centro y empaqueta los soles como un panal." },
+  peldanos: { name: "Peldaños", level: 1, combo: "Con Anillos: escalones rectos frente a círculos.", how: "Dibuja una escalera en diagonal de peldaños iguales. Repítela, paralela, hasta llenar el espacio." },
+  escamas: { name: "Escamas en filas", level: 2, combo: "Con Cestas o Rosetas: el ritmo curvo de las escamas frente a las rectas.", how: "Dibuja filas de arcos, cada uno apoyado en el anterior, como escamas de pez. La fila siguiente va desplazada media escama." },
+  marcos: { name: "Marcos", level: 2, combo: "Con Chevrones: cuadros quietos junto a zigzags.", how: "Dibuja un cuadrado, dentro un rombo que toque sus lados por el medio, dentro otro cuadrado y un punto en el centro." },
   hollibaugh: { name: "Hollibaugh", level: 3, official: true, combo: "Rellena los huecos entre cintas con Tipple o Anillos: el contraste recto/curvo hace flotar las cintas.", how: "Dibuja cintas de dos líneas paralelas. Cada cinta nueva pasa por detrás: se interrumpe al llegar a las anteriores." },
   printemps: { name: "Printemps", level: 2, official: true, combo: "Ponlo junto a Static o Keeko: sus rectas calman el remolino de espirales.", how: "Traza una espiral pequeña y ciérrala con un círculo. Llena el espacio con rollos de distintos tamaños." },
   tipple: { name: "Tipple", level: 1, official: true, combo: "Es el comodín: llena huecos de Hollibaugh o separa dos tangles muy cargados.", how: "Burbujas de muchos tamaños, apretadas sin tocarse. Empieza por las grandes y rellena con las pequeñas." },
@@ -47,7 +57,7 @@ export const TANGLE_INFO = {
   dunas: { name: "Dunas", level: 2, combo: "En colas y zonas fluidas; contrasta con Ladrillos o Cubos.", how: "Capas curvas superpuestas con una línea de sombra paralela. Como dunas de arena al viento." },
 };
 
-const byId = new Map(FIGURE_TANGLES.map((t) => [t.id, t]));
+const byId = new Map(GUIDE_TANGLES.map((t) => [t.id, t]));
 
 // Niveles de la guía: 1 básico (una sola forma repetida), 2 intermedio (una
 // retícula con una forma encima), 3 avanzado (cruces, tejidos o capas).

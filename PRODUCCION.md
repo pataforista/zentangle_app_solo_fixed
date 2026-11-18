@@ -11,13 +11,14 @@ estilo, el nº de diseños y las opciones que mejor le van:
 
 | Tipo de libro | Qué lleva | Diseños |
 |---|---|---|
-| 🪶 Zentangle para adultos | Koi, colibrí, nautilus, rosa, lobo, abstractas. Guía de tangles, dobles páginas y «Tu turno» | 40 |
+| 🪶 Zentangle para adultos | Koi, colibrí, nautilus, rosa, pavo real, abstractas. Guía de tangles, dobles páginas y «Tu turno» | 40 |
 | 💰 Mezcla más vendida | Figuras, mandalas, muestrarios y mosaicos repartidos. Lo más variado | 50 |
 | 🪟 Vitral relajante | Piezas grandes y lisas: el más fácil y rápido de colorear | 30 |
-| 🦖 Dinosaurios | Mitad origami (T. rex, raptor, triceratops…) y mitad con patrones (braquiosaurio, pterosaurio, plesiosaurio…), de fácil a difícil | 34 |
-| 🦕 Solo origami | Todos los dinosaurios como papel doblado | 34 |
+| 🦖 Dinosaurios | Braquiosaurio, pterosaurio, plesiosaurio… con patrones, y estegosaurio y triceratops en origami; de fácil a difícil | 20 |
+| 🦕 Solo origami | Dinosaurios como papel doblado (sin bípedos por ahora) | 20 |
 | 🧬 Biología | Neurona, ADN, células, ameba, tardígrado, escarabajo, matraz, brote… | 26 |
-| 👣 Críptidos | Pie Grande, Nessie, Mothman, kraken, yeti, ovni, hombre rana, gusano de la muerte, duende de Hopkinsville, hombre búho; 1 de cada 5 páginas en origami | 28 |
+| 👣 Críptidos | Nessie, Mothman, kraken, alien gris, ovni, hombre rana, duende de Hopkinsville, hombre búho y Wendigo | 18 |
+| 🌀 Flujo de patrones | Página completa sin figura: bandas curvas o estallido radial, unos 20 patrones distintos por página. Variantes en «Ver todos los estilos»: bandas, estallido y mandala | 30 |
 | 🧸 Infantil | Animales tiernos con huecos amplios, de fácil a difícil | 28 |
 
 ¿Quieres otro estilo? **🎨 Ver todos los estilos** los muestra con miniatura.

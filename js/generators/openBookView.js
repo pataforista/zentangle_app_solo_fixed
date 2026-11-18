@@ -63,7 +63,8 @@ export function generateOpenBookView(sequence, { w, h, m }, getEntrySvg) {
 }
 
 // Descarga un PDF con la vista de libro abierto (todos los pliegos).
-export async function downloadOpenBookPdf(sequence, { w, h, m }, getEntrySvg, title = "Libro para colorear") {
+// onProgress(i, total) se llama tras cada pliego; isCancelled() corta el trabajo (devuelve null).
+export async function downloadOpenBookPdf(sequence, { w, h, m }, getEntrySvg, title = "Libro para colorear", { onProgress = null, isCancelled = null } = {}) {
   if (typeof window === "undefined" || !window.jspdf || !window.jspdf.jsPDF) {
     throw new Error("La librería jsPDF no está cargada.");
   }
@@ -77,7 +78,10 @@ export async function downloadOpenBookPdf(sequence, { w, h, m }, getEntrySvg, ti
   const canvasW = Math.round(spreadW * pixelRatio);
   const canvasH = Math.round(h * pixelRatio);
   
+  const totalSpreads = Math.ceil(sequence.length / 2);
   for (let i = 0; i < sequence.length; i += 2) {
+    if (isCancelled && isCancelled()) return null;
+    if (onProgress) onProgress(i / 2, totalSpreads);
     const leftEntry = sequence[i] || null;
     const rightEntry = sequence[i + 1] || null;
     
@@ -119,6 +123,7 @@ export async function downloadOpenBookPdf(sequence, { w, h, m }, getEntrySvg, ti
     
     await new Promise((r) => setTimeout(r, 0));
   }
+  if (isCancelled && isCancelled()) return null;
   
   // Solo letras ASCII, cifras, «_» y «-»: con «:» o acentos del título el
   // navegador descartaba el nombre y bajaba un archivo llamado «download».

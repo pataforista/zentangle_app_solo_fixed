@@ -33,6 +33,7 @@ import {
 } from "./state.js";
 import { openViewer, closeViewer } from "./viewer.js";
 import { createBook, downloadAll, downloadListing } from "./bookExport.js";
+import { showcaseScore, showcaseOrder } from "../core/showcase.js";
 
 import { createSvgDoc } from "../core/svgDoc.js";
 import { renderSvgToString } from "../core/svgRender.js";
@@ -552,7 +553,8 @@ export async function fixFlaggedPages() {
   }
 }
 
-export const ENGINE_VERSION = "2.1.0";
+import { ENGINE_VERSION } from "../core/engineVersion.js";
+export { ENGINE_VERSION };
 
 export function bookRecipe(review) {
   const { g, n, blank, flags, baseSeed, pages, total } = review;
@@ -938,42 +940,15 @@ export function togglePinPage(i) {
 }
 
 export function pageShowcaseScore(page) {
-  const q = page.quality || {};
-  const coverage = q.coverage ?? 0;
-  const contrast = q.contrast ?? 0;
-  const normalizedContrast = Math.max(0, Math.min(1, (contrast + 0.5) / 1.5));
-  return coverage * 0.6 + normalizedContrast * 0.4;
+  return showcaseScore(page.quality || {});
 }
 
 export function applyShowcaseOrder(review) {
   if (!review?.pages?.length) return;
-  const showcaseEnabled = $("showcaseMode")?.checked;
-  if (!showcaseEnabled) return;
-
-  const pinned = [];
-  const unpinned = [];
-  review.pages.forEach((page, idx) => {
-    const entry = { page, origIdx: idx };
-    if (page.pinned) pinned.push(entry);
-    else unpinned.push(entry);
-  });
-
-  unpinned.sort((a, b) => pageShowcaseScore(b.page) - pageShowcaseScore(a.page));
-
-  const showcaseCount = Math.min(4, unpinned.length);
-  const showcase = unpinned.slice(0, showcaseCount);
-  const rest = unpinned.slice(showcaseCount);
-
-  const seed = review.baseSeed;
-  let rng = seed;
-  for (let i = rest.length - 1; i > 0; i--) {
-    rng = (rng * 1103515245 + 12345) >>> 0;
-    const j = rng % (i + 1);
-    [rest[i], rest[j]] = [rest[j], rest[i]];
-  }
-
-  const ordered = [...showcase, ...rest];
-  review.pages = ordered.map((entry) => entry.page);
+  if (!$("showcaseMode")?.checked) return;
+  const progressive = !!$("bookProgressive")?.checked;
+  const order = showcaseOrder(review.pages.map((page) => ({ score: pageShowcaseScore(page), pinned: !!page.pinned })), { count: 4, windowFraction: progressive ? 1 / 3 : 1 });
+  review.pages = order.map((i) => review.pages[i]);
 }
 
 // Diseño i del libro, distinto de los anteriores: si se parece demasiado

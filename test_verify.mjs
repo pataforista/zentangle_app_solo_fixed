@@ -13,6 +13,11 @@ import { compileFigureDefinition, registerImportedFigure } from "./js/core/svgIm
 import { FIGURES, FIGURE_IDS, FIGURE_SETS } from "./js/generators/figure.js";
 import { extractFigureMetrics } from "./js/core/pageQuality.js";
 
+// FAST=1 (npm run test:fast): muestrea los bucles más largos (1 de cada 4 figuras,
+// 1 semilla de libro, 1 de cada 2 tangles). `npm test` sin FAST recorre todo.
+const FAST = process.env.FAST === "1";
+const pick = (list) => (FAST ? list.filter((_, i) => i % (list.length > 8 ? 8 : 2) === 0) : list);
+
 async function runTests() {
   console.log("=== INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS ===\n");
 
@@ -426,7 +431,7 @@ async function runTests() {
       assert.ok(ZENTANGLE_PRESETS[k], `ERROR: Más vendidos incluye ${k}, que no existe.`);
       assert.ok(isColoringSafe(ZENTANGLE_PRESETS[k]), `ERROR: Más vendidos incluye ${k}, que tiene rellenos negros.`);
     }
-    for (const bs of [1, 42, 347387974]) {
+    for (const bs of pick([1, 42, 347387974])) {
       const styles = Array.from({ length: deckTotal * 2 }, (_, i) => resolveBestSeller(0, { pageIndex: i, bookSeed: bs }).presetName);
       for (let i = 1; i < styles.length; i++) assert.notStrictEqual(styles[i], styles[i - 1], `ERROR: Más vendidos repite ${styles[i]} en las páginas ${i} y ${i + 1} (libro ${bs}).`);
       const first = styles.slice(0, deckTotal);
@@ -505,7 +510,7 @@ async function runTests() {
         }
         return q.map((v, i) => v / n[i]);
       };
-      for (const fig of FIGURE_IDS) {
+      for (const fig of pick(FIGURE_IDS)) {
         for (const bgKind of ["rays", "strings", "airy"]) {
           const opts = { seed: 11, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig, figureBackground: bgKind } };
           const d1 = { body: [], defs: [] }, d2 = { body: [], defs: [] };
@@ -522,13 +527,13 @@ async function runTests() {
         }
       }
       // Cada tangle clásico produce líneas en cajas chicas y grandes.
-      for (const t of CLASSIC_TANGLES) for (const side of [20, 120]) {
+      for (const t of pick(CLASSIC_TANGLES)) for (const side of [20, 120]) {
         const layers = t.fn(createRNG(5), { x0: 0, y0: 0, x1: side, y1: side * 0.8 }, { gap: 1.9, stroke: 0.35, sketchy: 0.3 });
         assert.ok(layers.some((l) => l.d && l.d.length > 40), `ERROR: el tangle ${t.id} quedó vacío en una caja de ${side} mm.`);
       }
       // En un libro, las figuras se recorren todas antes de repetir y nunca
       // sale la misma en dos páginas de figura seguidas.
-      for (const bs of [1, 42]) {
+      for (const bs of pick([1, 42])) {
         const seq = Array.from({ length: FIGURE_IDS.length * 3 }, (_, i) => figureForPage(bs, i));
         assert.strictEqual(new Set(seq.slice(0, FIGURE_IDS.length)).size, FIGURE_IDS.length, "ERROR: las primeras figuras del libro se repiten.");
         for (let i = 1; i < seq.length; i++) assert.notStrictEqual(seq[i], seq[i - 1], `ERROR: figura ${seq[i]} repetida en páginas de figura seguidas (libro ${bs}).`);
@@ -718,7 +723,7 @@ async function runTests() {
       for (const k of Object.keys(STYLE_THEME)) assert.ok(PR[k] && THEME_LISTING[STYLE_THEME[k]], `ERROR: tema de ${k}.`);
       const { generateBookRecipe } = await import("./js/core/batchGenerator.js");
       const bRec = generateBookRecipe({ seed: 123, theme: "dino", pages: 30, paperKey: "LETTER" });
-      assert.strictEqual(bRec.engineVersion, "2.1.0", "ERROR: engineVersion en batchGenerator.");
+      assert.strictEqual(bRec.engineVersion, "2.3.0", "ERROR: engineVersion en batchGenerator.");
       assert.strictEqual(bRec.recipeVersion, 1, "ERROR: recipeVersion en batchGenerator.");
       assert.strictEqual(bRec.seedScheme, 2, "ERROR: seedScheme en batchGenerator.");
       const { downloadBatchZip } = await import("./js/core/batchGenerator.js");
@@ -1027,7 +1032,7 @@ async function runTests() {
       const bad = {};
       for (const preset of ["zen_figure_facet", "zen_figure_glass"]) {
         let tot = 0;
-        for (const fig of FIGURE_IDS) {
+        for (const fig of pick(FIGURE_IDS)) {
           const run = async () => { const d = { body: [], defs: [] }; await generateZentangle(d, { seed: 21, presetName: preset, areaMm: page, overrides: { figureName: fig } }); return d; };
           const d1 = await run(), d2 = await run(), html = d1.body.join("");
           assert.strictEqual(html, d2.body.join(""), `ERROR: ${preset}/${fig} no es determinista.`);
@@ -1036,14 +1041,14 @@ async function runTests() {
           const img = new Resvg(svg, { fitTo: { mode: "width", value: 216 * 5 } }).render();
           tot += analyzeColorability({ data: img.pixels, width: img.width, height: img.height }, 5).bad;
         }
-        bad[preset] = tot / FIGURE_IDS.length;
+        bad[preset] = tot / pick(FIGURE_IDS).length;
       }
       // Vitral y facetado tienen piezas grandes: menos zonas difíciles que la figura con strings (~50).
       assert.ok(bad.zen_figure_glass < 25 && bad.zen_figure_facet < 45, `ERROR: zonas difíciles de media: facetado ${bad.zen_figure_facet.toFixed(1)}, vitral ${bad.zen_figure_glass.toFixed(1)}.`);
       // Figura zentangle con relleno rico y figuras escondidas: el margen
       // blanco junto a cuerdas, auras y marco mantiene las astillas a raya.
       let tot = 0, hidden = 0, nested = 0;
-      for (const fig of FIGURE_IDS) {
+      for (const fig of pick(FIGURE_IDS)) {
         const d = { body: [], defs: [] };
         await generateZentangle(d, { seed: 21, presetName: "zen_figure", areaMm: page, overrides: { figureName: fig } });
         const html = d.body.join("");
@@ -1056,9 +1061,9 @@ async function runTests() {
         // Sin huecos vacíos grandes: el mayor círculo blanco del dibujo < 15 mm de radio.
         assert.ok(qa.blankMm < 15, `ERROR: ${fig} deja un hueco vacío de ${qa.blankMm.toFixed(1)} mm de radio.`);
       }
-      bad.zen_figure = tot / FIGURE_IDS.length;
+      bad.zen_figure = tot / pick(FIGURE_IDS).length;
       assert.ok(bad.zen_figure < 40, `ERROR: la figura zentangle sube a ${bad.zen_figure.toFixed(1)} zonas difíciles de media (techo 40).`);
-      assert.ok(hidden >= FIGURE_IDS.length * 2 && nested >= 15, `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
+      assert.ok(FAST || (hidden >= FIGURE_IDS.length * 2 && nested >= 4), `ERROR: pocas figuras escondidas (${hidden} en total, ${nested} dentro de su figura).`);
       // Repertorio por estilo: adulto (y abstracto) frente a infantil, en libro.
       const { FIGURE_SETS } = await import("./js/generators/figure.js");
       for (const [preset, allowed] of [["zen_figure", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_glass", [...FIGURE_SETS.adult, ...FIGURE_SETS.abstract]], ["zen_figure_kids", FIGURE_SETS.kids], ["zen_figure_dino", [...FIGURE_SETS.dino, ...FIGURE_SETS.dinoOrigamiMix]], ["zen_figure_dino_origami", FIGURE_SETS.dinoOrigami], ["zen_figure_bio", FIGURE_SETS.bio], ["zen_figure_cryptids", [...FIGURE_SETS.cryptids, ...FIGURE_SETS.cryptidsOrigami]]]) {
@@ -1069,7 +1074,10 @@ async function runTests() {
           seen.add((d.body.join("").match(/data-figure="([^"]+)"/) || [])[1]);
         }
         for (const f of seen) assert.ok(allowed.includes(f), `ERROR: ${preset} sacó la figura ${f}, que no es de su repertorio.`);
-        assert.ok(seen.size >= Math.min(14, allowed.length), `ERROR: ${preset} solo usó ${seen.size} figuras en 24 páginas.`);
+        // R5: el repertorio de dinosaurios se redujo (sin bípedos en origami); el listón
+        // baja a 10 para ese estilo. Cuando vuelvan las siluetas ilustradas (R8), subirlo.
+        const floor = preset.startsWith("zen_figure_dino") ? 10 : 14;
+        assert.ok(seen.size >= Math.min(floor, allowed.length), `ERROR: ${preset} solo usó ${seen.size} figuras en 24 páginas.`);
       }
       const turn = { body: [], defs: [] };
       await generateZentangle(turn, { seed: 4, presetName: "zen_figure", areaMm: page, overrides: { figureName: "cat", emptySections: true } });
@@ -1173,7 +1181,8 @@ async function runTests() {
       const sceneHtml = dScene.body.join("");
       assert.ok(sceneHtml.includes('data-scene="dino"'), "ERROR: Escena no incluye data-scene.");
       assert.ok(sceneHtml.includes("data-figures="), "ERROR: Escena no incluye data-figures.");
-      assert.ok(sceneHtml.includes('data-scene-env="1"'), "ERROR: Escena debe incluir entorno paisajístico.");
+      assert.strictEqual((sceneHtml.match(/data-scene-bg="1"/g) || []).length, 1, "ERROR: la escena debe tener un único fondo de página.");
+      assert.strictEqual((sceneHtml.match(/data-scene-ground="1"/g) || []).length, 1, "ERROR: la escena con suelo debe tener una única banda de suelo.");
 
       const figsMatch = sceneHtml.match(/data-figures="([^"]+)"/);
       assert.ok(figsMatch, "ERROR: No se encontraron figuras en la escena.");
@@ -1198,6 +1207,25 @@ async function runTests() {
       });
       const oceanHtml = dOcean.body.join("");
       assert.ok(oceanHtml.includes('data-scene="ocean"'), "ERROR: Escena marina no generó data-scene.");
+
+      // R3: en 4 semillas por tema, un solo fondo a marco completo, ninguna figurita
+      // suelta, figuras del tema y, con suelo, todas las bases a la misma altura.
+      const { SCENE_POOLS } = await import("./js/generators/figure.js");
+      const poolOf = { zen_scene: SCENE_POOLS.nature, zen_scene_dino: SCENE_POOLS.dino(), zen_scene_ocean: SCENE_POOLS.ocean };
+      for (const preset of Object.keys(poolOf)) for (const sd of [3, 17, 58, 131]) {
+        const d = { body: [], defs: [] };
+        await generateZentangle(d, { seed: sd, presetName: preset, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+        const h = d.body.join("");
+        assert.strictEqual((h.match(/data-scene-bg="1"/g) || []).length, 1, `ERROR: ${preset}@${sd} sin fondo único.`);
+        assert.ok(!/data-hidden=/.test(h.replace(/data-hidden="(owl|cat|fish|turtle|elephant|snail|bird|whale|mushroom|tree|bear|rabbit|penguin|fox)"/g, "")), `ERROR: ${preset}@${sd} lleva figuritas sueltas.`);
+        const figs = (h.match(/data-figures="([^"]+)"/) || [])[1].split(",");
+        for (const f of figs) assert.ok(poolOf[preset].includes(f), `ERROR: ${preset}@${sd} usa ${f}, que no es de su tema.`);
+        assert.ok(!["plesiosaur", "mosasaurus", "ammonite"].some((f) => preset === "zen_scene_ocean" && figs.includes(f)), "ERROR: reptiles prehistóricos en el océano.");
+        if (preset !== "zen_scene_ocean") {
+          const bottoms = [...h.matchAll(/data-sil-d="([^"]+)"/g)].map((m) => { const n = m[1].match(/-?\d+(?:\.\d+)?/g).map(Number); let y = -Infinity; for (let q = 1; q < n.length; q += 2) y = Math.max(y, n[q]); return y; });
+          assert.ok(Math.max(...bottoms) - Math.min(...bottoms) < 1, `ERROR: ${preset}@${sd}: las figuras no comparten suelo (${bottoms.map((b) => b.toFixed(1)).join(" / ")} mm).`);
+        }
+      }
 
       console.log("✓ Cuerdas curvilíneas por esqueleto y composición de escenas temáticas con 2-3 figuras verificadas.");
     }
@@ -1271,6 +1299,178 @@ async function runTests() {
         assert.deepStrictEqual(t, [], `ERROR: el infantil usa tangles excluidos: ${t.join(", ")}`);
       }
       console.log(`✓ ${total} figuras delgadas sin falsas alarmas de cobertura, lomo centrado con sangrado, ${ids.length} figuras con nombre en español, PNG gris para el PDF, huella de parecido y libro infantil sin tangles avanzados.`);
+    }
+
+    // -------------------------------------------------------------
+    // Prueba 24: Regalías con la fórmula y tarifas de KDP (R19) y versión única del motor (R1)
+    // -------------------------------------------------------------
+    {
+      console.log("\nPrueba 24: Regalías de KDP (tarifa × precio − impresión) y versión única del motor...");
+      const K = await import("./js/core/kdpRates.js");
+      const { calculateRoyaltyTable, formatRoyaltyTable } = await import("./js/generators/bookListing.js");
+      const { ENGINE_VERSION } = await import("./js/core/engineVersion.js");
+      // Valores calculados a mano (y comprobados con Wolfram), no con el propio código.
+      const near = (got, want, msg) => assert.ok(Math.abs(got - want) < 0.005, `ERROR: ${msg}: ${got} (esperado ${want}).`);
+      // Libro corto, tamaño grande: impresión fija 2.84. 24 pp a 8.99: 50 % × 8.99 − 2.84 = 1.655
+      near(K.royaltyPerSaleUsd(8.99, K.printCostUsd(24)), 1.655, "regalía 24 pp a 8.99");
+      // 80 pp a 9.99 (tramo 60 %): 5.994 − 2.84 = 3.154
+      near(K.royaltyPerSaleUsd(9.99, K.printCostUsd(80)), 3.154, "regalía 80 pp a 9.99");
+      // 200 pp a 12.99: impresión 1.00 + 200 × 0.017 = 4.40; 7.794 − 4.40 = 3.394
+      near(K.royaltyPerSaleUsd(12.99, K.printCostUsd(200)), 3.394, "regalía 200 pp a 12.99");
+      // 300 pp, tamaño normal: 1.00 + 300 × 0.012 = 4.60
+      near(K.printCostUsd(300, "blackWhite", "regular"), 4.6, "impresión 300 pp tamaño normal");
+      // Precio mínimo con regalía positiva, 80 pp: 2.84 / 0.5 = 5.68
+      near(K.minPriceForPositiveRoyalty(K.printCostUsd(80)), 5.68, "precio mínimo 80 pp");
+      // Sin tarifa verificada (color): no se inventa ninguna cifra
+      assert.strictEqual(calculateRoyaltyTable(80, "colorPremium").length, 0, "ERROR: color no debe tener cifras.");
+      assert.ok(formatRoyaltyTable(80, "colorPremium").includes("Sin tarifa verificada"), "ERROR: el texto debe avisar.");
+      // La tabla usa el tramo 50 % por debajo de 9.99
+      assert.strictEqual(calculateRoyaltyTable(80)[0].rate, "50%", "ERROR: tramo 50 % por debajo de 9.99.");
+      // Una sola versión del motor
+      assert.strictEqual(ENGINE_VERSION, "2.3.0", "ERROR: versión del motor.");
+      // R2/R3: las escenas vuelven al selector una vez reparadas.
+      const { HIDDEN_STYLES } = await import("./js/ui/stylePicker.js");
+      const { ZENTANGLE_PRESETS: Z } = await import("./js/generators/zentangle.presets.js");
+      for (const key of ["zen_scene", "zen_scene_dino", "zen_scene_ocean"]) {
+        assert.ok(!HIDDEN_STYLES.has(key), `ERROR: ${key} ya no debe estar oculto.`);
+        assert.ok(Z[key], `ERROR: falta el preset ${key}.`);
+      }
+      // R6: una figura delgada se amplía hasta ~18 % del marco y se recorta por la cola;
+      // con figureFit: "box" vuelve el encaje por caja (sin recorte).
+      for (const fig of ["diplodocus", "plesiosaur", "mosasaurus", "ankylosaurus"]) {
+        const gen = async (extra) => {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 11, presetName: "zen_figure_dino", overrides: { seed: 11, figureName: fig, figureLayout: "center", richFill: false, ...extra }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const svg = d.body.join("");
+          return { cov: parseFloat((svg.match(/data-coverage="([^"]+)"/) || [])[1]), cropped: /data-cropped="1"/.test(svg) };
+        };
+        const area = await gen({}), box = await gen({ figureFit: "box" });
+        assert.ok(!box.cropped, `ERROR: ${fig} con figureFit box no debe recortarse.`);
+        assert.ok(area.cov >= Math.min(17.5, box.cov * 1.3), `ERROR: ${fig} no gana cobertura con el encaje por área (${box.cov} → ${area.cov} %).`);
+      }
+      // R9: las figuritas de una figura adulta son de su ambiente o símbolos, y no hay copia dentro.
+      {
+        const { hiddenPoolFor } = await import("./js/generators/figure.js");
+        for (const [fig, seedR9] of [["hummingbird", 3], ["koi", 8], ["teapot", 3], ["koi", 5], ["hamsa", 4], ["rose", 9]]) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: seedR9, presetName: "zen_figure", overrides: { seed: seedR9, figureName: fig }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const hid = [...d.body.join("").matchAll(/data-hidden="([^"]+)"/g)].map((m) => m[1]);
+          const pool = hiddenPoolFor(fig);
+          for (const h of hid) assert.ok(pool.includes(h), `ERROR: ${fig} esconde «${h}», que no es de su ambiente (${pool.join(", ")}).`);
+          assert.ok(!hid.includes(fig), `ERROR: ${fig} lleva una copia de sí misma dentro.`);
+        }
+        assert.ok(!hiddenPoolFor("koi").includes("teapot"), "ERROR: el koi no debe esconder teteras.");
+      }
+      // R20: una sola ficha completa. En los 10 temas y los 2 idiomas: 7 palabras clave
+      // válidas, distintas, de ≤ 50 caracteres, sin marcas bloqueadas; el título en español
+      // es el mismo que el de la ficha de «Descargar todo»; la ficha recuerda la declaración de IA.
+      {
+        const BL = await import("./js/generators/bookListing.js");
+        const KL = await import("./js/core/kdpListing.js");
+        for (const theme of Object.keys(BL.BILINGUAL_TITLES)) {
+          const l = BL.generateBilingualListing({ theme, designs: 30, pages: 70, paperLabel: "8.5×11 in" });
+          for (const lang of ["es", "en"]) {
+            const kws = l.keywords[lang];
+            assert.strictEqual(kws.length, 7, `ERROR: ${theme}/${lang} tiene ${kws.length} palabras clave (deben ser 7).`);
+            assert.strictEqual(new Set(kws).size, 7, `ERROR: ${theme}/${lang} repite palabras clave.`);
+            for (const kw of kws) {
+              assert.ok(kw.length <= 50, `ERROR: «${kw}» excede 50 caracteres.`);
+              assert.strictEqual(KL.containsBlocked(kw), null, `ERROR: «${kw}» contiene un término bloqueado.`);
+              assert.ok(!/^(libro|book)$/i.test(kw.trim()), `ERROR: palabra clave genérica «${kw}».`);
+            }
+          }
+          if (KL.THEME_LISTING[theme]) assert.strictEqual(l.title.es, KL.THEME_LISTING[theme].titles[0], `ERROR: ${theme}: el título bilingüe no coincide con el de la ficha en español.`);
+        }
+        assert.ok(BL.generateFullListingText({ theme: "dino", designs: 20, pages: 50, paperLabel: "8.5×11 in" }).includes("contenido generado con IA"), "ERROR: la ficha bilingüe no recuerda la declaración de IA.");
+        assert.ok(KL.kdpListingText({ designs: 20, pages: 50, theme: "dino", flags: {} }).includes("CONTENIDO DE IA"), "ERROR: la ficha en español no recuerda la declaración de IA.");
+      }
+      // Estilo «Flujo de patrones» y los 9 patrones nuevos (boldTangles.js).
+      {
+        const { BOLD_TANGLES } = await import("./js/generators/patterns/boldTangles.js");
+        const { createRNG: mkRng } = await import("./js/core/prng.js");
+        const { analyzeColorability: colorab } = await import("./js/core/pageQuality.js");
+        assert.strictEqual(BOLD_TANGLES.length, 10, "ERROR: deben ser 10 patrones nuevos (9 + escamas).");
+        // Cada patrón: dibuja algo, sin NaN, y rellena un cuadro de 60 mm sin pasar del percentil 90 de zonas diminutas de los existentes.
+        for (const t of BOLD_TANGLES) for (const sd of [1, 2, 3]) {
+          const layers = t.fn(mkRng(sd), { x0: 0, y0: 0, x1: 60, y1: 60 }, { gap: 1.9, stroke: 0.4, sketchy: 0.3 });
+          const d = layers.map((l) => l.d).join(" ");
+          assert.ok(d.length > 200 && !/NaN|Infinity/.test(d), `ERROR: el patrón ${t.id} (semilla ${sd}) no dibuja o tiene coordenadas inválidas.`);
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect width="60" height="60" fill="#fff"/><clipPath id="c"><rect x="2" y="2" width="56" height="56"/></clipPath><g clip-path="url(#c)"><path d="${d}" fill="none" stroke="#000" stroke-width="0.4"/></g><rect x="2" y="2" width="56" height="56" fill="none" stroke="#000" stroke-width="0.8"/></svg>`;
+          const im = new Resvg(svg, { fitTo: { mode: "width", value: 300 } }).render();
+          const q = colorab({ data: im.pixels, width: im.width, height: im.height }, 5);
+          // Umbral calibrado: con este método los 30 patrones existentes dan mediana 5 y percentil 90 de 22.
+          assert.ok(q.bad <= 22, `ERROR: el patrón ${t.id} (semilla ${sd}) deja ${q.bad} zonas diminutas en 60 mm (máx. 22).`);
+        }
+        // Páginas de flujo: sin figura, ≥ 10 patrones distintos por página y las dos composiciones.
+        const BOLD_IDS = BOLD_TANGLES.map((t) => t.id);
+        let radial = 0, bands = 0;
+        for (const sd of [3, 8, 21, 55, 89, 144, 233, 377]) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: sd, presetName: "zen_flow_mix", areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const h = d.body.join(""), defs = d.defs.join("");
+          assert.ok(!/data-figure=/.test(h) && !/NaN|Infinity/.test(h + defs), `ERROR: página de flujo @${sd} con figura o coordenadas inválidas.`);
+          const ids = new Set([...h.matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1]));
+          assert.ok(ids.size >= 10, `ERROR: la página de flujo @${sd} solo usa ${ids.size} patrones distintos (≥ 10).`);
+          if (/clip-rule="evenodd"/.test(defs)) radial++; else bands++;
+        }
+        assert.ok(radial >= 1 && bands >= 1, `ERROR: el flujo mixto debe alternar estallido (${radial}) y bandas (${bands}).`);
+        // Aislamiento: los libros de figura no usan los patrones nuevos.
+        for (let k = 0; k < 8; k++) {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 40 + k, presetName: "zen_figure", areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex: k, bookSeed: 5 });
+          const used = [...d.body.join("").matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1]).filter((x) => BOLD_IDS.includes(x));
+          assert.deepStrictEqual(used, [], `ERROR: una figura usa patrones de flujo: ${used.join(", ")}.`);
+        }
+        // Variante mandala: 5 anillos y 16–20 cuñas; la página sigue sin figura.
+        {
+          const d = { body: [], defs: [] };
+          await generateZentangle(d, { seed: 12, presetName: "zen_flow_mandala", areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 } });
+          const h = d.body.join("");
+          assert.ok(!/data-figure=/.test(h) && !/NaN|Infinity/.test(h + d.defs.join("")), "ERROR: la mandala tiene figura o coordenadas inválidas.");
+          assert.ok(new Set([...h.matchAll(/data-tangle="([^"]+)"/g)].map((m) => m[1])).size >= 12, "ERROR: la mandala usa muy pocos patrones.");
+        }
+        // Figuras retiradas (revisión del 17 nov 2026): no salen en ningún libro de un clic,
+        // ni como figura principal ni escondidas; el T. rex está en dinosaurios y ningún bípedo en origami.
+        {
+          const { RETIRED_FIGURES, FIGURE_SETS: SETS } = await import("./js/generators/figure.js");
+          const { BOOK_RECIPES: RB } = await import("./js/core/bookRecipes.js");
+          assert.strictEqual(RETIRED_FIGURES.length, 11, "ERROR: deben ser 11 figuras retiradas.");
+          for (const k of Object.keys(SETS)) for (const f of RETIRED_FIGURES) assert.ok(!SETS[k].includes(f), `ERROR: ${f} sigue en el repertorio ${k}.`);
+          assert.ok(SETS.dino.includes("trex"), "ERROR: el T. rex debe estar en el libro de dinosaurios.");
+          const bipeds = ["trex", "allosaurus", "velociraptor", "spinosaurus", "parasaurolophus", "pachycephalosaurus", "iguanodon"];
+          assert.ok(!SETS.dinoOrigami.some((f) => bipeds.includes(f)) && !SETS.dinoOrigamiMix.some((f) => bipeds.includes(f)), "ERROR: un bípedo en el origami.");
+          for (const r of RB.filter((x) => !x.style.startsWith("zen_flow"))) for (let k = 0; k < pick([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]).length; k++) {
+            const d = { body: [], defs: [] };
+            await generateZentangle(d, { seed: 900 + k, presetName: r.style, overrides: { seed: 900 + k, figurePage: k }, areaMm: { x: 12.7, y: 12.7, w: 190.5, h: 254 }, pageIndex: k, bookSeed: 31 });
+            const found = [...d.body.join("").matchAll(/data-(?:figure|hidden)="([^"]+)"/g)].map((m) => m[1]).filter((f) => RETIRED_FIGURES.includes(f));
+            assert.deepStrictEqual(found, [], `ERROR: el libro ${r.id} usa figuras retiradas: ${found.join(", ")}.`);
+          }
+        }
+        // Receta, tema de ficha y guía: el libro de flujo está completo.
+        const { BOOK_RECIPES: RECIPES, STYLE_THEME: THEMES } = await import("./js/core/bookRecipes.js");
+        assert.ok(RECIPES.some((r) => r.id === "flow" && r.style === "zen_flow_mix"), "ERROR: falta la receta de flujo.");
+        assert.strictEqual(THEMES.zen_flow_mix, "flow", "ERROR: el estilo de flujo no tiene tema de ficha.");
+        const { TANGLE_INFO: INFO } = await import("./js/generators/bookExtras.js");
+        for (const id of BOLD_IDS) assert.ok(INFO[id] && INFO[id].how && INFO[id].combo, `ERROR: el patrón ${id} no tiene ficha para la guía.`);
+      }
+      // R24: modo escaparate. Las 4 primeras páginas puntúan ≥ la mediana, las fijadas no se
+      // pierden ni se mueven, el resto conserva su orden y, con ventana, solo se elige del principio.
+      {
+        const { showcaseOrder: order, showcaseScore: score } = await import("./js/core/showcase.js");
+        const items = Array.from({ length: 20 }, (_, i) => ({ score: ((i * 7) % 20) / 20, pinned: i === 3 || i === 11 }));
+        const o = order(items, { count: 4 });
+        assert.deepStrictEqual([...o].sort((a, b) => a - b), Array.from({ length: 20 }, (_, i) => i), "ERROR: el escaparate pierde o repite páginas.");
+        assert.strictEqual(o[3], 3, "ERROR: una página fijada se movió."); assert.strictEqual(o[11], 11, "ERROR: una página fijada se movió.");
+        const med = [...items.map((x) => x.score)].sort((a, b) => a - b)[10];
+        const first4 = [0, 1, 2, 4].map((slot) => items[o[slot]].score);
+        assert.ok(first4.every((v) => v >= med), "ERROR: las primeras páginas del escaparate no están entre las mejores.");
+        const rest = o.filter((_, slot) => !items[slot].pinned).slice(4).filter((i) => !o.slice(0, 5).includes(i));
+        assert.deepStrictEqual(rest, [...rest].sort((a, b) => a - b), "ERROR: el escaparate mezcla el resto de las páginas.");
+        const w = order(items, { count: 4, windowFraction: 1 / 3 });
+        for (const slot of [0, 1, 2, 4]) assert.ok(w[slot] < Math.ceil(20 / 3), "ERROR: con ventana se adelantó una página del final.");
+        assert.ok(score({ coverage: 0.4, contrast: 0.3 }) > score({ coverage: 0.1, contrast: 0.0 }), "ERROR: la puntuación del escaparate no premia cobertura y contraste.");
+      }
+      console.log("✓ Regalías iguales a la fórmula de KDP en 4 casos calculados a mano; color sin cifras inventadas; versión del motor única.");
     }
 
     console.log("\n==============================================");

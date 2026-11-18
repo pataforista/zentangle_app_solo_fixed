@@ -25,11 +25,17 @@ function splitLabel(text) {
   return m ? { title: m[1], sub: m[2] } : { title: clean, sub: "" };
 }
 
+// Estilos retirados del selector mientras tienen defectos visibles (R2 de
+// REVISION_MOTORES.md). Siguen existiendo en los presets: una receta guardada
+// con uno de ellos se sigue abriendo. Para volver a mostrarlos, vaciar esta lista.
+export const HIDDEN_STYLES = new Set([]); // las escenas volvieron tras R3
+
 export function createStylePicker({ select, root, renderThumb, onPick }) {
   const groups = [];
   const optByKey = new Map();
+  for (const o of select.querySelectorAll("option")) if (HIDDEN_STYLES.has(o.value)) o.hidden = true;
   for (const og of select.querySelectorAll("optgroup")) {
-    const keys = [...og.querySelectorAll("option")].map((o) => { optByKey.set(o.value, o); return o.value; });
+    const keys = [...og.querySelectorAll("option")].map((o) => { optByKey.set(o.value, o); return o.value; }).filter((k) => !HIDDEN_STYLES.has(k));
     groups.push({ id: `g${groups.length}`, label: og.label, keys });
   }
   const coloring = COLORING.filter((k) => optByKey.has(k));

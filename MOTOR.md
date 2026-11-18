@@ -14,7 +14,7 @@ app.js ──► zentangle.generator.js ──► figure.js (generateZenFigure) 
 
 1. **Elección** (`zentangle.generator.js`): el estilo trae un repertorio
    (`figures`: adultas, dinos, biología, críptidos, infantil; `origamiMix` y
-   `origamiEvery` mezclan páginas origami: dinosaurios 1 de 2, críptidos 1 de 5). En un libro,
+   `origamiEvery` mezclan páginas origami: dinosaurios 1 de 5; críptidos, sin origami). En un libro,
    `figureForPage` recorre todo el repertorio antes de repetir; la repetida
    va en espejo, con otra **paleta de 8 tangles** (`figurePalette`, rebarajada
    cada 3 páginas), **otro encuadre y otro fondo** (`figureCycle`). Entre

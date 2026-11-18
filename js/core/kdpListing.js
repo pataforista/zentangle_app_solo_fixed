@@ -22,8 +22,13 @@ export const ATTRIBUTION_EN = "Inspired by the Zentangle® Method of pattern dra
 export const THEME_LISTING = {
   adult: {
     titles: ["Figuras con patrones: libro para colorear para adultos", "Koi, colibríes y nautilus: patrones intrincados para colorear", "Arte de patrones para colorear: figuras elegantes y abstractas"],
-    lead: (n) => `${n} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, lobo, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
+    lead: (n) => `${n} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, mariposa, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
     keywords: ["libro para colorear adultos patrones", "colorear para relajarse antiestrés", "patrones intrincados animales y flores", "doodle art para colorear adultos", "libro colorear mindfulness", "aprender a dibujar patrones paso a paso", "regalo para adultos que colorean"],
+  },
+  flow: {
+    titles: ["Patrones para colorear: páginas completas de diseños relajantes", "Mandalas y flujos de patrones para colorear: páginas completas sin figuras", "Colorea patrones: libro antiestrés de página completa"],
+    lead: (n) => `${n} páginas completas de patrones: bandas curvas y estallidos radiales con decenas de regiones, cada una con un diseño distinto para colorear.`,
+    keywords: ["patrones para colorear adultos", "mandalas antiestrés para colorear", "páginas completas patrones", "colorear diseños abstractos", "libro colorear relajante adultos", "regalo creativo colorear", "arte antiestrés líneas"],
   },
   glass: {
     titles: ["Vitrales para colorear: libro relajante para adultos", "Mosaicos de vitral para colorear: figuras de piezas grandes", "Colorea un vitral: diseños sencillos y relajantes"],
@@ -31,9 +36,9 @@ export const THEME_LISTING = {
     keywords: ["vitrales para colorear adultos", "libro colorear fácil relajante", "mosaicos para colorear", "colorear piezas grandes letra grande", "libro colorear principiantes adultos", "colorear para relajarse antiestrés", "regalo colorear adultos mayores"],
   },
   dino: {
-    titles: ["Dinosaurios para colorear: patrones prehistóricos", "Mundo prehistórico para colorear: T. rex, triceratops y más", "Dinosaurios con patrones: libro para colorear de fácil a difícil"],
+    titles: ["Dinosaurios para colorear: patrones prehistóricos", "Mundo prehistórico para colorear: triceratops, estegosaurio y más", "Dinosaurios con patrones: libro para colorear de fácil a difícil"],
     lead: (n) => `${n} ilustraciones de criaturas prehistóricas: triceratops, estegosaurio, braquiosaurio, pterosaurio, plesiosaurio, amonite y más, cada una llena de patrones.`,
-    keywords: ["dinosaurios para colorear", "libro colorear dinosaurios niños y adultos", "prehistoria para colorear", "t rex triceratops colorear", "regalo amantes de los dinosaurios", "colorear ciencia paleontología", "dinosaurios patrones zen"],
+    keywords: ["dinosaurios para colorear", "libro colorear dinosaurios niños y adultos", "prehistoria para colorear", "triceratops estegosaurio colorear", "regalo amantes de los dinosaurios", "colorear ciencia paleontología", "dinosaurios patrones zen"],
   },
   bio: {
     titles: ["Biología para colorear: células, ADN y neuronas", "La vida al microscopio: libro de ciencia para colorear", "Anatomía y células para colorear con patrones"],
@@ -41,9 +46,9 @@ export const THEME_LISTING = {
     keywords: ["biología para colorear", "libro colorear ciencia", "células y adn para colorear", "regalo estudiantes de medicina", "anatomía para colorear", "neurociencia regalo", "colorear para estudiar biología"],
   },
   cryptids: {
-    titles: ["Críptidos para colorear: Pie Grande, Nessie y más", "Criaturas misteriosas del mundo: libro para colorear", "Monstruos legendarios para colorear con patrones"],
-    lead: (n) => `${n} ilustraciones de criaturas legendarias del folclore: Pie Grande, Nessie, Mothman, chupacabras, kraken, yeti, ovni, Wendigo, jackalope y más.`,
-    keywords: ["críptidos para colorear", "pie grande libro colorear", "monstruos legendarios colorear", "misterio y folclore para colorear", "regalo fans de lo paranormal", "ovnis y aliens para colorear", "criaturas míticas colorear adultos"],
+    titles: ["Críptidos para colorear: Nessie, Mothman y más", "Criaturas misteriosas del mundo: libro para colorear", "Monstruos legendarios para colorear con patrones"],
+    lead: (n) => `${n} ilustraciones de criaturas legendarias del folclore: Nessie, Mothman, kraken, alien gris, ovni, Wendigo, hombre rana y más.`,
+    keywords: ["críptidos para colorear", "nessie mothman para colorear", "monstruos legendarios colorear", "misterio y folclore para colorear", "regalo fans de lo paranormal", "ovnis y aliens para colorear", "criaturas míticas colorear adultos"],
   },
   kids: {
     titles: ["Animales tiernos para colorear: búhos, gatos, osos y más", "Mi libro de animales con patrones para colorear", "Animalitos para colorear de fácil a difícil"],
@@ -145,6 +150,11 @@ export function kdpListingText(opts) {
       "  - Confirma las medidas con la plantilla oficial de KDP (Cover Calculator) antes de subirla: el lomo cambia si añades o quitas páginas.",
       "",
     ] : []),
+    "DECLARACIÓN DE CONTENIDO DE IA",
+    "  Al publicar, KDP pregunta si el libro tiene contenido generado con IA. Este arte lo dibuja un",
+    "  programa con reglas fijas (no un modelo de IA); lee la definición vigente de KDP y responde",
+    "  según ella: https://kdp.amazon.com/help/topic/G200672390",
+    "",
     "REGLAS DE PROPIEDAD INTELECTUAL",
     "  ✓ No pongas «Zentangle», «Zendala» ni el logotipo en el título, el subtítulo, la portada ni las palabras clave.",
     "  ✓ «Zentangle®» solo en la descripción y en la página «Antes de empezar», como atribución.",

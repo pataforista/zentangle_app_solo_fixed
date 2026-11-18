@@ -4,7 +4,7 @@ import { generateZentangleCells } from "./zentangleCells.js";
 import { generateSampler } from "./sampler.js";
 import { generateIconMandala, generateFacetSpiral } from "./ornaments.js";
 import { fillDeadSpace } from "./deadSpace.js";
-import { generateZenFigure, generateZenScene, figureForPage, figurePalette, FIGURE_IDS } from "./figure.js";
+import { generateZenFigure, generateZenScene, figureForPage, figurePalette, FIGURE_IDS, RETIRED_FIGURES } from "./figure.js";
 import { isRandomKey, resolveBookStyle } from "./randomStyle.js";
 import { hash } from "../core/prng.js";
 import { getThicknessProfile, scaleStrokeForProfile } from "../core/thicknessProfiles.js";
@@ -89,7 +89,8 @@ export async function generateZentangle(doc, {
     // vendidos» o el libro cuando lleva dobles páginas, que no cuentan).
     let n = Number.isInteger(finalOpts.figurePage) ? finalOpts.figurePage : pageIndex;
     // El estilo decide el repertorio (adultas + abstractas, o infantiles).
-    let ids = Array.isArray(finalOpts.figures) && finalOpts.figures.length ? finalOpts.figures : FIGURE_IDS;
+    // Sin repertorio propio: todas las figuras salvo las retiradas.
+    let ids = Array.isArray(finalOpts.figures) && finalOpts.figures.length ? finalOpts.figures : FIGURE_IDS.filter((f) => !RETIRED_FIGURES.includes(f));
     const nPal = n;
     // origamiMix: una página de figura de cada dos va en origami, con su propio repertorio.
     if (Array.isArray(finalOpts.origamiMix) && finalOpts.origamiMix.length) {

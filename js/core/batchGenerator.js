@@ -9,6 +9,8 @@ import { generateBilingualListing, generateFullListingText, calculateRoyaltyTabl
 // ===================== CONFIGURACIÓN =====================
 
 // Configuración por defecto para generación en lote
+import { ENGINE_VERSION } from "./engineVersion.js";
+
 export const BATCH_DEFAULTS = {
   count: 5, // Número de libros a generar
   baseName: "libro", // Nombre base para los archivos
@@ -110,7 +112,7 @@ export function generateBookRecipe(bookData) {
   return {
     app: "generador-libros-colorear",
     recipeVersion: 1,
-    engineVersion: "2.1.0",
+    engineVersion: ENGINE_VERSION,
     seedScheme: 2,
     version: "1.0",
     generatedAt: new Date().toISOString(),

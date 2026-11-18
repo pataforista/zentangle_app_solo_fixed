@@ -4,7 +4,7 @@
 // Las palabras clave siguen las reglas de KDP: máximo 50 caracteres por casilla,
 // sin repetir palabras del título ni usar marcas registradas.
 
-import { BLOCKED_TERMS, ATTRIBUTION_ES, ATTRIBUTION_EN } from "../core/kdpListing.js";
+import { BLOCKED_TERMS, ATTRIBUTION_ES, ATTRIBUTION_EN, THEME_LISTING } from "../core/kdpListing.js";
 
 // ===================== CONFIGURACIÓN DE KDP =====================
 // Límites de KDP para palabras clave
@@ -12,31 +12,8 @@ export const KDP_KEYWORD_MAX_LENGTH = 50;
 export const KDP_KEYWORD_COUNT = 7;
 export const KDP_CATEGORY_COUNT = 3;
 
-// Costos de impresión KDP (actualizado noviembre 2024)
-// Fuente: https://kdp.amazon.com/help/topic/G200672390
-export const KDP_PRINT_COSTS = {
-  // Libro en blanco y negro con papel blanco (tapa blanda)
-  blackWhite: {
-    fixedCost: 0.85, // USD costo fijo
-    perPageCost: 0.01, // USD por página
-  },
-  // Libro en color prémium con papel blanco (tapa blanda)
-  colorPremium: {
-    fixedCost: 0.85,
-    perPageCost: 0.06,
-  },
-  // Libro en color estándar con papel blanco
-  colorStandard: {
-    fixedCost: 0.85,
-    perPageCost: 0.04,
-  },
-};
-
-// Porcentaje de regalía según el canal
-export const KDP_ROYALTY_RATE = {
-  amazon: 0.60, // 60% en Amazon
-  expanded: 0.40, // 40% en canales expandidos
-};
+// Costes y regalías de KDP: viven en js/core/kdpRates.js (con fuentes y fecha).
+import { printCostUsd, royaltyPerSaleUsd, minPriceForPositiveRoyalty, KDP_RATES_AS_OF, KDP_PRINT_COSTS } from "../core/kdpRates.js";
 
 // Precios sugeridos para libros para colorear (USD)
 export const SUGGESTED_PRICES = {
@@ -62,6 +39,10 @@ export const BILINGUAL_TITLES = {
       "Mandalas and Figures: Stress Relief Coloring Book for Adults",
     ],
   },
+  flow: {
+    es: ["Patrones para colorear: páginas completas de diseños relajantes", "Mandalas y flujos de patrones para colorear sin figuras", "Colorea patrones: libro antiestrés de página completa"],
+    en: ["Pattern Coloring Book: Full-Page Relaxing Designs for Adults", "Mandala and Flow Patterns to Color: No Figures, Just Patterns", "Color the Patterns: Full-Page Stress Relief Designs"],
+  },
   glass: {
     es: [
       "Vitrales para colorear: libro relajante para adultos",
@@ -77,12 +58,12 @@ export const BILINGUAL_TITLES = {
   dino: {
     es: [
       "Dinosaurios para colorear: patrones prehistóricos",
-      "Mundo prehistórico: T. rex, triceratops y más",
+      "Mundo prehistórico: triceratops, estegosaurio y más",
       "Dinosaurios con patrones: de fácil a difícil",
     ],
     en: [
       "Dinosaur Coloring Book: Prehistoric Patterns",
-      "Prehistoric World: T-Rex, Triceratops and More",
+      "Prehistoric World: Triceratops, Stegosaurus and More",
       "Patterned Dinosaurs: Easy to Difficult Coloring",
     ],
   },
@@ -100,12 +81,12 @@ export const BILINGUAL_TITLES = {
   },
   cryptids: {
     es: [
-      "Críptidos para colorear: Pie Grande, Nessie y más",
+      "Críptidos para colorear: Nessie, Mothman y más",
       "Criaturas misteriosas del mundo: libro para colorear",
       "Monstruos legendarios: patrones para colorear",
     ],
     en: [
-      "Cryptids Coloring Book: Bigfoot, Nessie and More",
+      "Cryptids Coloring Book: Nessie, Mothman and More",
       "Mysterious Creatures of the World: Coloring Book",
       "Legendary Monsters: Patterns to Color",
     ],
@@ -150,12 +131,12 @@ export const BILINGUAL_TITLES = {
     es: [
       "Aves para colorear: patrones de aves exóticas",
       "Mundo de las aves: libro de patrones para colorear",
-      "Pájaros con patrones: colibríes, loros y más",
+      "Pájaros con patrones: colibríes, búhos y más",
     ],
     en: [
       "Birds Coloring Book: Exotic Bird Patterns",
       "Bird World: Pattern Coloring Book",
-      "Patterned Birds: Hummingbirds, Parrots and More",
+      "Patterned Birds: Hummingbirds, Owls and More",
     ],
   },
   christmas: {
@@ -186,6 +167,15 @@ export const KEYWORD_SUGGESTIONS = {
     "aprender dibujar patrones",
     "regalo adultos colorear",
   ],
+  flow: [
+    "patrones colorear adultos",
+    "mandalas antiestrés colorear",
+    "páginas completas patrones",
+    "diseños abstractos colorear",
+    "libro relajante adultos",
+    "regalo creativo colorear",
+    "arte antiestrés líneas",
+  ],
   glass: [
     "vitrales colorear adultos",
     "libro colorear fácil relajante",
@@ -199,7 +189,7 @@ export const KEYWORD_SUGGESTIONS = {
     "dinosaurios colorear",
     "libro dinosaurios niños adultos",
     "prehistoria colorear",
-    "t rex triceratops",
+    "triceratops estegosaurio",
     "regalo amantes dinosaurios",
     "paleontología colorear",
     "dinosaurios patrones zen",
@@ -215,7 +205,7 @@ export const KEYWORD_SUGGESTIONS = {
   ],
   cryptids: [
     "críptidos colorear",
-    "pie grande libro colorear",
+    "nessie mothman colorear",
     "monstruos legendarios",
     "misterio folclore colorear",
     "regalo paranormal",
@@ -252,7 +242,7 @@ export const KEYWORD_SUGGESTIONS = {
   birds: [
     "aves colorear adultos",
     "pájaros exóticos patrones",
-    "colibríes loros aves",
+    "colibríes búhos aves",
     "mundo aves colorear",
     "ornitología regalo",
     "aves tropicales patrones",
@@ -280,6 +270,15 @@ export const KEYWORD_SUGGESTIONS_EN = {
     "learn draw patterns",
     "gift adults coloring",
   ],
+  flow: [
+    "pattern coloring adults",
+    "mandala stress relief coloring",
+    "full page patterns",
+    "abstract designs to color",
+    "relaxing adult coloring",
+    "creative coloring gift",
+    "line art stress relief",
+  ],
   glass: [
     "stained glass coloring adults",
     "easy relaxing coloring book",
@@ -293,7 +292,7 @@ export const KEYWORD_SUGGESTIONS_EN = {
     "dinosaur coloring book",
     "dinosaur book kids adults",
     "prehistoric coloring",
-    "t rex triceratops",
+    "triceratops stegosaurus",
     "gift dinosaur lovers",
     "paleontology coloring",
     "dinosaurs zen patterns",
@@ -309,7 +308,7 @@ export const KEYWORD_SUGGESTIONS_EN = {
   ],
   cryptids: [
     "cryptids coloring book",
-    "bigfoot coloring book",
+    "nessie mothman coloring",
     "legendary monsters",
     "mystery folklore coloring",
     "paranormal gift",
@@ -346,7 +345,7 @@ export const KEYWORD_SUGGESTIONS_EN = {
   birds: [
     "birds coloring adults",
     "exotic birds patterns",
-    "hummingbirds parrots birds",
+    "hummingbirds owls birds",
     "bird world coloring",
     "ornithology gift",
     "tropical birds patterns",
@@ -371,6 +370,11 @@ export const CATEGORY_SUGGESTIONS = {
     { code: "CRA001000", name: "Crafts & Hobbies / Coloring Books" },
     { code: "SEL000000", name: "Self-Help / General" },
     { code: "ART015000", name: "Art / Techniques / Color" },
+  ],
+  flow: [
+    { code: "CRA001000", name: "Crafts & Hobbies / Coloring Books" },
+    { code: "ART015000", name: "Art / Techniques / Drawing" },
+    { code: "SEL030000", name: "Self-Help / Stress Management" },
   ],
   glass: [
     { code: "CRA001000", name: "Crafts & Hobbies / Coloring Books" },
@@ -457,6 +461,29 @@ export function filterKeywordsByTitle(keywords, title) {
     .slice(0, KDP_KEYWORD_COUNT);
 }
 
+// Reserva de palabras clave válidas para cualquier tema: completa las 7 casillas
+// cuando el filtro por título deja huecos (R20). Ninguna usa marcas ni la palabra
+// suelta «libro»/«book», que KDP desaconseja por ser común a toda la categoría.
+export const KEYWORD_RESERVE = {
+  es: ["patrones relajantes para pintar", "arte antiestrés líneas", "regalo creativo cumpleaños", "páginas de una sola cara", "rotuladores y lápices de colores",
+    "atención plena y calma", "dibujos de líneas detalladas", "actividad creativa en casa", "diseños originales para pintar", "pasatiempo relajante"],
+  en: ["relaxing pattern art", "stress relief line designs", "creative birthday gift", "single sided pages", "markers and colored pencils",
+    "mindful calm activity", "detailed line drawings", "creative activity at home", "original designs to color in", "relaxing pastime"],
+};
+
+// Rellena hasta 7 palabras clave sin repetir, sin palabras del título, de 50
+// caracteres como mucho y sin términos bloqueados.
+export function completeKeywords(keywords, title, lang = "es") {
+  const titleWords = new Set(title.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3));
+  const out = [...new Set(keywords)].filter((kw) => validateKeyword(kw).valid);
+  for (const kw of KEYWORD_RESERVE[lang] || []) {
+    if (out.length >= KDP_KEYWORD_COUNT) break;
+    if (out.includes(kw) || kw.split(/\s+/).some((w) => titleWords.has(w))) continue;
+    if (validateKeyword(kw).valid) out.push(kw);
+  }
+  return out.slice(0, KDP_KEYWORD_COUNT);
+}
+
 /**
  * Genera la ficha bilingüe completa para un libro.
  * @param {Object} opts - Opciones del libro
@@ -473,7 +500,8 @@ export function generateBilingualListing(opts) {
 
   // Obtener títulos bilingües
   const titles = BILINGUAL_TITLES[theme] || BILINGUAL_TITLES.adult;
-  const selectedTitleEs = titles.es[0];
+  // Un solo título por tema: el de la ficha en español (kdpListing.js) manda (R20).
+  const selectedTitleEs = THEME_LISTING[theme]?.titles?.[0] || titles.es[0];
   const selectedTitleEn = titles.en[0];
 
   // Subtítulo
@@ -485,8 +513,8 @@ export function generateBilingualListing(opts) {
     : `${designs} original designs to relax and focus`;
 
   // Palabras clave (filtradas para no repetir palabras del título)
-  const keywordsEs = filterKeywordsByTitle(KEYWORD_SUGGESTIONS[theme] || KEYWORD_SUGGESTIONS.adult, selectedTitleEs);
-  const keywordsEn = filterKeywordsByTitle(KEYWORD_SUGGESTIONS_EN[theme] || KEYWORD_SUGGESTIONS_EN.adult, selectedTitleEn);
+  const keywordsEs = completeKeywords(filterKeywordsByTitle(KEYWORD_SUGGESTIONS[theme] || KEYWORD_SUGGESTIONS.adult, selectedTitleEs), selectedTitleEs, "es");
+  const keywordsEn = completeKeywords(filterKeywordsByTitle(KEYWORD_SUGGESTIONS_EN[theme] || KEYWORD_SUGGESTIONS_EN.adult, selectedTitleEn), selectedTitleEn, "en");
 
   // Categorías
   const categories = CATEGORY_SUGGESTIONS[theme] || CATEGORY_SUGGESTIONS.adult;
@@ -513,28 +541,30 @@ function generateDescription(opts, lang = "es") {
 
   const leads = {
     es: {
-      adult: `${designs} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, lobo, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
+      adult: `${designs} ilustraciones originales para adultos: koi, colibrí, pluma, nautilus, rosa, mariposa, pavo real y composiciones abstractas, llenas de patrones de líneas, curvas y círculos.`,
+      flow: `${designs} páginas completas de patrones: bandas curvas y estallidos radiales con decenas de regiones, cada una con un diseño distinto para colorear.`,
       glass: `${designs} diseños estilo vitral: cada figura y su fondo se dividen en piezas grandes y lisas, rápidas y relajantes de colorear.`,
       dino: `${designs} ilustraciones de criaturas prehistóricas: triceratops, estegosaurio, braquiosaurio, pterosaurio, plesiosaurio, amonite y más, cada una llena de patrones.`,
       bio: `${designs} ilustraciones de biología: neurona, cerebro, ADN, célula vegetal y animal, mitocondria, virus, bacteria, corazón, ojo y más, llenas de patrones para colorear.`,
-      cryptids: `${designs} ilustraciones de criaturas legendarias del folclore: Pie Grande, Nessie, Mothman, chupacabras, kraken, yeti, ovni, Wendigo, jackalope y más.`,
+      cryptids: `${designs} ilustraciones de criaturas legendarias del folclore: Nessie, Mothman, kraken, alien gris, ovni, Wendigo, hombre rana y más.`,
       kids: `${designs} animales tiernos para colorear: búho, gato, oso, conejo, pingüino, zorro, ballena, tortuga y más, con zonas amplias para colorear.`,
-      ocean: `${designs} criaturas marinas para colorear: tortuga, medusa, ballena, raya, pulpo, caballito de mar y más, llenas de patrones oceánicos.`,
+      ocean: `${designs} criaturas marinas para colorear: tortuga, medusa, ballena, koi, caballito de mar, nautilus y más, llenas de patrones oceánicos.`,
       cats: `${designs} gatos con patrones para colorear: diferentes poses y razas, cada una llena de patrones relajantes para colorear.`,
-      birds: `${designs} aves exóticas para colorear: colibrí, loro, águila, búho, pavo real, flamenco y más, llenas de patrones detallados.`,
-      christmas: `${designs} diseños navideños para colorear: árboles, estrellas, adornos, regalos, renos y más, con patrones festivos relajantes.`,
+      birds: `${designs} aves exóticas para colorear: colibrí, búho, pavo real, pingüino, pájaro cantor y plumas, llenas de patrones detallados.`,
+      christmas: `${designs} diseños navideños para colorear: árboles, copos de nieve y velas, con patrones festivos relajantes.`,
     },
     en: {
-      adult: `${designs} original illustrations for adults: koi, hummingbird, feather, nautilus, rose, wolf, peacock and abstract compositions, filled with patterns of lines, curves and circles.`,
+      adult: `${designs} original illustrations for adults: koi, hummingbird, feather, nautilus, rose, butterfly, peacock and abstract compositions, filled with patterns of lines, curves and circles.`,
+      flow: `${designs} full-page pattern designs: flowing bands and radial bursts with dozens of regions, each filled with a different pattern to color.`,
       glass: `${designs} stained glass style designs: each figure and background divided into large, smooth pieces, quick and relaxing to color.`,
       dino: `${designs} prehistoric creature illustrations: triceratops, stegosaurus, brachiosaurus, pterosaur, plesiosaur, ammonite and more, each filled with patterns.`,
       bio: `${designs} biology illustrations: neuron, brain, DNA, plant and animal cells, mitochondria, virus, bacteria, heart, eye and more, filled with coloring patterns.`,
-      cryptids: `${designs} legendary folklore creature illustrations: Bigfoot, Nessie, Mothman, chupacabra, kraken, yeti, UFO, Wendigo, jackalope and more.`,
+      cryptids: `${designs} legendary folklore creature illustrations: Nessie, Mothman, kraken, grey alien, UFO, Wendigo, frogman and more.`,
       kids: `${designs} cute animals to color: owl, cat, bear, rabbit, penguin, fox, whale, turtle and more, with large areas to color.`,
-      ocean: `${designs} sea creatures to color: turtle, jellyfish, whale, ray, octopus, seahorse and more, filled with ocean patterns.`,
+      ocean: `${designs} sea creatures to color: turtle, jellyfish, whale, koi, seahorse, nautilus and more, filled with ocean patterns.`,
       cats: `${designs} patterned cats to color: different poses and breeds, each filled with relaxing patterns to color.`,
-      birds: `${designs} exotic birds to color: hummingbird, parrot, eagle, owl, peacock, flamingo and more, filled with detailed patterns.`,
-      christmas: `${designs} Christmas designs to color: trees, stars, ornaments, gifts, reindeer and more, with relaxing festive patterns.`,
+      birds: `${designs} exotic birds to color: hummingbird, owl, peacock, penguin, songbird and feathers, filled with detailed patterns.`,
+      christmas: `${designs} Christmas designs to color: trees, snowflakes and candles, with relaxing festive patterns.`,
     },
   };
 
@@ -581,11 +611,10 @@ function generateDescription(opts, lang = "es") {
  * @param {string} channel - Canal: "amazon" | "expanded"
  * @returns {Array} Tabla de regalías con diferentes precios
  */
-export function calculateRoyaltyTable(pages, printType = "blackWhite", channel = "amazon") {
-  const costs = KDP_PRINT_COSTS[printType];
-  const royaltyRate = KDP_ROYALTY_RATE[channel];
-
-  const printCost = costs.fixedCost + costs.perPageCost * pages;
+export function calculateRoyaltyTable(pages, printType = "blackWhite", channel = "amazon", trim = "large") {
+  const printCost = printCostUsd(pages, printType, trim);
+  // Sin tarifa verificada (color, canal expandido): no se inventan cifras.
+  if (printCost === null) return [];
 
   // Precios sugeridos según el número de páginas
   const priceRange = pages < 80 ? SUGGESTED_PRICES.small : pages < 120 ? SUGGESTED_PRICES.medium : SUGGESTED_PRICES.large;
@@ -599,13 +628,14 @@ export function calculateRoyaltyTable(pages, printType = "blackWhite", channel =
   ];
 
   return prices.map((price) => {
-    const royalty = (price - printCost) * royaltyRate;
+    const royalty = royaltyPerSaleUsd(price, printCost, channel);
     const margin = (royalty / price) * 100;
     return {
       price: price.toFixed(2),
       printCost: printCost.toFixed(2),
       royalty: royalty.toFixed(2),
       margin: margin.toFixed(1),
+      rate: price < 9.99 ? "50%" : "60%",
     };
   });
 }
@@ -614,30 +644,30 @@ export function calculateRoyaltyTable(pages, printType = "blackWhite", channel =
  * Genera el texto de la tabla de regalías para mostrar o exportar.
  */
 export function formatRoyaltyTable(pages, printType = "blackWhite", channel = "amazon") {
-  const table = calculateRoyaltyTable(pages, printType, channel);
-  const channelLabel = channel === "amazon" ? "Amazon (60%)" : "Expandido (40%)";
   const printTypeLabel = {
     blackWhite: "B/N papel blanco",
     colorPremium: "Color prémium",
     colorStandard: "Color estándar",
   }[printType];
+  const head = `TABLA DE REGALÍAS (${pages} páginas, ${printTypeLabel}, ${channel === "amazon" ? "Amazon.com" : "canal expandido"})`;
+  if (channel !== "amazon" || printCostUsd(pages, printType) === null) {
+    return [head, "=".repeat(60), "", `Sin tarifa verificada para esta combinación (${printTypeLabel}, ${channel}).`,
+      "Consulta la calculadora de KDP antes de fijar el precio."].join("\n");
+  }
+  const table = calculateRoyaltyTable(pages, printType, channel);
+  const minPrice = minPriceForPositiveRoyalty(printCostUsd(pages, printType), channel);
 
-  const lines = [
-    `TABLA DE REGALÍAS (${pages} páginas, ${printTypeLabel}, ${channelLabel})`,
-    "=".repeat(60),
-    "",
-    "Precio USD | Costo impresión | Regalía | Margen %",
-    "-".repeat(60),
-  ];
-
+  const lines = [head, "=".repeat(64), "", "Precio USD | Impresión | Tarifa | Regalía | Margen %", "-".repeat(64)];
   table.forEach((row) => {
-    lines.push(`$${row.price.padStart(7)} | $${row.printCost.padStart(13)} | $${row.royalty.padStart(6)} | ${row.margin.padStart(6)}%`);
+    lines.push(`$${row.price.padStart(7)} | $${row.printCost.padStart(7)} | ${row.rate.padStart(6)} | $${row.royalty.padStart(6)} | ${row.margin.padStart(6)}%`);
   });
-
   lines.push("");
-  lines.push(`Costo de impresión: $${KDP_PRINT_COSTS[printType].fixedCost} fijo + $${KDP_PRINT_COSTS[printType].perPageCost}/página`);
-  lines.push(`Porcentaje de regalía: ${channel === "amazon" ? "60%" : "40%"}`);
-
+  lines.push(`Precio mínimo para regalía positiva: $${minPrice.toFixed(2)}`);
+  const c = KDP_PRINT_COSTS[printType];
+  lines.push(`Impresión (tamaño grande): $${c.short.large.toFixed(2)} fijo con menos de 110 páginas; desde 110, $${c.fixedCost.toFixed(2)} + $${c.perPage.large}/página`);
+  lines.push("Coste de impresión tomado de guías de terceros, sin confirmar en la página oficial de KDP.");
+  lines.push("Regalía = tarifa × precio de lista − impresión (fórmula de KDP).");
+  lines.push(`Tarifas consultadas el ${KDP_RATES_AS_OF}: comprueba la calculadora de KDP antes de publicar.`);
   return lines.join("\n");
 }
 
@@ -722,6 +752,9 @@ export function generateFullListingText(opts) {
     "  ✓ No uses «Zentangle», «Zendala» en título, subtítulo ni palabras clave",
     "  ✓ «Zentangle®» solo en la descripción como atribución",
     "  ✓ Valida las medidas de portada con la calculadora de KDP",
+    "  ✓ Al publicar, KDP pregunta si el libro tiene contenido generado con IA. Este arte lo dibuja",
+    "    un programa con reglas fijas (no un modelo de IA); lee la definición vigente de KDP y responde",
+    "    según ella: https://kdp.amazon.com/help/topic/G200672390",
     "═══════════════════════════════════════════════════════════════",
   ];
 
