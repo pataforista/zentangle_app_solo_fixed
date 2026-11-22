@@ -29,7 +29,8 @@ import {
   num,
   int,
   bool01,
-  BESTSELLER_KEY
+  BESTSELLER_KEY,
+  syncListingTheme
 } from "./state.js";
 import { openViewer, closeViewer } from "./viewer.js";
 import { createBook, downloadAll, downloadListing } from "./bookExport.js";
@@ -193,6 +194,16 @@ export async function measurePage(svg, wMm, hMm, artAreaMm2, thicknessProfile = 
 
 export const artArea = (g, spread = false) => g.inner.w * g.inner.h * (spread ? 2 : 1);
 
+// Posición con la que se generó la página. El modo escaparate mueve páginas
+// después de generarlas, y la figura, el nivel impreso en el pie y la doble
+// página dependen de esa posición: regenerar con la semilla pero en la posición
+// nueva daba otra página (PDF de libros grandes, visor, receta, deshacer).
+export const slotOf = (page, i) => (Number.isInteger(page?.slot) ? page.slot : i);
+
+// Vuelve a dibujar una página ya revisada, idéntica a la que se vio.
+export const regenBookPage = (review, i, page = review.pages[i], opts) =>
+  makeBookPage(review.g, page.seed, slotOf(page, i), review.baseSeed, review, opts);
+
 export async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb = true, quality = true } = {}) {
   const geo = { w: g.paper.w, h: g.paper.h, m: g.marginMm };
   const kind = plan?.units?.[pageIndex]?.kind || "single";
@@ -206,7 +217,7 @@ export async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb =
     const right = appendToSvg(sp.right, footer);
     const url = thumb ? await thumbUrl(sp.wide, g.paper.w * 2, g.paper.h) : null;
     const q = quality ? await measurePage(sp.wide, g.paper.w * 2, g.paper.h, artArea(g, true), g.opts.lineThicknessProfile) : null;
-    return { kind, seed, svg: sp.wide, left: sp.left, right, url, quality: q, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure, hidden: hiddenIn(sp.wide) };
+    return { kind, seed, slot: pageIndex, svg: sp.wide, left: sp.left, right, url, quality: q, presetName: "zen_figure", tangles: tanglesInSvgs([sp.wide]), figure: sp.figure, hidden: hiddenIn(sp.wide) };
   }
   const d = createSvgDoc({ wMm: g.paper.w, hMm: g.paper.h, meta: { seed, generator: "patrones" } });
   const overrides = { ...printSafeOpts(g.opts), seed, ...(difficulty === null ? {} : { difficulty }) };
@@ -226,7 +237,7 @@ export async function makeBookPage(g, seed, pageIndex, bookSeed, plan, { thumb =
   const svg = appendToSvg(bare, pageFooter);
   const url = thumb ? await thumbUrl(svg, g.paper.w, g.paper.h) : null;
   const q = quality ? await measurePage(bare, g.paper.w, g.paper.h, artArea(g), g.opts.lineThicknessProfile, g.marginMm) : null;
-  return { kind, seed, svg, url, quality: q, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null, hidden: hiddenIn(bare) };
+  return { kind, seed, slot: pageIndex, svg, url, quality: q, presetName: used.presetName, tangles: tanglesInSvgs([svg]), figure: (svg.match(/data-figure="([^"]+)"/) || [])[1] || null, hidden: hiddenIn(bare) };
 }
 
 export async function buildBookExtras(review) {
@@ -577,6 +588,7 @@ export function bookRecipe(review) {
       design: i + 1,
       kind: p.kind,
       seed: p.seed,
+      slot: slotOf(p, i),
       tries: p.tries || 0,
       ...(p.accepted && p.quality && !p.quality.ok ? { accepted: true } : {}),
       style: p.presetName,
@@ -687,6 +699,7 @@ export async function restoreBookFromRecipe(recipe) {
   if (ui.bookSpreads) ui.bookSpreads.checked = !!recipe.flags?.spreads;
   if (ui.bookTurn) ui.bookTurn.checked = !!recipe.flags?.turn;
   ui.seed.value = String(recipe.baseSeed);
+  syncListingTheme();
 
   applyPresetToUI(recipe.style, { force: true });
   restoreOptsToUI(recipe.opts);
@@ -749,7 +762,7 @@ export async function restoreBookFromRecipe(recipe) {
         return;
       }
       const rp = recipe.pages[i];
-      const page = await makeBookPage(g, rp.seed, i, baseSeed, review);
+      const page = await makeBookPage(g, rp.seed, slotOf(rp, i), baseSeed, review);
       page.tries = rp.tries || 0;
       page.accepted = !!rp.accepted;
       keepOrDropSvg(review, page);
@@ -794,7 +807,8 @@ export function bookTile(i) {
   const label = document.createElement("span");
   label.className = "gallery-label";
   const style = isRandomKey(bookReview.g.zPresetKey) ? ` · ${styleLabel(page.presetName)}` : "";
-  const lv = bookReview.flags?.progressive ? ` · nivel ${levelInfo(difficultyAt(i, bookReview.n)).level}` : "";
+  // Nivel impreso en el pie: el de la posición con la que se generó.
+  const lv = bookReview.flags?.progressive ? ` · nivel ${levelInfo(difficultyAt(slotOf(page, i), bookReview.n)).level}` : "";
   label.textContent = `${i + 1}${page.kind === "spread" ? " · doble página" : ""}${page.tries ? ` · cambio ${page.tries}` : ""}${style}${lv}`;
   const btns = document.createElement("div");
   btns.className = "tile-btns";
@@ -866,7 +880,7 @@ export async function replaceBookPage(i, tile) {
     }
     page.tries = tries;
     if (!page.history) page.history = [];
-    page.history.push({ seed: old.seed, tries: old.tries || 0, presetName: old.presetName, figure: old.figure, quality: old.quality });
+    page.history.push({ seed: old.seed, slot: slotOf(old, i), tries: old.tries || 0, presetName: old.presetName, figure: old.figure, quality: old.quality });
     if (page.history.length > 5) page.history.shift();
     keepOrDropSvg(review, page, svgSize(old));
     review.pages[i] = page;
@@ -900,7 +914,7 @@ export async function undoBookPage(i, tile) {
   if (tile) tile.classList.add("busy");
   try {
     const prev = page.history.pop();
-    const restored = await makeBookPage(review.g, prev.seed, i, review.baseSeed, review);
+    const restored = await regenBookPage(review, i, prev);
     if (appState.bookReview !== review) {
       URL.revokeObjectURL(restored.url);
       return;
@@ -947,7 +961,8 @@ export function applyShowcaseOrder(review) {
   if (!review?.pages?.length) return;
   if (!$("showcaseMode")?.checked) return;
   const progressive = !!$("bookProgressive")?.checked;
-  const order = showcaseOrder(review.pages.map((page) => ({ score: pageShowcaseScore(page), pinned: !!page.pinned })), { count: 4, windowFraction: progressive ? 1 / 3 : 1 });
+  // Las dobles páginas no se mueven: la secuencia del PDF las espera en su sitio.
+  const order = showcaseOrder(review.pages.map((page) => ({ score: pageShowcaseScore(page), pinned: !!page.pinned || page.kind === "spread" })), { count: 4, windowFraction: progressive ? 1 / 3 : 1 });
   review.pages = order.map((i) => review.pages[i]);
 }
 
@@ -1012,7 +1027,7 @@ export async function prepareBook() {
       }
       const pinned = oldPinned.find((p) => p._origIndex === i);
       if (pinned) {
-        const restored = await makeBookPage(g, pinned.seed, i, baseSeed, review);
+        const restored = await makeBookPage(g, pinned.seed, slotOf(pinned, i), baseSeed, review);
         restored.tries = pinned.tries;
         restored.history = pinned.history;
         restored.pinned = true;
@@ -1265,6 +1280,7 @@ export async function restoreAutosavedBook(saved) {
   if (ui.bookSpreads) ui.bookSpreads.checked = !!saved.flags?.spreads;
   if (ui.bookTurn) ui.bookTurn.checked = !!saved.flags?.turn;
   ui.seed.value = String(saved.baseSeed);
+  syncListingTheme();
   applyPresetToUI(saved.g.zPresetKey, { force: true });
   restoreOptsToUI(saved.g.opts);
   appState.stylePicker?.sync();
@@ -1300,7 +1316,7 @@ export async function restoreAutosavedBook(saved) {
         return;
       }
       const sp = saved.pages[i];
-      const page = await makeBookPage(g, sp.seed, i, saved.baseSeed, review);
+      const page = await makeBookPage(g, sp.seed, slotOf(sp, i), saved.baseSeed, review);
       page.tries = sp.tries || 0;
       page.history = sp.history || [];
       page.pinned = !!sp.pinned;

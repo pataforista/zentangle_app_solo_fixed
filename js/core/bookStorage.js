@@ -64,9 +64,10 @@ export async function saveCurrentBook(review) {
       turnPages: review.turnPages,
       baseSeed: review.baseSeed,
       total: review.total,
-      pages: review.pages.map((p) => ({
+      pages: review.pages.map((p, i) => ({
         kind: p.kind,
         seed: p.seed,
+        slot: Number.isInteger(p.slot) ? p.slot : i,
         tries: p.tries || 0,
         presetName: p.presetName,
         figure: p.figure || null,

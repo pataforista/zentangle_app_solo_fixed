@@ -11,8 +11,19 @@ import { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey } from "../generators/ran
 export { RANDOM_COLOR_KEY, BESTSELLER_KEY, isRandomKey } from "../generators/randomStyle.js";
 import { designUnits, planSequence, kdpInsideMarginMm } from "../core/bookPlan.js";
 import { TANGLE_INFO } from "../generators/bookExtras.js";
+import { STYLE_THEME } from "../core/bookRecipes.js";
 
 export const $ = (id) => document.getElementById(id);
+
+// El tema de la ficha bilingüe sigue al estilo del libro: el <select> siempre
+// tiene valor («adult» por defecto), así que sin esto un libro de dinosaurios
+// o infantil salía con la ficha de adultos (también en «Descargar todo»).
+// Elegir otro tema a mano se respeta hasta el siguiente cambio de estilo.
+export function syncListingTheme() {
+  const sel = $("listingTheme"), style = $("zPreset")?.value;
+  const theme = STYLE_THEME[style] || "adult";
+  if (sel && [...sel.options].some((o) => o.value === theme)) sel.value = theme;
+}
 
 export const DEFAULT_STATE = {
   preset: "LETTER",

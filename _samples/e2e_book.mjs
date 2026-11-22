@@ -1,6 +1,7 @@
 // Prueba de punta a punta en el navegador (Chromium): prepara un libro con
 // todas las opciones, descarga el PDF y la ficha de KDP y los verifica.
-// Uso: npm run e2e   (DESIGNS=40 BLANK=0 npm run e2e para otras variantes)
+// Uso: npm run e2e   (DESIGNS=40 BLANK=0 npm run e2e para otras variantes;
+// SVG_MB=0.001 fuerza el camino de libros grandes, sin SVG en memoria)
 // Requiere las dependencias de desarrollo playwright y jspdf (npm install).
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -54,6 +55,8 @@ try {
   await page.route("**/d3-delaunay*", (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
   // Umbral de calidad bajo: fuerza páginas marcadas para probar «Arreglar».
   await page.addInitScript(() => { window.ZT_QUALITY_BAD_DM2 = 2; });
+  // SVG_MB=0.001 npm run e2e: camino de libros grandes (el PDF regenera cada página).
+  if (process.env.SVG_MB) await page.addInitScript((mb) => { window.ZT_SVG_BUDGET_MB = mb; }, Number(process.env.SVG_MB));
   await page.goto(`${base}/index.html`);
   await page.waitForFunction(() => window.jspdf, null, { timeout: 30000 });
   // Tipo de libro de un clic: Dinosaurios (estilo, nº de diseños y opciones).
@@ -88,6 +91,28 @@ try {
   if (badges.length !== tiles.filter((t) => /^\d/.test(t)).length) fail(`faltan veredictos de calidad (${badges.length}).`);
   const flagged0 = badges.filter((b) => /revisar/.test(b)).length;
   if (process.env.SHOTS) await page.screenshot({ path: join(process.env.SHOTS, "review.png") });
+
+  // Regenerar una página revisada (PDF de libros grandes, visor, receta) debe
+  // dar la misma página aunque el modo escaparate la haya movido: misma figura
+  // y mismo nivel impreso, y la etiqueta dice el nivel que lleva impreso.
+  const regen = await page.evaluate(async () => {
+    const { appState } = await import("./js/ui/state.js");
+    const { regenBookPage, slotOf } = await import("./js/ui/review.js");
+    const r = appState.bookReview, out = { bad: [], moved: 0 };
+    const lvl = (p) => ((p.right || p.svg || "").match(/Nivel (\d) de 5/) || [])[1];
+    for (let i = 0; i < r.pages.length; i++) {
+      const p = r.pages[i];
+      if (slotOf(p, i) !== i) out.moved++;
+      const q = await regenBookPage(r, i, p, { thumb: false, quality: false });
+      const label = document.querySelector(`.book-tile[data-index="${i}"] .gallery-label`)?.textContent || "";
+      // Sin SVG en memoria (libros grandes) el nivel impreso es el del pie regenerado.
+      const printed = p.svg || p.right ? lvl(p) : lvl(q);
+      if (q.figure !== p.figure || lvl(q) !== printed || (printed && !label.includes(`nivel ${printed}`))) out.bad.push(`${i + 1}: ${p.figure}/${printed} → ${q.figure}/${lvl(q)} «${label}»`);
+    }
+    return out;
+  });
+  if (regen.bad.length) fail(`regenerar páginas revisadas da otras páginas (${regen.bad.join(" · ")}).`);
+  if (!regen.moved) console.log("  (aviso: el modo escaparate no movió ninguna página en este libro)");
 
   // Visor a tamaño real con las zonas difíciles en rojo.
   await page.click(".book-tile:not(.extra) img");
@@ -189,6 +214,8 @@ try {
     if (!names.some((n) => /^ficha_kdp/.test(n)) || !names.some((n) => /^ficha_bilingue/.test(n)) || !names.some((n) => /^receta_libro/.test(n))) fail(`faltan fichas o receta en el ZIP: ${names.join(", ")}.`);
     const bil = entries[names.find((n) => /^ficha_bilingue/.test(n))].toString("utf8");
     if (!/TABLA DE REGAL/.test(bil) || !/contenido generado con IA/.test(bil)) fail("la ficha bilingüe del ZIP está incompleta.");
+    // El tema sigue al tipo de libro: antes el <select> se quedaba en «adult».
+    if (!/Dinosaur Coloring Book/.test(bil)) fail("la ficha bilingüe del ZIP no usa el tema del libro (dinosaurios).");
   }
 
   if (errors.length) fail(`errores en la página: ${errors.join(" | ")}`);

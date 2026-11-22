@@ -4,7 +4,7 @@
 
 import { appState, rasterizeSvg, QPX, styleLabel, isRandomKey } from "./state.js";
 import { analyzeColorability } from "../core/pageQuality.js";
-import { stripFooter, replaceBookPage, makeBookPage, acceptBookPage, isFlagged } from "./review.js";
+import { stripFooter, replaceBookPage, regenBookPage, acceptBookPage, isFlagged } from "./review.js";
 
 let viewer = null;
 
@@ -135,7 +135,7 @@ export async function showViewerPage() {
   layoutViewer();
   viewer.canvas.width = viewer.canvas.height = 0;
   viewer.note.textContent = "Cargando…";
-  const svg = page.svg || (await makeBookPage(review.g, page.seed, i, review.baseSeed, review, { thumb: false, quality: false })).svg;
+  const svg = page.svg || (await regenBookPage(review, i, page, { thumb: false, quality: false })).svg;
   if (!viewer || viewer.token !== token) return;
   if (viewer.url) URL.revokeObjectURL(viewer.url);
   viewer.url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
