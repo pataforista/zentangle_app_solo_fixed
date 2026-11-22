@@ -15,7 +15,7 @@ import { STYLE_THEME } from "../core/bookRecipes.js";
 import { generateFullListingText } from "../generators/bookListing.js";
 import { generateBookRecipe, downloadBatchFiles, downloadBatchZip, validateBatchConfig, calculateBatchStats } from "../core/batchGenerator.js";
 import { exportPageAsImage, getBestPagesForMockup, downloadImage, getCanvaInstructions, EXPORT_PRESETS, exportAplusPackageZip } from "../core/mockupExport.js";
-import { buildBookExtras, bookSequence, makeBookPage, reviewIsFresh, updateNextSteps, updateBookButton, updateQualitySummary, downloadBookRecipe, flaggedPages } from "./review.js";
+import { buildBookExtras, bookSequence, regenBookPage, reviewIsFresh, updateNextSteps, updateBookButton, updateQualitySummary, downloadBookRecipe, flaggedPages } from "./review.js";
 
 // Genera y descarga el PDF final del interior del libro.
 export async function createBook() {
@@ -46,7 +46,7 @@ export async function createBook() {
     let regen = null;
     const full = async (i) => {
       if (pages[i].svg) return pages[i];
-      if (regen?.i !== i) regen = { i, page: await makeBookPage(g, pages[i].seed, i, baseSeed, bookReview, { thumb: false, quality: false }) };
+      if (regen?.i !== i) regen = { i, page: await regenBookPage(bookReview, i, pages[i], { thumb: false, quality: false }) };
       return regen.page;
     };
     const svgOf = async (e) => ({
@@ -229,7 +229,7 @@ export async function downloadOpenBook() {
     let regen = null;
     const full = async (i) => {
       if (pages[i].svg) return pages[i];
-      if (regen?.i !== i) regen = { i, page: await makeBookPage(g, pages[i].seed, i, baseSeed, bookReview, { thumb: false, quality: false }) };
+      if (regen?.i !== i) regen = { i, page: await regenBookPage(bookReview, i, pages[i], { thumb: false, quality: false }) };
       return regen.page;
     };
     const svgOf = async (e) => ({

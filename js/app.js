@@ -48,7 +48,8 @@ import {
   withBusy,
   PAPER_SIZES_MM,
   PAPER_LABELS,
-  isRandomKey
+  isRandomKey,
+  syncListingTheme,
 } from "./ui/state.js";
 
 import { openViewer, closeViewer } from "./ui/viewer.js";
@@ -807,7 +808,9 @@ function bind() {
 
   ui.zPreset.addEventListener("change", () => {
     renderFigureSelector();
+    syncListingTheme();
   });
+  syncListingTheme();
 
   const savedFigs = saved.excludedFigures;
   if (Array.isArray(savedFigs)) appState.excludedFigures = new Set(savedFigs);
