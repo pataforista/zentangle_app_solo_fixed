@@ -33,6 +33,7 @@ import {
   syncListingTheme
 } from "./state.js";
 import { openViewer, closeViewer } from "./viewer.js";
+import { setMode } from "./mode.js";
 import { createBook, downloadAll, downloadListing, downloadCover, downloadOpenBook, exportMockupsZip } from "./bookExport.js";
 import { showcaseScore, showcaseOrder } from "../core/showcase.js";
 
@@ -381,7 +382,7 @@ export function showBookReview() {
   head.className = "book-review-head";
   const title = document.createElement("p");
   title.className = "book-review-title";
-  title.textContent = `Revisa tu libro: ${bookReview.n} diseños. Toca una página para verla a tamaño real; ↻ la cambia por otra al instante.`;
+  title.textContent = `Revisa tu libro: ${bookReview.n} diseños. Toca una página para verla a tamaño real; «↻ Cambiar» la sustituye por otra y «📌 Fijar» la protege si vuelves a preparar el libro.`;
   const qsum = document.createElement("p");
   qsum.id = "qSummary";
   qsum.className = "q-summary";
@@ -422,6 +423,8 @@ export function showBookReview() {
   addPubBtn("🎨 Portada PDF", "Descarga la portada KDP con el lomo exacto del libro", downloadCover);
   addPubBtn("📝 Ficha bilingüe", "Genera y muestra la ficha ES/EN con palabras clave y regalías", () => {
     const step = $("stepListing");
+    // En modo rápido la sección está oculta: mostrar todas las opciones.
+    setMode("custom");
     if (step) {
       step.open = true;
       step.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -840,8 +843,9 @@ export function bookTile(i) {
   const redo = document.createElement("button");
   redo.type = "button";
   redo.className = "btn btn-secondary tile-redo";
-  redo.textContent = "↻";
+  redo.textContent = "↻ Cambiar";
   redo.title = "Borrar este diseño y generar otro en su lugar";
+  redo.setAttribute("aria-label", `Cambiar el diseño ${i + 1} por otro`);
   redo.addEventListener("click", () => replaceBookPage(i, tile));
   btns.append(redo);
 
@@ -849,7 +853,8 @@ export function bookTile(i) {
     const undo = document.createElement("button");
     undo.type = "button";
     undo.className = "btn btn-secondary tile-undo";
-    undo.textContent = "←";
+    undo.textContent = "← Deshacer";
+    undo.setAttribute("aria-label", `Deshacer el cambio del diseño ${i + 1}`);
     undo.title = `Deshacer cambio (quedan ${page.history.length} versión${page.history.length > 1 ? "es" : ""})`;
     undo.addEventListener("click", () => undoBookPage(i, tile));
     btns.append(undo);
@@ -868,7 +873,8 @@ export function bookTile(i) {
   const pin = document.createElement("button");
   pin.type = "button";
   pin.className = `btn btn-secondary tile-pin${page.pinned ? " active" : ""}`;
-  pin.textContent = "📌";
+  pin.textContent = page.pinned ? "📌 Fijado" : "📌 Fijar";
+  pin.setAttribute("aria-pressed", String(!!page.pinned));
   pin.title = page.pinned ? "Desfijar (no sobrevivirá a «Preparar»)" : "Fijar (sobrevivirá a «Preparar»)";
   pin.addEventListener("click", () => togglePinPage(i));
   btns.append(pin);
