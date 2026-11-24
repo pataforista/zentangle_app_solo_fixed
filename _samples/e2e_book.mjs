@@ -62,6 +62,8 @@ try {
   // Tipo de libro de un clic: Dinosaurios (estilo, nº de diseños y opciones).
   // Cada clic es un libro nuevo con semilla nueva (antes todos salían con la 42).
   const seedNow = () => page.evaluate(() => document.getElementById("seed").value);
+  // Modo «Personalizar»: la prueba usa herramientas que el modo rápido oculta.
+  await page.click(".mode-switch [data-mode=custom]");
   await page.click(".recipe[data-id=dino]");
   const s1 = await seedNow();
   await page.click(".recipe[data-id=dino]");

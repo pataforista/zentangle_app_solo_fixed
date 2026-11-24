@@ -1,10 +1,17 @@
 // Navegación por pasos de la barra lateral: marca el paso visible y abre el
-// texto largo de ayuda al hacer clic.
+// texto largo de ayuda al hacer clic. También arranca el modo Rápido/Personalizar.
+import { initMode } from "./mode.js";
+
+initMode();
 const scroller = document.querySelector(".panel-scroll");
 const links = [...document.querySelectorAll(".steps a")];
-const sections = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+const allSections = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+
+// En modo rápido algunos pasos están ocultos: no cuentan para la navegación.
+const visible = (el) => el.getClientRects().length > 0;
 
 function markCurrent() {
+  const sections = allSections.filter(visible);
   if (!scroller || !sections.length) return;
   const own = scroller.scrollHeight > scroller.clientHeight + 4 && getComputedStyle(scroller).overflowY !== "visible";
   const top = (own ? scroller.getBoundingClientRect().top : 0) + 80;
@@ -26,5 +33,6 @@ for (const a of links) {
     target.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
+document.addEventListener("zt:mode", markCurrent);
 document.getElementById("randomHint")?.addEventListener("click", (e) => e.currentTarget.classList.toggle("open"));
 markCurrent();
