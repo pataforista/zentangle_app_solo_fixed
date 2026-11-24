@@ -33,7 +33,7 @@ import {
   syncListingTheme
 } from "./state.js";
 import { openViewer, closeViewer } from "./viewer.js";
-import { createBook, downloadAll, downloadListing } from "./bookExport.js";
+import { createBook, downloadAll, downloadListing, downloadCover, downloadOpenBook, exportMockupsZip } from "./bookExport.js";
 import { showcaseScore, showcaseOrder } from "../core/showcase.js";
 
 import { createSvgDoc } from "../core/svgDoc.js";
@@ -399,12 +399,37 @@ export function showBookReview() {
   dl.type = "button";
   dl.className = "btn btn-primary";
   dl.id = "btnDownloadAll";
-  dl.textContent = "📦 Descargar todo";
-  dl.title = "PDF del interior + ficha de KDP + receta del libro (el navegador puede pedir permiso para varias descargas)";
+  dl.textContent = "📦 Descargar todo (.zip)";
+  dl.title = "Un solo ZIP con: interior PDF, portada PDF, ficha KDP, ficha bilingüe y receta reproducible";
   dl.addEventListener("click", downloadAll);
   const actions = document.createElement("div");
   actions.className = "book-review-actions";
   actions.append(fix, dl);
+
+  const pubBar = document.createElement("div");
+  pubBar.className = "publish-bar";
+  const addPubBtn = (label, titleAttr, fn) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn btn-secondary";
+    b.textContent = label;
+    b.title = titleAttr;
+    b.addEventListener("click", fn);
+    pubBar.append(b);
+  };
+  addPubBtn("🖼️ Mockups 3D y A+", "Descarga mockup 3D de libro abierto + 3 módulos A+ para Amazon", exportMockupsZip);
+  addPubBtn("📖 Libro abierto", "Genera un PDF con vista de pliegos dobles enfrentados", downloadOpenBook);
+  addPubBtn("🎨 Portada PDF", "Descarga la portada KDP con el lomo exacto del libro", downloadCover);
+  addPubBtn("📝 Ficha bilingüe", "Genera y muestra la ficha ES/EN con palabras clave y regalías", () => {
+    const step = $("stepListing");
+    if (step) {
+      step.open = true;
+      step.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    $("btnBilingualListing")?.click();
+  });
+  titleBox.append(pubBar);
+
   head.append(titleBox, actions);
 
   const grid = document.createElement("div");

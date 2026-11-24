@@ -400,19 +400,21 @@ export function bindSalesListeners() {
     }
   });
 
-  $("btnExportMockups")?.addEventListener("click", async () => {
-    if (!appState.bookReview) {
-      ui.status.textContent = "⚠ Primero prepara un libro para exportar sus páginas";
-      return;
-    }
+  $("btnExportMockups")?.addEventListener("click", exportMockupsZip);
+}
 
-    try {
-      ui.status.textContent = "Empaquetando mockups 3D y módulos A+...";
-      await exportAplusPackageZip(appState.bookReview, "mockups_y_aplus.zip");
-      ui.status.textContent = "✓ Mockup 3D de libro abierto y 3 módulos A+ descargados en mockups_y_aplus.zip";
-    } catch (err) {
-      ui.status.textContent = `✗ Error exportando mockups: ${err.message}`;
-      console.error("Error exportando mockups:", err);
-    }
-  });
+// Exporta el mockup 3D de libro abierto y los 3 módulos A+ en un único ZIP.
+export async function exportMockupsZip() {
+  if (!appState.bookReview) {
+    ui.status.textContent = "⚠ Primero prepara un libro para exportar sus mockups y A+";
+    return;
+  }
+  try {
+    ui.status.textContent = "Empaquetando mockups 3D y módulos A+...";
+    await exportAplusPackageZip(appState.bookReview, "mockups_y_aplus.zip");
+    ui.status.textContent = "✓ Mockup 3D de libro abierto y 3 módulos A+ descargados en mockups_y_aplus.zip";
+  } catch (err) {
+    ui.status.textContent = `✗ Error exportando mockups: ${err.message}`;
+    console.error("Error exportando mockups:", err);
+  }
 }
